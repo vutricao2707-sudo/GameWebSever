@@ -9,8 +9,14 @@ public class User {
         this.name = name;
     }
 
+    public void setId(String id) {
+        this.id = id;
+    }
+
     @Override
     public String toString() {
         return super.toString();
     }
+
+
 }
