@@ -9,9 +9,6 @@ public class User {
         this.name = name;
     }
 
-    public void setId(String id) {
-        this.id = id;
-    }
 
 
     @Override
