@@ -45,7 +45,6 @@ public class Vehicle extends Item {
         this.condition = condition;
     }
 
-    // Ghi đè hàm toString để lúc in ra nhìn cho "Pro"
     @Override
     public String toString() {
         return "Xe: VinFast " + model + " (" + color + ") | Pin: " + batteryCapacity + " kWh | Tình trạng: " + condition;
