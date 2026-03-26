@@ -44,4 +44,8 @@ public abstract class User {
     public void setEmail(String email) {
         this.email = email;
     }
+    @Override
+    public String toString() {
+        return "ID: " + this.id + " | Tên: " + this.username + " | Email: " + this.email;
+    }
 }
