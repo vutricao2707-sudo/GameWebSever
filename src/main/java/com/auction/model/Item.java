@@ -44,4 +44,6 @@ public abstract class Item {
     public void setStartingPrice(double startingPrice) {
         this.startingPrice = startingPrice;
     }
+
+
 }

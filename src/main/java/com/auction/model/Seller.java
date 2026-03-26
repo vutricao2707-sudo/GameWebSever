@@ -15,4 +15,9 @@ public class Seller extends User {
     public void setRating(double rating) {
         this.rating = rating;
     }
+
+    @Override
+    public String toString() {
+        return super.toString() + " | Rating: " + this.rating;
+    }
 }
