@@ -1,28 +1,76 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.example</groupId>
-    <artifactId>OnlineAuctionSystem</artifactId>
-    <version>1.0-SNAPSHOT</version>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-    <properties>
-        <maven.compiler.source>25</maven.compiler.source>
-        <maven.compiler.target>25</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-    <dependencies>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>17.0.6</version>
-        </dependency>
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-fxml</artifactId>
-            <version>17.0.6</version>
-        </dependency>
-    </dependencies>
-</project>
+<StackPane prefHeight="700.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.LoginController">
+    <children>
+        <ImageView fitHeight="1500.0" fitWidth="2000.0" pickOnBounds="true" preserveRatio="true">
+            <image>
+                <Image url="@../image/background1.png" />
+            </image>
+        </ImageView>
+
+        <VBox alignment="CENTER" fillWidth="false">
+            <children>
+                <VBox alignment="CENTER" spacing="10.0" style="-fx-background-color: rgba(0, 0, 0, 0.7); -fx-background-radius: 30; -fx-padding: 40 80 40 80;">
+                    <children>
+                        <Label text="HỆ THỐNG ĐẤU GIÁ" textFill="WHITE">
+                            <font>
+                                <Font name="System Bold" size="75.0" />
+                            </font>
+                        </Label>
+
+                        <HBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="3.0" prefWidth="450.0" style="-fx-background-color: white;" />
+
+                        <Label text="Được Thực Hiện Bởi Tập Đoàn VinGroup" textFill="WHITE">
+                            <font>
+                                <Font name="System Bold Italic" size="22.0" />
+                            </font>
+                        </Label>
+                    </children>
+                    <VBox.margin>
+                        <Insets bottom="50.0" />
+                    </VBox.margin>
+                </VBox>
+
+                <VBox alignment="TOP_CENTER" maxWidth="420.0" prefWidth="420.0" spacing="20.0" style="-fx-background-color: white; -fx-background-radius: 20; -fx-padding: 40; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 15, 0, 5, 5);">
+                    <children>
+                        <Label text="ĐĂNG NHẬP" textFill="#1d3557">
+                            <font>
+                                <Font name="System Bold" size="28.0" />
+                            </font>
+                        </Label>
+                        <TextField fx:id="txtUsername" prefHeight="50.0" promptText="Tên đăng nhập / Email" style="-fx-background-radius: 10; -fx-background-color: #f5f5f5;" />
+                        <PasswordField fx:id="txtPassword" prefHeight="50.0" promptText="Mật khẩu" style="-fx-background-radius: 10; -fx-background-color: #f5f5f5;" />
+                        <Button fx:id="btnLogin" onAction="#handleLogin" prefHeight="50.0" prefWidth="340.0" style="-fx-background-color: #1a56db; -fx-background-radius: 10; -fx-cursor: hand;" text="XÁC NHẬN ĐĂNG NHẬP" textFill="WHITE">
+                            <font>
+                                <Font name="System Bold" size="16.0" />
+                            </font>
+                        </Button>
+                    </children>
+                </VBox>
+
+                <HBox alignment="CENTER" spacing="20.0">
+                    <children>
+                        <Label style="-fx-cursor: hand;" text="Hỗ Trợ Trực Tuyến" textFill="WHITE" underline="true" />
+                        <Label text="|" textFill="WHITE" />
+                        <Label style="-fx-cursor: hand;" text="Hướng Dẫn Tham Gia" textFill="WHITE" underline="true" />
+                    </children>
+                    <VBox.margin>
+                        <Insets top="20.0" />
+                    </VBox.margin>
+                </HBox>
+            </children>
+        </VBox>
+    </children>
+</StackPane>

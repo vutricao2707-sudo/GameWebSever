@@ -1,27 +1,105 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.PasswordField?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
-<VBox alignment="CENTER" spacing="15.0" style="-fx-padding: 30;" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" prefHeight="400.0" prefWidth="350.0">
-    <Label text="HỆ THỐNG ĐẤU GIÁ" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
-    <Label text="Đăng nhập để tiếp tục" style="-fx-font-size: 14px; -fx-text-fill: #7f8c8d;"/>
+<StackPane prefHeight="750.0" prefWidth="1050.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.LoginController">
+    <children>
+        <ImageView fitHeight="1500.0" fitWidth="2000.0" pickOnBounds="true" preserveRatio="true">
+            <image>
+                <Image url="@../image/background1.png" />
+            </image>
+        </ImageView>
 
-    <VBox spacing="5.0" style="-fx-padding: 10 0 0 0;">
-        <Label text="Tên đăng nhập:"/>
-        <TextField fx:id="txtUsername" promptText="Nhập username của bạn..." style="-fx-pref-height: 35px;"/>
-    </VBox>
+        <VBox alignment="CENTER" fillWidth="false">
+            <children>
+                <VBox alignment="CENTER" spacing="5.0" style="-fx-background-color: rgba(255, 255, 255, 0.7); -fx-background-radius: 30; -fx-padding: 30 60 30 60;">
+                    <children>
+                            <Label text="HỆ THỐNG ĐẤU GIÁ" textFill="#333333">
+                                <font>
+                                    <Font name="System Bold" size="64.0" />
+                                </font>
+                            </Label>
+                        <HBox alignment="CENTER" spacing="20.0">
+                            <children>
+                                <ImageView fitHeight="80.0" pickOnBounds="true" preserveRatio="true">
+                                    <image>
+                                        <Image url="@../image/logo1.png" />
+                                    </image>
+                                </ImageView>
 
-    <VBox spacing="5.0">
-        <Label text="Mật khẩu:"/>
-        <PasswordField fx:id="txtPassword" promptText="Nhập mật khẩu..." style="-fx-pref-height: 35px;"/>
-    </VBox>
+                                <VBox alignment="CENTER_LEFT" spacing="0.0">
+                                    <children>
 
-    <VBox spacing="10.0" style="-fx-padding: 15 0 0 0;" alignment="CENTER">
-        <Button fx:id="btnLogin" text="ĐĂNG NHẬP" prefWidth="200.0" style="-fx-pref-height: 40px; -fx-background-color: #2980b9; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;"/>
-        <Button fx:id="btnRegister" text="Chưa có tài khoản? Đăng ký ngay" style="-fx-background-color: transparent; -fx-text-fill: #2980b9; -fx-cursor: hand; -fx-underline: true;"/>
-    </VBox>
-</VBox>
+                                        <HBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="2.0" prefWidth="400.0" style="-fx-background-color: white;">
+                                            <VBox.margin>
+                                                <Insets bottom="5.0" top="5.0" />
+                                            </VBox.margin>
+                                        </HBox>
+
+                                        <Label text="Được Thực Hiện Bởi Tập Đoàn VinGroup" textFill="#333333">
+                                            <font>
+                                                <Font name="System Bold Italic" size="20.0" />
+                                            </font>
+                                        </Label>
+                                    </children>
+                                </VBox>
+                            </children>
+                        </HBox>
+                    </children>
+                    <VBox.margin>
+                        <Insets bottom="40.0" />
+                    </VBox.margin>
+                </VBox>
+
+                <VBox alignment="TOP_CENTER" maxWidth="420.0" prefWidth="420.0" spacing="15.0" style="-fx-background-color: white; -fx-background-radius: 20; -fx-padding: 35; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 15, 0, 5, 5);">
+                    <children>
+                        <Label text="ĐĂNG NHẬP" textFill="#333333">
+                            <font>
+                                <Font name="System Bold" size="28.0" />
+                            </font>
+                        </Label>
+                        <TextField fx:id="txtUsername" prefHeight="50.0" promptText="Tên đăng nhập / Email" style="-fx-background-radius: 10; -fx-background-color: #f5f5f5;" />
+                        <PasswordField fx:id="txtPassword" prefHeight="50.0" promptText="Mật khẩu" style="-fx-background-radius: 10; -fx-background-color: #f5f5f5;" />
+
+                        <Button fx:id="btnLogin" onAction="#handleLogin" prefHeight="50.0" prefWidth="350.0" style="-fx-background-color: #1a56db; -fx-background-radius: 10; -fx-cursor: hand;" text="XÁC NHẬN ĐĂNG NHẬP" textFill="WHITE">
+                            <font>
+                                <Font name="System Bold" size="16.0" />
+                            </font>
+                        </Button>
+
+                        <Button mnemonicParsing="false" style="-fx-background-color: transparent; -fx-cursor: hand;" text="Chưa có tài khoản? Đăng ký ngay" textFill="#1a56db" underline="true" />
+                    </children>
+                </VBox>
+
+                <HBox alignment="CENTER" spacing="20.0">
+                    <children>
+                        <Label style="-fx-cursor: hand;" text="Hỗ Trợ Trực Tuyến" textFill="WHITE" underline="true">
+                            <font>
+                                <Font size="14.0" />
+                            </font>
+                        </Label>
+                        <Label text="|" textFill="WHITE" />
+                        <Label style="-fx-cursor: hand;" text="Hướng Dẫn Tham Gia" textFill="WHITE" underline="true">
+                            <font>
+                                <Font size="14.0" />
+                            </font>
+                        </Label>
+                    </children>
+                    <VBox.margin>
+                        <Insets top="25.0" />
+                    </VBox.margin>
+                </HBox>
+            </children>
+        </VBox>
+    </children>
+</StackPane>
