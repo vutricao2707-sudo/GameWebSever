@@ -7,7 +7,7 @@ public class Vehicle extends Item {
     private int conditionPercentage;
 
     public Vehicle(String itemId, String name, String description, double startingPrice,
-                   String model, String color, double batteryCapacity, int rangePerCharge, int conditionPercentage) {
+                   String model, String color, double batteryCapacity, int conditionPercentage) {
 
         super(itemId, name, description, startingPrice);
         this.model = model;

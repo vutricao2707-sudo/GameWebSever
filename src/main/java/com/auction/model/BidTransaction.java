@@ -2,10 +2,17 @@ package com.auction.model;
 
 import java.time.LocalDateTime;
 
-public class Bid {
+public class BidTransaction {
     private Bidder bidder;
     private double amount;
     private LocalDateTime timestamp;
+
+    public BidTransaction(Bidder bidder, double amount) {
+        this.bidder = bidder;
+        this.amount = amount;
+        this.timestamp = LocalDateTime.now();
+
+    }
 
     public Bidder getBidder() {
         return bidder;
@@ -31,12 +38,7 @@ public class Bid {
         this.timestamp = timestamp;
     }
 
-    public Bid(Bidder bidder, double amount) {
-        this.bidder = bidder;
-        this.amount = amount;
-        this.timestamp = LocalDateTime.now();
 
-    }
     @Override
     public String toString() {
         return bidder.getUsername() + " đặt giá: $" + amount + " lúc " + timestamp;

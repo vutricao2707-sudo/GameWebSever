@@ -7,11 +7,11 @@ public abstract class User {
     private String email;
     private String phoneNumber;
 
-    public User(String id, String username, String password, String email, String phoneNumber) {
+    public User(String id, String username, String email, String password, String phoneNumber) {
         this.id = id;
         this.username = username;
-        this.password = password;
         this.email = email;
+        this.password = password;
         this.phoneNumber = phoneNumber;
     }
 
