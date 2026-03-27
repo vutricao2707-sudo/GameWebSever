@@ -20,7 +20,7 @@ public class LoginController {
         if (user.equals("admin") && pass.equals("123")) {
             showAlert("Thông báo", "Đăng nhập thành công! Chào " + user);
         } else {
-            showAlert("Lỗi", "Sai tài khoản hoặc mật khẩu rồi Cao ơi!");
+            showAlert("Lỗi", "Sai tài khoản hoặc mật khẩu!");
         }
     }
 
