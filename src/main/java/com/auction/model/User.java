@@ -5,12 +5,14 @@ public abstract class User {
     private String username;
     private String password;
     private String email;
+    private String phoneNumber;
 
-    public User(String id, String username, String password, String email) {
+    public User(String id, String username, String email, String password, String phoneNumber) {
         this.id = id;
         this.username = username;
-        this.password = password;
         this.email = email;
+        this.password = password;
+        this.phoneNumber = phoneNumber;
     }
 
     public String getId() {
@@ -44,8 +46,17 @@ public abstract class User {
     public void setEmail(String email) {
         this.email = email;
     }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
+
     @Override
     public String toString() {
-        return "ID: " + this.id + " | Tên: " + this.username + " | Email: " + this.email;
+        return "ID: " + this.id + " | Tên: " + this.username + " | Email: " + this.email + " | SĐT: " + this.phoneNumber;
     }
 }

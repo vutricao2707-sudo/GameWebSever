@@ -7,9 +7,16 @@ public class Auction {
     String auctionId;
     private Item item;
     private Seller seller;
-    private List<Bid> bids;
+    private List<BidTransaction> bidTransactions;
     private boolean isOpen;
 
+    public Auction(String auctionId, Item item, Seller seller) {
+        this.auctionId = auctionId;
+        this.item = item;
+        this.seller = seller;
+        this.bidTransactions = new ArrayList<>();
+        this.isOpen = true;
+    }
 
     public String getAuctionId() {
         return auctionId;
@@ -35,12 +42,12 @@ public class Auction {
         this.seller = seller;
     }
 
-    public List<Bid> getBids() {
-        return bids;
+    public List<BidTransaction> getBids() {
+        return bidTransactions;
     }
 
-    public void setBids(List<Bid> bids) {
-        this.bids = bids;
+    public void setBids(List<BidTransaction> bidTransactions) {
+        this.bidTransactions = bidTransactions;
     }
 
     public boolean isOpen() {
@@ -51,11 +58,5 @@ public class Auction {
         isOpen = open;
     }
 
-    public Auction(String auctionId, Item item, Seller seller) {
-        this.auctionId = auctionId;
-        this.item = item;
-        this.seller = seller;
-        this.bids = new ArrayList<>();
-        this.isOpen = true;
-    }
+
 }

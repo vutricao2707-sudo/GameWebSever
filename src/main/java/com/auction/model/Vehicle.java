@@ -4,16 +4,16 @@ public class Vehicle extends Item {
     private String model;
     private String color;
     private double batteryCapacity;
-    private String condition;
+    private int conditionPercentage;
 
     public Vehicle(String itemId, String name, String description, double startingPrice,
-                   String model, String color, double batteryCapacity, int rangePerCharge, String condition) {
+                   String model, String color, double batteryCapacity, int conditionPercentage) {
 
         super(itemId, name, description, startingPrice);
         this.model = model;
         this.color = color;
         this.batteryCapacity = batteryCapacity;
-        this.condition = condition;
+        this.conditionPercentage = conditionPercentage;
     }
 
     public String getModel() {
@@ -37,16 +37,15 @@ public class Vehicle extends Item {
     }
 
 
-
-    public String getCondition() {
-        return condition;
+    public int getConditionPercentage() {
+        return conditionPercentage;
     }
-    public void setCondition(String condition) {
-        this.condition = condition;
+
+    public void setConditionPercentage(int conditionPercentage) {
+        this.conditionPercentage = conditionPercentage;
     }
 
     @Override
     public String toString() {
-        return "Xe: VinFast " + model + " (" + color + ") | Pin: " + batteryCapacity + " kWh | Tình trạng: " + condition;
-    }
+        return "VinFast " + model + " (" + color + ") | Pin: " + batteryCapacity + " kWh | Độ mới: " + conditionPercentage + "%";    }
 }
