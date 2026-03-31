@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<StackPane prefHeight="800.0" prefWidth="1100.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.AuctionResultsController">
+    <children>
+        <ImageView fitHeight="1500.0" fitWidth="2000.0" pickOnBounds="true" preserveRatio="true">
+            <image><Image url="@../image/background4.png" /></image>
+        </ImageView>
+        <VBox style="-fx-background-color: rgba(0, 0, 0, 0.8);" />
+
+        <VBox alignment="TOP_CENTER">
+            <children>
+                <HBox alignment="CENTER_LEFT" minHeight="70.0" prefHeight="70.0" spacing="20.0" style="-fx-background-color: rgba(0,0,0,0.5); -fx-padding: 0 40;">
+                    <children>
+                        <Button onAction="#handleBack" style="-fx-background-color: transparent; -fx-border-color: #00b894; -fx-border-radius: 20;" text="Quay lại" textFill="#00b894"><font><Font name="System Bold" size="13.0" /></font></Button>
+                        <Label text="KẾT QUẢ ĐẤU GIÁ" textFill="WHITE"><font><Font name="System Bold" size="24.0" /></font></Label>
+                    </children>
+                </HBox>
+
+                <VBox maxWidth="900.0" spacing="20.0" style="-fx-padding: 40;" VBox.vgrow="ALWAYS">
+                    <children>
+                        <TableView style="-fx-background-color: transparent;" VBox.vgrow="ALWAYS">
+                            <columns>
+                                <TableColumn prefWidth="200" text="Ngày" />
+                                <TableColumn prefWidth="300" text="Biển số" />
+                                <TableColumn prefWidth="350" text="Giá trúng" />
+                            </columns>
+                        </TableView>
+                    </children>
+                </VBox>
+            </children>
+        </VBox>
+    </children>
+</StackPane>

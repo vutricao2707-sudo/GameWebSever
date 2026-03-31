@@ -28,7 +28,13 @@ public class LoginController {
         }
 
         if (user.equals("admin") && pass.equals("123")) {
-            showAlert("Thành công", "Đăng nhập thành công!");
+            // Đã bọc try-catch để xử lý lỗi đọc file FXML
+            try {
+                switchScene(event, "/fxml/Dashboard.fxml");
+            } catch (IOException e) {
+                e.printStackTrace();
+                showAlert("Lỗi hệ thống", "Không thể tải trang chủ (Dashboard)!");
+            }
         } else {
             showAlert("Lỗi", "Tài khoản hoặc mật khẩu không chính xác!");
         }
@@ -49,7 +55,7 @@ public class LoginController {
         switchScene(event, "/fxml/Guide.fxml");
     }
 
-    // Hàm dùng chung để chuyển trang - cực kỳ quan trọng
+    // Hàm dùng chung để chuyển trang
     private void switchScene(ActionEvent event, String fxmlPath) throws IOException {
         FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
         Parent root = loader.load();

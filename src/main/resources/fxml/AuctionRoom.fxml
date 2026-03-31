@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.MenuButton?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.Rectangle?>
+<?import javafx.scene.text.Font?>
+
+<StackPane prefHeight="850.0" prefWidth="1300.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.AuctionRoomController">
+    <children>
+        <ImageView fitHeight="1500.0" fitWidth="2000.0" pickOnBounds="true" preserveRatio="true">
+            <image>
+                <Image url="@../image/background3.png" />
+            </image>
+        </ImageView>
+        <VBox style="-fx-background-color: rgba(15, 23, 42, 0.9);" />
+
+        <BorderPane>
+            <top>
+                <HBox alignment="CENTER_LEFT" prefHeight="80.0" spacing="30.0" style="-fx-background-color: rgba(0, 0, 0, 0.5); -fx-padding: 0 40;">
+                    <children>
+                        <Button onAction="#handleBack" prefHeight="40.0" style="-fx-background-color: transparent; -fx-border-color: #00b894; -fx-border-radius: 20; -fx-text-fill: #00b894; -fx-cursor: hand;" text="Quay lại">
+                            <font><Font name="System Bold" size="14.0" /></font>
+                            <padding><Insets left="15.0" right="15.0" /></padding>
+                        </Button>
+
+                        <Label text="30K 999.99" textFill="WHITE">
+                            <font><Font name="System Bold" size="28.0" /></font>
+                        </Label>
+                        <Label text="🚗 Thành phố Hà Nội" textFill="#94a3b8" />
+
+                        <HBox alignment="CENTER_LEFT" spacing="25.0" HBox.hgrow="ALWAYS" />
+
+                        <MenuButton mnemonicParsing="false" style="-fx-background-color: transparent; -fx-text-fill: white; -fx-cursor: hand;" text="Tài khoản" textFill="WHITE">
+                            <items>
+                                <MenuItem mnemonicParsing="false" text="Thông tin tài khoản" />
+                                <MenuItem mnemonicParsing="false" text="Đổi mật khẩu" />
+                                <MenuItem mnemonicParsing="false" onAction="#handleLogout" text="Đăng xuất" />
+                            </items>
+                            <font><Font size="14.0" /></font>
+                        </MenuButton>
+                    </children>
+                </HBox>
+            </top>
+
+            <center>
+                <VBox spacing="20.0" style="-fx-padding: 30;">
+                    <children>
+                        <HBox alignment="CENTER_LEFT" spacing="20.0">
+                            <children>
+                                <Label text="Sản phẩm đang được đấu giá bởi: [Tên Đơn vị]" textFill="WHITE"><font><Font size="14.0" /></font></Label>
+                                <HBox alignment="CENTER" spacing="10.0" style="-fx-background-color: rgba(255, 255, 255, 0.05); -fx-background-radius: 20; -fx-padding: 10 20;">
+                                    <children>
+                                        <Label text="Thời gian đếm ngược còn lại:" textFill="#bbbbbb" />
+                                        <Label text="18 : 20 : 06" textFill="#00b894"><font><Font name="System Bold" size="18.0" /></font></Label>
+                                    </children>
+                                </HBox>
+                                <Label text="👥 Số người đang xem:" textFill="WHITE"><font><Font size="14.0" /></font></Label>
+                                <Label fx:id="lblNumberViewers" text="150" textFill="#00b894"><font><Font name="System Bold" size="14.0" /></font></Label>
+                            </children>
+                        </HBox>
+
+                        <HBox spacing="30.0" VBox.vgrow="ALWAYS">
+                            <children>
+                                <VBox prefWidth="500.0" spacing="15.0" style="-fx-background-color: rgba(255, 255, 255, 0.03); -fx-background-radius: 15; -fx-padding: 25;">
+                                    <children>
+                                        <Label text="THÔNG TIN ĐẤU GIÁ" textFill="WHITE"><font><Font name="System Bold" size="18.0" /></font></Label>
+                                        <VBox spacing="10.0">
+                                            <children>
+                                                <HBox justifyContent="SPACE_BETWEEN"><Label text="Cấp đơn vị:" textFill="#bbbbbb" /><Label text="Quận" textFill="WHITE" /></HBox>
+                                                <HBox justifyContent="SPACE_BETWEEN"><Label text="Thời gian đăng ký:" textFill="#bbbbbb" /><Label text="3 ngày 10 giờ" textFill="WHITE" /></HBox>
+                                                <HBox justifyContent="SPACE_BETWEEN"><Label text="Số người tham gia:" textFill="#bbbbbb" /><Label text="12" textFill="WHITE" /></HBox>
+                                                <HBox justifyContent="SPACE_BETWEEN"><Label text="Giá khởi điểm:" textFill="#bbbbbb" /><Label text="5.000.000.000 VNĐ" textFill="#00b894"><font><Font name="System Bold" size="14.0" /></font></Label></HBox>
+                                                <HBox justifyContent="SPACE_BETWEEN"><Label text="Bước giá:" textFill="#bbbbbb" /><Label text="50.000.000 VNĐ" textFill="WHITE" /></HBox>
+                                                <HBox justifyContent="SPACE_BETWEEN"><Label text="Tiền đặt trước:" textFill="#bbbbbb" /><Label text="1.000.000.000 VNĐ" textFill="WHITE" /></HBox>
+                                            </children>
+                                        </VBox>
+                                        <Button maxWidth="Infinity" onAction="#handleCancelBid" style="-fx-background-color: transparent; -fx-border-color: white; -fx-border-radius: 20; -fx-text-fill: white; -fx-cursor: hand;" text="Hủy tham gia"><font><Font name="System Bold" size="14.0" /></font></Button>
+                                    </children>
+                                </VBox>
+
+                                <VBox prefWidth="700.0" spacing="20.0" HBox.hgrow="ALWAYS">
+                                    <children>
+                                        <VBox prefHeight="300.0" style="-fx-background-color: rgba(255, 255, 255, 0.03); -fx-background-radius: 15; -fx-padding: 20;">
+                                            <children>
+                                                <Label text="BIỂU ĐỒ LỊCH SỬ GIÁ" textFill="WHITE"><font><Font name="System Bold" size="16.0" /></font></Label>
+                                                <Rectangle fill="rgba(0,0,0,0.1)" height="220.0" style="-fx-border-color: #334155; -fx-border-style: dashed;" width="630.0" VBox.margin><VBox.margin><Insets top="10.0" /></VBox.margin></Rectangle>
+                                            </children>
+                                        </VBox>
+
+                                        <HBox spacing="15.0">
+                                            <children>
+                                                <Button onAction="#handleQuickBid" prefHeight="50.0" style="-fx-background-color: #00b894; -fx-background-radius: 30; -fx-cursor: hand;" text="Trả giá nhanh (5.050.000.000)" textFill="WHITE" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+                                                    <font><Font name="System Bold" size="14.0" /></font>
+                                                </Button>
+                                                <Button onAction="#handleQuickBid" prefHeight="50.0" style="-fx-background-color: transparent; -fx-border-color: #00b894; -fx-border-radius: 30; -fx-text-fill: #00b894; -fx-cursor: hand;" text="Trả giá nhanh (5.100.000.000)" textFill="#00b894" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+                                                    <font><Font name="System Bold" size="14.0" /></font>
+                                                </Button>
+                                            </children>
+                                        </HBox>
+                                        <Button prefHeight="50.0" style="-fx-background-color: transparent; -fx-border-color: white; -fx-border-radius: 30; -fx-text-fill: white; -fx-cursor: hand;" text="Tự động trả giá" textFill="WHITE" maxWidth="Infinity">
+                                            <font><Font name="System Bold" size="14.0" /></font>
+                                        </Button>
+                                    </children>
+                                </VBox>
+                            </children>
+                        </HBox>
+
+                        <VBox prefHeight="200.0" style="-fx-background-color: rgba(255, 255, 255, 0.03); -fx-background-radius: 15; -fx-padding: 20;">
+                            <children>
+                                <Label text="LỊCH SỬ TRẢ GIÁ" textFill="WHITE"><font><Font name="System Bold" size="16.0" /></font></Label>
+                                <TableView style="-fx-background-color: transparent;">
+                                    <columns>
+                                        <TableColumn prefWidth="150.0" text="Thời gian" />
+                                        <TableColumn prefWidth="250.0" text="Tên người tham gia" />
+                                        <TableColumn prefWidth="250.0" text="Giá tiền" />
+                                        <TableColumn prefWidth="200.0" text="Bước giá" />
+                                    </columns>
+                                </TableView>
+                            </children>
+                        </VBox>
+                    </children>
+                </VBox>
+            </center>
+        </BorderPane>
+    </children>
+</StackPane>
