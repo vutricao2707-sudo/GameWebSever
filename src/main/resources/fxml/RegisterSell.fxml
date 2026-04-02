@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<StackPane prefHeight="720.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.RegisterSellController">
+    <children>
+        <ImageView fitHeight="800.0" fitWidth="1200.0" pickOnBounds="true" preserveRatio="false">
+            <image>
+                <Image url="@../image/background4.png" />
+            </image>
+        </ImageView>
+        <Region style="-fx-background-color: rgba(0, 0, 0, 0.7);" />
+
+        <VBox alignment="CENTER" maxHeight="720.0" maxWidth="500.0" spacing="10.0" style="-fx-background-color: #1e293b; -fx-background-radius: 15; -fx-padding: 30; -fx-border-color: #334155; -fx-border-radius: 15; -fx-border-width: 2;">
+            <children>
+                <Label text="ĐĂNG KÝ BÁN BIỂN SỐ" textFill="#00b894">
+                    <font><Font name="System Bold" size="24.0" /></font>
+                    <padding><Insets bottom="10.0" /></padding>
+                </Label>
+
+                <VBox spacing="8.0">
+                    <children>
+                        <Label text="Họ và tên người bán *" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                        <TextField fx:id="txtFullName" prefHeight="40.0" promptText="VD: Nguyễn Văn A" style="-fx-background-radius: 8;" />
+                    </children>
+                </VBox>
+
+                <VBox spacing="8.0">
+                    <children>
+                        <Label text="Số điện thoại *" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                        <TextField fx:id="txtPhone" prefHeight="40.0" promptText="VD: 0987654321" style="-fx-background-radius: 8;" />
+                    </children>
+                </VBox>
+
+                <VBox spacing="8.0">
+                    <children>
+                        <Label text="Email cá nhân *" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                        <TextField fx:id="txtEmail" prefHeight="40.0" promptText="VD: abc@gmail.com" style="-fx-background-radius: 8;" />
+                    </children>
+                </VBox>
+
+                <VBox spacing="8.0">
+                    <children>
+                        <Label text="Địa chỉ *" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                        <TextField fx:id="txtAddress" prefHeight="40.0" promptText="VD: Cầu Giấy, Hà Nội" style="-fx-background-radius: 8;" />
+                    </children>
+                </VBox>
+                <VBox spacing="8.0">
+                    <children>
+                        <Label text="Loại phương tiện *" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                        <ComboBox fx:id="cbVehicleType" prefHeight="40.0" prefWidth="420.0" promptText="-- Chọn loại xe --" style="-fx-background-color: white; -fx-background-radius: 8;" />
+                    </children>
+                </VBox>
+
+                <VBox spacing="8.0">
+                    <children>
+                        <Label text="Biển số xe *" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                        <TextField fx:id="txtPlateNumber" prefHeight="40.0" promptText="VD: 30A-123.45" style="-fx-background-radius: 8;" />
+                    </children>
+                </VBox>
+
+                <VBox spacing="8.0">
+                    <children>
+                        <Label text="Tỉnh / Thành phố *" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                        <TextField fx:id="txtProvince" prefHeight="40.0" promptText="VD: Hà Nội" style="-fx-background-radius: 8;" />
+                    </children>
+                </VBox>
+
+                <VBox spacing="8.0">
+                    <children>
+                        <Label text="Giá khởi điểm (VNĐ) *" textFill="WHITE"><font><Font name="System Bold" size="14.0" /></font></Label>
+                        <TextField fx:id="txtStartingPrice" prefHeight="40.0" promptText="VD: 40000000" style="-fx-background-radius: 8;" />
+                    </children>
+                </VBox>
+
+                <HBox alignment="CENTER" spacing="20.0" style="-fx-padding: 20 0 0 0;">
+                    <children>
+                        <Button onAction="#handleCancel" prefHeight="45.0" prefWidth="150.0" style="-fx-background-color: transparent; -fx-border-color: #94a3b8; -fx-border-radius: 25; -fx-cursor: hand;" text="Hủy / Quay lại" textFill="#94a3b8">
+                            <font><Font name="System Bold" size="14.0" /></font>
+                        </Button>
+                        <Button onAction="#handleSubmit" prefHeight="45.0" prefWidth="150.0" style="-fx-background-color: #00b894; -fx-background-radius: 25; -fx-cursor: hand;" text="Xác Nhận Đăng" textFill="WHITE">
+                            <font><Font name="System Bold" size="14.0" /></font>
+                        </Button>
+                    </children>
+                </HBox>
+            </children>
+        </VBox>
+    </children>
+</StackPane>
