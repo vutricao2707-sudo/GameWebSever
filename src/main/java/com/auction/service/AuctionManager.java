@@ -10,16 +10,37 @@ import java.util.List;
 
 public class AuctionManager implements IAuctionService{
     private List<Auction> auctions;
+    private List<User> users;
     private static AuctionManager instance;
 
-    private AuctionManager(){
+    private AuctionManager() {
         this.auctions = new ArrayList<>();
+        this.users = new ArrayList<>();
+
+        Seller admin = new Seller("U01", "admin", "ADMIN", "123456",
+                "admin@vnu.edu.vn", "069123", "144 Xuân Thủy", 5.0);
+        this.users.add(admin);
     }
+
     public static AuctionManager getInstance(){
         if (instance == null){
             instance = new AuctionManager();
         }
         return instance;
+    }
+
+    // QUẢN LÝ NGƯỜI DÙNG
+    public void registerUser(User user) {
+        users.add(user);
+    }
+
+    public User login(String username, String password) {
+        for (User u : users) {
+            if (u.getUserName().equals(username) && u.getPassword().equals(password)) {
+                return u;
+            }
+        }
+        return null;
     }
 
     private Auction findAuctionById(String auctionId){
