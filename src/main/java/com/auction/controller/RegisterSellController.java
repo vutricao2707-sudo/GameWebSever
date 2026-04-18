@@ -1,5 +1,6 @@
 package com.auction.controller;
 
+import com.auction.model.DataStore;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
