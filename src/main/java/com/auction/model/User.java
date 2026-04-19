@@ -1,34 +1,47 @@
 package com.auction.model;
 
 public abstract class User {
-    private String id;
-    private String username;
+    private String userId;
+    private String userName;
+    private String fullName;
     private String password;
     private String email;
-    private String phoneNumber;
+    private String phone;
+    private String address;
 
-    public User(String id, String username, String email, String password, String phoneNumber) {
-        this.id = id;
-        this.username = username;
-        this.email = email;
+    public User(String userId, String userName, String fullName
+            , String password, String email, String phone, String address) {
+        this.userId = userId;
+        this.userName = userName;
+        this.fullName = fullName;
         this.password = password;
-        this.phoneNumber = phoneNumber;
+        this.email = email;
+        this.phone = phone;
+        this.address = address;
     }
 
-    public String getId() {
-        return id;
+    public String getUserId() {
+        return userId;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
-    public String getUsername() {
-        return username;
+    public String getUserName() {
+        return userName;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
 
     public String getPassword() {
@@ -47,16 +60,19 @@ public abstract class User {
         this.email = email;
     }
 
-    public String getPhoneNumber() {
-        return phoneNumber;
+    public String getPhone() {
+        return phone;
     }
 
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
-    @Override
-    public String toString() {
-        return "ID: " + this.id + " | Tên: " + this.username + " | Email: " + this.email + " | SĐT: " + this.phoneNumber;
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
     }
 }

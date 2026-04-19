@@ -3,21 +3,12 @@ package com.auction.model;
 public class Seller extends User {
     private double rating;
 
-    public Seller(String id, String username, String email, String password, String phoneNumber, double rating) {
-        super(id, username, email, password, phoneNumber);
+    public Seller(String userId, String userName, String fullName, String password,
+                  String email, String phone, String address, double rating) {
+        super(userId, userName, fullName, password, email, phone, address);
         this.rating = rating;
     }
 
-    public double getRating() {
-        return rating;
-    }
-
-    public void setRating(double rating) {
-        this.rating = rating;
-    }
-
-    @Override
-    public String toString() {
-        return super.toString() + " | Rating: " + this.rating;
-    }
+    public double getRating() { return rating; }
+    public void setRating(double rating) { this.rating = rating; }
 }

@@ -41,6 +41,6 @@ public class BidTransaction {
 
     @Override
     public String toString() {
-        return bidder.getUsername() + " đặt giá: $" + amount + " lúc " + timestamp;
+        return bidder.getUserName() + " đặt giá: $" + amount + " lúc " + timestamp;
     }
 }
