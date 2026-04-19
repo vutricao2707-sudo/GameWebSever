@@ -10,7 +10,6 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
-        // Đường dẫn ĐÚNG: bắt đầu bằng "/" và trỏ đến file trong resources
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/Login.fxml"));
         Parent root = fxmlLoader.load();
 

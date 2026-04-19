@@ -16,13 +16,12 @@ import java.io.IOException;
 
 public class RegisterSellController {
 
-    // --- PHẦN MỚI THÊM: Khai báo 4 ô thông tin cá nhân ---
+    //khai báo thông tin cá nhân
     @FXML private TextField txtFullName;
     @FXML private TextField txtPhone;
     @FXML private TextField txtEmail;
     @FXML private TextField txtAddress;
-    // ------------------------------------------------------
-
+    // khai báo thông tin biển
     @FXML private ComboBox<String> cbVehicleType;
     @FXML private TextField txtPlateNumber;
     @FXML private TextField txtProvince;
@@ -37,12 +36,10 @@ public class RegisterSellController {
     // Nút XÁC NHẬN ĐĂNG
     @FXML
     private void handleSubmit(ActionEvent event) {
-        // --- PHẦN MỚI THÊM: Lấy dữ liệu cá nhân ---
         String fullName = txtFullName.getText();
         String phone = txtPhone.getText();
         String email = txtEmail.getText();
         String address = txtAddress.getText();
-        // ------------------------------------------
 
         String type = cbVehicleType.getValue();
         String plate = txtPlateNumber.getText();
@@ -60,7 +57,6 @@ public class RegisterSellController {
         // ĐÃ SỬA: Lưu 8 thông tin thay vì 4. (Bên Dashboard vẫn lấy vị trí 0, 1, 2, 3 nên không ảnh hưởng gì cả)
         DataStore.products.add(new String[]{type, plate, province, price, fullName, phone, email, address});
 
-        System.out.println("DEBUG 1: Đã lưu vào DataStore. Tổng số xe hiện có: " + DataStore.products.size());
         showAlert(Alert.AlertType.INFORMATION, "Thành công!", "Đã đăng ký bán biển số: " + plate);
 
         handleCancel(event); // Quay về trang chủ

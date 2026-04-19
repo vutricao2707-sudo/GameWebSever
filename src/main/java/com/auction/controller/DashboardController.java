@@ -4,7 +4,7 @@ import com.auction.model.DataStore;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.Insets;       // <-- Bổ sung
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -12,10 +12,10 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.HBox;         // <-- Bổ sung
-import javafx.scene.layout.Priority;     // <-- Bổ sung
-import javafx.scene.layout.Region;       // <-- Bổ sung
-import javafx.scene.layout.StackPane;    // <-- Bổ sung
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.control.Alert;
 import javafx.stage.Stage;
@@ -29,15 +29,15 @@ public class DashboardController {
 
     @FXML
     public void initialize() {
-        System.out.println("DEBUG: ----- BẮT ĐẦU MỞ TRANG DASHBOARD -----");
-        loadCarProducts();
+        // Tối ưu: Dùng hàm dùng chung
+        loadProducts("Ô tô");
         setActiveTab(btnHome);
     }
 
     @FXML
     private void handleHome(ActionEvent event) {
         setActiveTab(btnHome);
-        loadCarProducts();
+        loadProducts("Ô tô");
     }
 
     @FXML
@@ -69,8 +69,8 @@ public class DashboardController {
         btnBike.setStyle("-fx-background-color: transparent; -fx-background-radius: 32;");
         btnCar.setTextFill(javafx.scene.paint.Color.WHITE);
         btnBike.setTextFill(javafx.scene.paint.Color.web("#cccccc"));
-        System.out.println("DEBUG: Bấm nút xem Ô TÔ");
-        loadCarProducts();
+        // Tối ưu: Gọi hàm dùng chung
+        loadProducts("Ô tô");
     }
 
     @FXML
@@ -79,8 +79,8 @@ public class DashboardController {
         btnCar.setStyle("-fx-background-color: transparent; -fx-background-radius: 32;");
         btnBike.setTextFill(javafx.scene.paint.Color.WHITE);
         btnCar.setTextFill(javafx.scene.paint.Color.web("#cccccc"));
-        System.out.println("DEBUG: Bấm nút xem XE MÁY");
-        loadBikeProducts();
+        // Tối ưu: Gọi hàm dùng chung
+        loadProducts("Xe máy");
     }
 
     @FXML
@@ -94,54 +94,28 @@ public class DashboardController {
         }
     }
 
-    // --- LOGIC LOAD DỮ LIỆU ĐÃ FIX LỖI FONT TIẾNG VIỆT ---
-
-    private void loadCarProducts() {
-        System.out.println("DEBUG 2: Đang chạy hàm loadCarProducts().");
-        System.out.println("DEBUG 3: Số lượng xe trong DataStore lúc này là: " + DataStore.products.size());
-
-        if (productContainer == null) {
-            System.out.println("DEBUG 4: LỖI NẶNG - productContainer bị NULL (Chưa map fx:id trong file fxml)");
-            return;
-        }
-
-        System.out.println("DEBUG 4: productContainer an toàn. Bắt đầu quét kho...");
-        productContainer.getChildren().clear();
-
-        for (String[] p : DataStore.products) {
-            // ĐÃ FIX: Dùng contains để tránh lỗi bảng mã khi so sánh chữ "Ô tô"
-            if (p[0] != null && (p[0].equals("Ô tô") || p[0].contains("tô") || p[0].contains("to"))) {
-                System.out.println("DEBUG 5: Tìm thấy 1 Ô TÔ (Biển: " + p[1] + "). Đang vẽ thẻ...");
-                // THAY ĐỔI NHỎ: Truyền thẳng cả mảng 'p' vào thay vì tách lẻ 3 tham số
-                productContainer.getChildren().add(createProductCard(p));
-            }
-        }
-
-        if (productContainer.getChildren().isEmpty()) {
-            System.out.println("DEBUG 6: Vùng chứa trống, in ra thông báo mặc định.");
-            showEmptyMessage("Chưa có Ô TÔ nào được đăng bán.");
-        }
-    }
-
-    private void loadBikeProducts() {
-        System.out.println("DEBUG 2: Đang chạy hàm loadBikeProducts().");
-        System.out.println("DEBUG 3: Số lượng xe trong DataStore lúc này là: " + DataStore.products.size());
-
+    // =========================================================================
+    // ĐÃ TỐI ƯU: GỘP 2 HÀM TẢI XE THÀNH 1 HÀM TỔNG QUÁT (DRY Principle)
+    // =========================================================================
+    private void loadProducts(String type) {
         if (productContainer == null) return;
 
         productContainer.getChildren().clear();
+        boolean isCarTab = type.equals("Ô tô");
 
         for (String[] p : DataStore.products) {
-            // ĐÃ FIX: Dùng contains để tránh lỗi bảng mã chữ "Xe máy"
-            if (p[0] != null && (p[0].equals("Xe máy") || p[0].contains("máy") || p[0].contains("may"))) {
-                System.out.println("DEBUG 5: Tìm thấy 1 XE MÁY (Biển: " + p[1] + "). Đang vẽ thẻ...");
-                // THAY ĐỔI NHỎ: Truyền thẳng cả mảng 'p' vào
-                productContainer.getChildren().add(createProductCard(p));
+            if (p[0] != null) {
+                boolean matchCar = isCarTab && (p[0].equals("Ô tô") || p[0].contains("tô") || p[0].contains("to"));
+                boolean matchBike = !isCarTab && (p[0].equals("Xe máy") || p[0].contains("máy") || p[0].contains("may"));
+
+                if (matchCar || matchBike) {
+                    productContainer.getChildren().add(createProductCard(p));
+                }
             }
         }
 
         if (productContainer.getChildren().isEmpty()) {
-            showEmptyMessage("Chưa có XE MÁY nào được đăng bán.");
+            showEmptyMessage("Chưa có " + type.toUpperCase() + " nào được đăng bán.");
         }
     }
 
@@ -151,29 +125,26 @@ public class DashboardController {
         productContainer.getChildren().add(lbl);
     }
 
-    // THAY ĐỔI: Sửa hàm nhận vào cả 1 mảng dữ liệu (String[] p) thay vì 3 chữ rời rạc
     private VBox createProductCard(String[] p) {
         // Tách dữ liệu từ mảng
         String plate = p.length > 1 ? p[1] : "";
         String province = p.length > 2 ? p[2] : "";
-        String price = p.length > 3 ? p[3] : "";
-        // Lấy thêm 4 thông tin cá nhân (Nếu mảng có đủ 8 phần tử)
+        String price = p.length > 3 ? p[3] : "Đang cập nhật";
         String fullName = p.length > 4 ? p[4] : "Chưa cập nhật";
         String phone = p.length > 5 ? p[5] : "Chưa cập nhật";
         String email = p.length > 6 ? p[6] : "Chưa cập nhật";
         String address = p.length > 7 ? p[7] : "Chưa cập nhật";
 
-        // 1. KHUNG THẺ CHÍNH (Nền tối, bo góc)
+        // 1. KHUNG THẺ CHÍNH
         VBox card = new VBox(12);
         card.setStyle("-fx-background-color: #1a2230; -fx-background-radius: 12; -fx-border-color: #2a364a; -fx-border-radius: 12; -fx-border-width: 1; -fx-padding: 15;");
         card.setPrefWidth(280);
 
-        // 2. KHU VỰC BIỂN SỐ (Nền trắng chữ đen to)
+        // 2. KHU VỰC BIỂN SỐ
         VBox plateBox = new VBox();
         plateBox.setAlignment(Pos.CENTER);
         plateBox.setStyle("-fx-background-color: white; -fx-background-radius: 8; -fx-padding: 15 10;");
 
-        // Tách biển số (Ví dụ: 30C-567.89 -> Trên: 30C, Dưới: 567.89)
         String[] plateParts = plate.split("-");
         String topText = plateParts.length > 0 ? plateParts[0] : plate;
         String bottomText = plateParts.length > 1 ? plateParts[1] : "";
@@ -184,21 +155,20 @@ public class DashboardController {
         lblPlateBottom.setStyle("-fx-text-fill: black; -fx-font-size: 40px; -fx-font-weight: bold;");
         plateBox.getChildren().addAll(lblPlateTop, lblPlateBottom);
 
-        // Đặt biển số vào StackPane để dán đè cái logo xe màu xanh lên góc
         StackPane plateContainer = new StackPane(plateBox);
-        Label carBadge = new Label("🚗"); // Dùng icon xe hơi
+        Label carBadge = new Label(p[0] != null && p[0].contains("máy") ? "🏍️" : "🚗");
         carBadge.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; -fx-background-radius: 20; -fx-padding: 8; -fx-font-size: 14px;");
         StackPane.setAlignment(carBadge, Pos.TOP_RIGHT);
-        StackPane.setMargin(carBadge, new Insets(-10, -10, 0, 0)); // Kéo lồi ra ngoài góc 1 chút
+        StackPane.setMargin(carBadge, new Insets(-10, -10, 0, 0));
         plateContainer.getChildren().add(carBadge);
 
-        // 3. KHU VỰC THÔNG TIN (Tỉnh & Phiên)
+        // 3. KHU VỰC THÔNG TIN
         HBox locationBox = new HBox();
         locationBox.setAlignment(Pos.CENTER_LEFT);
         Label lblProv = new Label("• " + province);
         lblProv.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 13px;");
         Region locSpacer = new Region();
-        HBox.setHgrow(locSpacer, Priority.ALWAYS); // Đẩy chữ Phiên sang sát mép phải
+        HBox.setHgrow(locSpacer, Priority.ALWAYS);
         Label lblSession = new Label("Phiên 9");
         lblSession.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-background-radius: 12; -fx-padding: 3 10; -fx-font-size: 12px;");
         locationBox.getChildren().addAll(lblProv, locSpacer, lblSession);
@@ -227,48 +197,48 @@ public class DashboardController {
         timeTexts.getChildren().addAll(lblTimeLabel, lblTimeValue);
         timeBox.getChildren().addAll(clockIcon, timeTexts);
 
-        // 6. KHU VỰC 2 NÚT BẤM (Nằm ngang)
+        // 6. KHU VỰC 2 NÚT BẤM
         HBox buttonBox = new HBox(10);
         Button btnBid = new Button("Đăng ký đấu giá");
         btnBid.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 8 0;");
         btnBid.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(btnBid, Priority.ALWAYS); // Ép nút giãn đều 50%
+        HBox.setHgrow(btnBid, Priority.ALWAYS);
 
         Button btnDetail = new Button("Xem chi tiết");
         btnDetail.setStyle("-fx-background-color: transparent; -fx-border-color: #00b894; -fx-border-radius: 20; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 8 0;");
         btnDetail.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(btnDetail, Priority.ALWAYS); // Ép nút giãn đều 50%
+        HBox.setHgrow(btnDetail, Priority.ALWAYS);
 
-        // THAY ĐỔI: Gắn sự kiện để khi bấm vào sẽ gọi hàm bật bảng Popup
-        btnDetail.setOnAction(e -> showProductDetails(plate, fullName, address, phone, email));
+        // ĐÃ TỐI ƯU: Truyền thêm biến price vào hàm showProductDetails
+        btnDetail.setOnAction(e -> showProductDetails(plate, fullName, address, phone, email, price));
 
         buttonBox.getChildren().addAll(btnBid, btnDetail);
-
-        // Lắp ghép tất cả vào Thẻ chính
         card.getChildren().addAll(plateContainer, locationBox, usersBox, timeBox, buttonBox);
         return card;
     }
 
-    // =========================================================================
-    // HÀM MỚI TẠO POPUP - GIỮ NGUYÊN HOÀN TOÀN TỪ YÊU CẦU TRƯỚC CỦA BẠN
-    // =========================================================================
-    private void showProductDetails(String plate, String fullName, String address, String phone, String email) {
-        // 1. Tạo lớp phủ đen mờ toàn màn hình
+    // ĐÃ TỐI ƯU: Thêm tham số String price
+    private void showProductDetails(String plate, String fullName, String address, String phone, String email, String price) {
         StackPane overlay = new StackPane();
         overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.8);");
 
-        // 2. Tạo cái bảng thông tin (Màu nền tối, viền bo tròn)
         VBox dialog = new VBox(25);
-        dialog.setMaxSize(450, 450);
+        dialog.setMaxSize(450, 520); // Nới rộng chiều cao bảng một chút để đủ chỗ
         dialog.setStyle("-fx-background-color: #1a2230; -fx-background-radius: 15; -fx-border-color: #334155; -fx-border-radius: 15; -fx-border-width: 1; -fx-padding: 35;");
         dialog.setAlignment(Pos.CENTER_LEFT);
 
-        // Tiêu đề
         Label lblTitle = new Label("THÔNG TIN BIỂN: " + plate);
         lblTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 20px;");
         VBox.setMargin(lblTitle, new Insets(0, 0, 10, 0));
 
-        // Nhóm 1: Tên người bán
+        // Nhóm Mới: Giá khởi điểm
+        VBox boxPrice = new VBox(5);
+        Label lblPriceTitle = new Label("GIÁ KHỞI ĐIỂM");
+        lblPriceTitle.setStyle("-fx-text-fill: #00b894; -fx-font-weight: bold; -fx-font-size: 15px;");
+        Label lblPrice = new Label("• " + price + " VNĐ");
+        lblPrice.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+        boxPrice.getChildren().addAll(lblPriceTitle, lblPrice);
+
         VBox boxName = new VBox(5);
         Label lblNameTitle = new Label("HỌ VÀ TÊN NGƯỜI BÁN");
         lblNameTitle.setStyle("-fx-text-fill: #0ea5e9; -fx-font-weight: bold; -fx-font-size: 15px;");
@@ -276,7 +246,6 @@ public class DashboardController {
         lblName.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
         boxName.getChildren().addAll(lblNameTitle, lblName);
 
-        // Nhóm 2: Địa chỉ
         VBox boxAddress = new VBox(5);
         Label lblAddressTitle = new Label("ĐỊA CHỈ LIÊN HỆ");
         lblAddressTitle.setStyle("-fx-text-fill: #0ea5e9; -fx-font-weight: bold; -fx-font-size: 15px;");
@@ -284,7 +253,6 @@ public class DashboardController {
         lblAddress.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
         boxAddress.getChildren().addAll(lblAddressTitle, lblAddress);
 
-        // Nhóm 3: SĐT
         VBox boxPhone = new VBox(5);
         Label lblPhoneTitle = new Label("SỐ ĐIỆN THOẠI LIÊN HỆ");
         lblPhoneTitle.setStyle("-fx-text-fill: #0ea5e9; -fx-font-weight: bold; -fx-font-size: 15px;");
@@ -292,7 +260,6 @@ public class DashboardController {
         lblPhone.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
         boxPhone.getChildren().addAll(lblPhoneTitle, lblPhone);
 
-        // Nhóm 4: Email
         VBox boxEmail = new VBox(5);
         Label lblEmailTitle = new Label("EMAIL LIÊN HỆ");
         lblEmailTitle.setStyle("-fx-text-fill: #0ea5e9; -fx-font-weight: bold; -fx-font-size: 15px;");
@@ -300,23 +267,19 @@ public class DashboardController {
         lblEmail.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
         boxEmail.getChildren().addAll(lblEmailTitle, lblEmail);
 
-        // Nút Quay lại
         Button btnClose = new Button("Quay lại");
         btnClose.setStyle("-fx-background-color: transparent; -fx-border-color: white; -fx-border-radius: 20; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 8 30; -fx-font-weight: bold;");
 
-        // Sự kiện: Bấm Quay lại thì xóa cái overlay mờ đi
         btnClose.setOnAction(e -> {
             ((StackPane) btnHome.getScene().getRoot()).getChildren().remove(overlay);
         });
 
-        // Ghép mọi thứ lại
-        dialog.getChildren().addAll(lblTitle, boxName, boxAddress, boxPhone, boxEmail, btnClose);
+        // Ghép thêm boxPrice vào
+        dialog.getChildren().addAll(lblTitle, boxPrice, boxName, boxAddress, boxPhone, boxEmail, btnClose);
         overlay.getChildren().add(dialog);
 
-        // Ném cái overlay này lên trên cùng màn hình
         ((StackPane) btnHome.getScene().getRoot()).getChildren().add(overlay);
     }
-    // =========================================================================
 
     private void setActiveTab(Button activeButton) {
         Button[] tabs = {btnHome, btnHistory, btnResults};
