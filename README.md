@@ -56,3 +56,5 @@ Dự án được chia thành 2 giai đoạn chính với sự phối hợp ch�
 - **20/05 đến trước 28/05:** Kiểm thử, sửa lỗi và đóng gói báo cáo.
 
 ---
+## Hướng dẫn chạy thử test phần giao diện tĩnh:
+Truy cập file Launcher trong Main để tận hưởng dự án của chúng mình
