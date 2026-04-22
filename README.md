@@ -6,7 +6,7 @@ Dự án bài tập lớn môn Lập trình nâng cao.
 
 
  Thành viên nhóm
-1. **Nguyễn Thành Đạt** 
+1. **Nguyễn Thành Đạt (Trưởng nhóm)** 
 2. **Vũ Trí Cao**
 3. **Võ Tá Lê Cường**
 4. **Nguyễn Khánh Duy**
