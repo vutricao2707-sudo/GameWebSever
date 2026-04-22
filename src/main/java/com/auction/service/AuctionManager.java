@@ -18,7 +18,7 @@ public class AuctionManager implements IAuctionService{
         this.users = new ArrayList<>();
 
         Seller admin = new Seller("U01", "admin", "ADMIN", "123456",
-                "admin@vnu.edu.vn", "069123", "144 Xuân Thủy", 5.0);
+                "admin@vnu.edu.vn", "012345", "Hà Nội ", 5.0);
         this.users.add(admin);
     }
 

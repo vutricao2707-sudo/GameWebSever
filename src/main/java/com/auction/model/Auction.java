@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Auction {
-    String auctionId;
+    private String auctionId;
     private Item item;
     private Seller seller;
     private List<BidTransaction> bidTransactions;
