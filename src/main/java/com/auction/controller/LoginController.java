@@ -1,16 +1,13 @@
 package com.auction.controller;
 
+import com.auction.model.User;
+import com.auction.service.AuctionManager;
+import com.auction.util.NavigationUtil;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.stage.Stage;
-import java.io.IOException;
 
 public class LoginController {
 
@@ -19,53 +16,44 @@ public class LoginController {
 
     @FXML
     private void handleLogin(ActionEvent event) {
-        String user = txtUsername.getText();
-        String pass = txtPassword.getText();
+        String username = txtUsername.getText().trim();
+        String password = txtPassword.getText().trim();
 
-        if (user.isEmpty() || pass.isEmpty()) {
-            showAlert("Thông báo", "Vui lòng nhập đầy đủ thông tin!");
+        if (username.isEmpty() || password.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Thông báo", "Vui lòng nhập đầy đủ thông tin!");
             return;
         }
 
-        if (user.equals("admin") && pass.equals("123")) {
-            // Đã bọc try-catch để xử lý lỗi đọc file FXML
-            try {
-                switchScene(event, "/fxml/Dashboard.fxml");
-            } catch (IOException e) {
-                e.printStackTrace();
-                showAlert("Lỗi hệ thống", "Không thể tải trang chủ (Dashboard)!");
-            }
+        // THAY ĐỔI CHÍNH: Bỏ hoàn toàn đoạn "admin".equals(...) cứng ở đây.
+        // Gọi AuctionManager.login() — class này đã có sẵn trong dự án từ đầu
+        // nhưng chưa được dùng. Đây đúng là trách nhiệm của Service, không phải Controller.
+        User loggedInUser = AuctionManager.getInstance().login(username, password);
+
+        if (loggedInUser != null) {
+            // Đăng nhập thành công → chuyển sang Dashboard
+            NavigationUtil.navigateTo(event, "/fxml/Dashboard.fxml");
         } else {
-            showAlert("Lỗi", "Tài khoản hoặc mật khẩu không chính xác!");
+            showAlert(Alert.AlertType.ERROR, "Lỗi đăng nhập", "Tài khoản hoặc mật khẩu không chính xác!");
         }
     }
 
     @FXML
-    private void handleSwitchToRegister(ActionEvent event) throws IOException {
-        switchScene(event, "/fxml/Register.fxml");
+    private void handleSwitchToRegister(ActionEvent event) {
+        NavigationUtil.navigateTo(event, "/fxml/Register.fxml");
     }
 
     @FXML
-    private void handleShowSupport(ActionEvent event) throws IOException {
-        switchScene(event, "/fxml/Support.fxml");
+    private void handleShowSupport(ActionEvent event) {
+        NavigationUtil.navigateTo(event, "/fxml/Support.fxml");
     }
 
     @FXML
-    private void handleShowGuide(ActionEvent event) throws IOException {
-        switchScene(event, "/fxml/Guide.fxml");
+    private void handleShowGuide(ActionEvent event) {
+        NavigationUtil.navigateTo(event, "/fxml/Guide.fxml");
     }
 
-    // Hàm dùng chung để chuyển trang
-    private void switchScene(ActionEvent event, String fxmlPath) throws IOException {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
-        Parent root = loader.load();
-        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-        stage.setScene(new Scene(root));
-        stage.show();
-    }
-
-    private void showAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);

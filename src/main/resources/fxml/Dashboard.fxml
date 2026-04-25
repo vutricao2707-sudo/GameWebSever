@@ -4,11 +4,8 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
 <?import javafx.scene.image.Image?>
 <?import javafx.scene.image.ImageView?>
-<?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
@@ -16,130 +13,147 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<StackPane prefHeight="720.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.controller.DashboardController">
-    <children>
-        <!-- Background Image -->
-        <ImageView fitHeight="800.0" fitWidth="1200.0" pickOnBounds="true" preserveRatio="false">
-            <image>
-                <Image url="@../image/background4.png" />
-            </image>
-        </ImageView>
+<!--
+    THAY ĐỔI: Xoá 6 thành phần UI "chết" không có @FXML field tương ứng:
+      - AnchorPane fx:id="paneOverlay"
+      - StackPane  fx:id="panePopupContainer"
+      - Button     fx:id="btnCloseModal"
+      - TableView  fx:id="tableHistory"
+      - TableColumn fx:id="colBienSo", "colThoiGian", "colGiaDat"
+    Các thành phần này không được dùng trong bất kỳ Controller nào,
+    gây nhầm lẫn khi đọc code và làm nặng cây FXML không cần thiết.
+    Khi tính năng Lịch Sử được phát triển thật, sẽ thêm lại đúng chỗ.
+-->
+<StackPane prefHeight="720.0" prefWidth="1024.0"
+           xmlns="http://javafx.com/javafx/25"
+           xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="com.auction.controller.DashboardController"><!-- Ảnh nền -->
+    <ImageView fitHeight="800.0" fitWidth="1200.0"
+               pickOnBounds="true">
+        <Image url="@../image/background4.png"/>
+    </ImageView>
 
-        <!-- Overlay (giống login) -->
-        <Region style="-fx-background-color: rgba(0, 0, 0, 0.6);" />
+    <!-- Lớp tối phủ lên ảnh nền -->
+    <Region style="-fx-background-color: rgba(0, 0, 0, 0.6);"/>
 
-        <!-- Main Content -->
-        <VBox>
-            <children>
-                <!-- Header / Navigation Bar -->
-                <HBox alignment="CENTER_LEFT" minHeight="65.0" prefHeight="65.0" style="-fx-background-color: rgba(0, 0, 0, 0.8); -fx-padding: 0 25;">
-                    <children>
-                        <!-- Logo / Brand -->
-                        <ImageView fitHeight="40.0" pickOnBounds="true" preserveRatio="true">
-                            <image>
-                                <Image url="@../image/logo3.png" />
-                            </image>
-                        </ImageView>
+    <!-- Nội dung chính -->
+    <VBox><!-- Thanh điều hướng trên cùng (Header) -->
+        <HBox alignment="CENTER_LEFT" minHeight="65.0" prefHeight="65.0"
+              style="-fx-background-color: rgba(0, 0, 0, 0.8); -fx-padding: 0 25;">
+            <!-- Logo -->
+            <ImageView fitHeight="40.0" pickOnBounds="true" preserveRatio="true">
+                <Image url="@../image/logo3.png"/>
+            </ImageView>
 
-                        <Region HBox.hgrow="ALWAYS" />
+            <Region HBox.hgrow="ALWAYS"/>
 
-                        <!-- User Info & Actions -->
-                        <HBox alignment="CENTER_RIGHT" spacing="15.0">
-                            <children>
-                                <!-- Nút Đăng Ký Bán (nổi bật) -->
-                                <Button onAction="#handleRegisterToSell" style="-fx-background-color: #00b894; -fx-background-radius: 20; -fx-cursor: hand;" text="Đăng Ký Bán" textFill="WHITE">
-                                    <font><Font name="System Bold" size="12.0" /></font>
-                                    <padding><Insets bottom="6.0" left="12.0" right="12.0" top="6.0" /></padding>
-                                </Button>
+            <!-- Nhóm nút bên phải: Đăng ký bán + Chào user + Đăng xuất -->
+            <HBox alignment="CENTER_RIGHT" spacing="15.0">
+                <Button onAction="#handleRegisterToSell" text="Đăng Ký Bán"
+                        textFill="WHITE"
+                        style="-fx-background-color: #00b894; -fx-background-radius: 20; -fx-cursor: hand;">
+                    <font>
+                        <Font name="System Bold" size="12.0"/>
+                    </font>
+                    <padding>
+                        <Insets bottom="6.0" left="12.0" right="12.0" top="6.0"/>
+                    </padding>
+                </Button>
 
-                                <Label text="Xin chào, User" textFill="WHITE">
-                                    <font><Font size="12.0" /></font>
-                                </Label>
+                <Label text="Xin chào, User" textFill="WHITE">
+                    <font>
+                        <Font size="12.0"/>
+                    </font>
+                </Label>
 
-                                <Button onAction="#handleLogout" style="-fx-background-color: transparent; -fx-border-color: #ff6b6b; -fx-border-radius: 20; -fx-cursor: hand;" text="Đăng xuất" textFill="#ff6b6b">
-                                    <font><Font size="12.0" /></font>
-                                    <padding><Insets bottom="6.0" left="12.0" right="12.0" top="6.0" /></padding>
-                                </Button>
-                            </children>
-                        </HBox>
-                    </children>
+                <Button onAction="#handleLogout" text="Đăng xuất"
+                        textFill="#ff6b6b"
+                        style="-fx-background-color: transparent; -fx-border-color: #ff6b6b; -fx-border-radius: 20; -fx-cursor: hand;">
+                    <font>
+                        <Font size="12.0"/>
+                    </font>
+                    <padding>
+                        <Insets bottom="6.0" left="12.0" right="12.0" top="6.0"/>
+                    </padding>
+                </Button>
+            </HBox>
+        </HBox>
+
+        <!-- Thanh tab điều hướng thứ cấp -->
+        <HBox alignment="CENTER" spacing="30.0"
+              style="-fx-padding: 15 25 0 25; -fx-background-color: rgba(0,0,0,0.4);">
+            <Button fx:id="btnHome" onAction="#handleHome"
+                    text="Trang Chủ" textFill="#00b894"
+                    style="-fx-background-color: transparent; -fx-border-color: #00b894; -fx-border-width: 0 0 2 0;">
+                <font>
+                    <Font name="System Bold" size="14.0"/>
+                </font>
+                <padding>
+                    <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
+                </padding>
+            </Button>
+
+            <Button fx:id="btnHistory" onAction="#handleShowHistory"
+                    text="Lịch Sử Đấu Giá" textFill="WHITE"
+                    style="-fx-background-color: transparent;">
+                <font>
+                    <Font name="System Bold" size="14.0"/>
+                </font>
+                <padding>
+                    <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
+                </padding>
+            </Button>
+
+            <Button fx:id="btnResults" onAction="#handleShowResults"
+                    text="Kết Quả Đấu Giá" textFill="WHITE"
+                    style="-fx-background-color: transparent;">
+                <font>
+                    <Font name="System Bold" size="14.0"/>
+                </font>
+                <padding>
+                    <Insets bottom="10.0" left="15.0" right="15.0" top="10.0"/>
+                </padding>
+            </Button>
+        </HBox>
+
+        <!-- Vùng nội dung chính -->
+        <VBox spacing="20.0" style="-fx-padding: 25;" VBox.vgrow="ALWAYS"><!-- Bộ lọc loại xe -->
+            <HBox alignment="CENTER_LEFT">
+                <HBox alignment="CENTER"
+                      style="-fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 35; -fx-padding: 4;">
+                    <Button fx:id="btnCar" onAction="#handleToggleCar"
+                            prefHeight="36.0" prefWidth="110.0"
+                            text="🚗 Ô tô" textFill="WHITE"
+                            style="-fx-background-color: #00b894; -fx-background-radius: 32; -fx-cursor: hand;">
+                        <font>
+                            <Font name="System Bold" size="13.0"/>
+                        </font>
+                    </Button>
+                    <Button fx:id="btnBike" onAction="#handleToggleBike"
+                            prefHeight="36.0" prefWidth="110.0"
+                            text="🏍Xe máy" textFill="#cccccc"
+                            style="-fx-background-color: transparent; -fx-background-radius: 32; -fx-cursor: hand;">
+                        <font>
+                            <Font name="System Bold" size="13.0"/>
+                        </font>
+                    </Button>
                 </HBox>
+            </HBox>
 
-                <!-- Secondary Navigation (Tabs) -->
-                <HBox alignment="CENTER" spacing="30.0" style="-fx-padding: 15 25 0 25; -fx-background-color: rgba(0,0,0,0.4);">
-                    <children>
-                        <Button fx:id="btnHome" onAction="#handleHome" style="-fx-background-color: transparent; -fx-border-color: #00b894; -fx-border-width: 0 0 2 0;" text="Trang Chủ" textFill="#00b894">
-                            <font><Font name="System Bold" size="14.0" /></font>
-                            <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0" /></padding>
-                        </Button>
-                        <Button fx:id="btnHistory" onAction="#handleShowHistory" style="-fx-background-color: transparent;" text="Lịch Sử Đấu Giá" textFill="WHITE">
-                            <font><Font name="System Bold" size="14.0" /></font>
-                            <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0" /></padding>
-                        </Button>
-                        <Button fx:id="btnResults" onAction="#handleShowResults" style="-fx-background-color: transparent;" text="Kết Quả Đấu Giá" textFill="WHITE">
-                            <font><Font name="System Bold" size="14.0" /></font>
-                            <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0" /></padding>
-                        </Button>
-                    </children>
-                </HBox>
+            <!-- Danh sách sản phẩm có thể cuộn -->
+            <ScrollPane fitToWidth="true"
+                        style="-fx-background: transparent; -fx-background-color: transparent;"
+                        VBox.vgrow="ALWAYS">
+                <FlowPane fx:id="productContainer"
+                          alignment="CENTER"
+                          hgap="20.0" vgap="20.0"
+                          style="-fx-padding: 10;">
+                    <!-- Sản phẩm sẽ được load động từ DashboardController -->
+                </FlowPane>
+            </ScrollPane>
 
-                <!-- Main Content Area (Dynamic) -->
-                <VBox spacing="20.0" style="-fx-padding: 25;" VBox.vgrow="ALWAYS">
-                    <children>
-                        <!-- Category Filter (Xe hơi / Xe máy) -->
-                        <HBox alignment="CENTER_LEFT">
-                            <children>
-                                <HBox alignment="CENTER" style="-fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 35; -fx-padding: 4;">
-                                    <children>
-                                        <Button fx:id="btnCar" onAction="#handleToggleCar" prefHeight="36.0" prefWidth="110.0" style="-fx-background-color: #00b894; -fx-background-radius: 32; -fx-cursor: hand;" text="🚗 Ô tô" textFill="WHITE">
-                                            <font><Font name="System Bold" size="13.0" /></font>
-                                        </Button>
-                                        <Button fx:id="btnBike" onAction="#handleToggleBike" prefHeight="36.0" prefWidth="110.0" style="-fx-background-color: transparent; -fx-background-radius: 32; -fx-cursor: hand;" text="🏍Xe máy" textFill="#cccccc">
-                                            <font><Font name="System Bold" size="13.0" /></font>
-                                        </Button>
-                                    </children>
-                                </HBox>
-                            </children>
-                        </HBox>
-
-                        <!-- Scrollable Product List -->
-                        <ScrollPane fitToWidth="true" style="-fx-background: transparent; -fx-background-color: transparent;" VBox.vgrow="ALWAYS">
-                            <content>
-                                <FlowPane fx:id="productContainer" alignment="CENTER" hgap="20.0" style="-fx-padding: 10;" vgap="20.0">
-                                    <!-- Products will be dynamically loaded here -->
-                                </FlowPane>
-                            </content>
-                        </ScrollPane>
-                    </children>
-                </VBox>
-            </children>
         </VBox>
-      <AnchorPane fx:id="paneOverlay" prefHeight="200.0" prefWidth="200.0" visible="false" />
-      <StackPane fx:id="panePopupContainer" prefHeight="150.0" prefWidth="200.0" visible="false">
-         <children>
-            <VBox maxHeight="400.0" maxWidth="600.0" prefHeight="200.0" prefWidth="100.0">
-               <children>
-                  <HBox prefHeight="100.0" prefWidth="200.0">
-                     <children>
-                        <Label text="LỊCH SỬ ĐẤU GIÁ CỦA TÔI" textFill="WHITE">
-                           <font>
-                              <Font size="24.0" />
-                           </font>
-                        </Label>
-                        <Region prefHeight="200.0" prefWidth="200.0" HBox.hgrow="ALWAYS" />
-                        <Button fx:id="btnCloseModal" mnemonicParsing="false" text="Đóng " />
-                     </children>
-                  </HBox>
-                  <TableView fx:id="tableHistory" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS">
-                    <columns>
-                      <TableColumn fx:id="colBienSo" prefWidth="75.0" text="Biển số" />
-                      <TableColumn fx:id="colThoiGian" prefWidth="75.0" text="Thời gian đặt" />
-                        <TableColumn fx:id="colGiaDat" prefWidth="75.0" text="Giá đặt" />
-                    </columns>
-                  </TableView>
-               </children>
-            </VBox>
-         </children>
-      </StackPane>
-    </children>
+
+    </VBox>
+
 </StackPane>

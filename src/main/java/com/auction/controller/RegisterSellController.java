@@ -1,82 +1,66 @@
 package com.auction.controller;
 
-import com.auction.model.DataStore;
+import com.auction.service.ProductService;
+import com.auction.util.NavigationUtil;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
-import javafx.stage.Stage;
-
-import java.io.IOException;
 
 public class RegisterSellController {
 
-    //khai báo thông tin cá nhân
     @FXML private TextField txtFullName;
     @FXML private TextField txtPhone;
     @FXML private TextField txtEmail;
     @FXML private TextField txtAddress;
-    // khai báo thông tin biển
     @FXML private ComboBox<String> cbVehicleType;
     @FXML private TextField txtPlateNumber;
     @FXML private TextField txtProvince;
     @FXML private TextField txtStartingPrice;
 
-    // Hàm này tự chạy khi trang vừa mở lên để nạp dữ liệu cho nút thả xuống (ComboBox)
+    // THAY ĐỔI: Dùng ProductService thay vì gọi DataStore trực tiếp
+    private final ProductService productService = new ProductService();
+
     @FXML
     public void initialize() {
         cbVehicleType.getItems().addAll("Ô tô", "Xe máy");
     }
 
-    // Nút XÁC NHẬN ĐĂNG
     @FXML
     private void handleSubmit(ActionEvent event) {
-        String fullName = txtFullName.getText();
-        String phone = txtPhone.getText();
-        String email = txtEmail.getText();
-        String address = txtAddress.getText();
+        String fullName = txtFullName.getText().trim();
+        String phone    = txtPhone.getText().trim();
+        String email    = txtEmail.getText().trim();
+        String address  = txtAddress.getText().trim();
+        String type     = cbVehicleType.getValue();
+        String plate    = txtPlateNumber.getText().trim();
+        String province = txtProvince.getText().trim();
+        String price    = txtStartingPrice.getText().trim();
 
-        String type = cbVehicleType.getValue();
-        String plate = txtPlateNumber.getText();
-        String province = txtProvince.getText();
-        String price = txtStartingPrice.getText();
-
-        // ĐÃ SỬA: Cập nhật điều kiện if để check thêm 4 ô mới không được bỏ trống
-        if (fullName.isEmpty() || phone.isEmpty() || email.isEmpty() || address.isEmpty() ||
-                type == null || plate.isEmpty() || province.isEmpty() || price.isEmpty()) {
+        if (fullName.isEmpty() || phone.isEmpty() || email.isEmpty() || address.isEmpty()
+                || type == null || plate.isEmpty() || province.isEmpty() || price.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập đầy đủ các ô có dấu *");
             return;
         }
 
-        // --- DÒNG MỚI THÊM: Lưu vào Kho dữ liệu tạm ---
-        // ĐÃ SỬA: Lưu 8 thông tin thay vì 4. (Bên Dashboard vẫn lấy vị trí 0, 1, 2, 3 nên không ảnh hưởng gì cả)
-        DataStore.products.add(new String[]{type, plate, province, price, fullName, phone, email, address});
+        // THAY ĐỔI CHÍNH: Không còn DataStore.products.add() nằm trong Controller.
+        // Controller chỉ đóng gói dữ liệu từ form và giao cho Service xử lý.
+        // Đây đúng trách nhiệm của Controller trong MVC.
+        String[] newProduct = {type, plate, province, price, fullName, phone, email, address};
+        productService.addProduct(newProduct);
 
         showAlert(Alert.AlertType.INFORMATION, "Thành công!", "Đã đăng ký bán biển số: " + plate);
-
-        handleCancel(event); // Quay về trang chủ
+        NavigationUtil.navigateTo(event, "/fxml/Dashboard.fxml");
     }
 
-    // Nút HỦY / QUAY LẠI
     @FXML
     private void handleCancel(ActionEvent event) {
-        try {
-            Parent root = FXMLLoader.load(getClass().getResource("/fxml/Dashboard.fxml"));
-            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            stage.setScene(new Scene(root));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        NavigationUtil.navigateTo(event, "/fxml/Dashboard.fxml");
     }
 
-    // Hàm tiện ích để gọi hộp thoại thông báo
-    private void showAlert(Alert.AlertType alertType, String title, String content) {
-        Alert alert = new Alert(alertType);
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
