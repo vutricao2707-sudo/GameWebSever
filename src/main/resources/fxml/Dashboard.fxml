@@ -24,6 +24,7 @@
     gây nhầm lẫn khi đọc code và làm nặng cây FXML không cần thiết.
     Khi tính năng Lịch Sử được phát triển thật, sẽ thêm lại đúng chỗ.
 -->
+<!--suppress JavaFxEventHandler -->
 <StackPane prefHeight="720.0" prefWidth="1024.0"
            xmlns="http://javafx.com/javafx/25"
            xmlns:fx="http://javafx.com/fxml/1"
