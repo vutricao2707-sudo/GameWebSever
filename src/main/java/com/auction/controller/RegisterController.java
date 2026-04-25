@@ -67,4 +67,28 @@ public class RegisterController {
         alert.setContentText(content);
         alert.showAndWait();
     }
+
+    public TextField getTxtFullName() {
+        return txtFullName;
+    }
+
+    public void setTxtFullName(TextField txtFullName) {
+        this.txtFullName = txtFullName;
+    }
+
+    public TextField getTxtPhone() {
+        return txtPhone;
+    }
+
+    public void setTxtPhone(TextField txtPhone) {
+        this.txtPhone = txtPhone;
+    }
+
+    public TextField getTxtEmail() {
+        return txtEmail;
+    }
+
+    public void setTxtEmail(TextField txtEmail) {
+        this.txtEmail = txtEmail;
+    }
 }

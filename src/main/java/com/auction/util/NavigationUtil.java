@@ -21,6 +21,7 @@ import java.util.Objects;
  * GIẢI PHÁP: Gom vào 1 hàm static. Sau này muốn thêm animation hay logging,
  * chỉ cần sửa đúng 1 chỗ này.
  */
+@SuppressWarnings("ALL")
 public class NavigationUtil {
 
     // Constructor private để không ai khởi tạo class này — nó chỉ chứa hàm static

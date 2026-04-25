@@ -18,11 +18,13 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.util.List;
 
+@SuppressWarnings("ALL")
 public class DashboardController {
 
     @FXML private Button btnHome, btnHistory, btnResults, btnCar, btnBike;
@@ -33,7 +35,6 @@ public class DashboardController {
     // không bao giờ nhìn thấy DataStore nữa.
     // =========================================================================
     private final ProductService productService = new ProductService();
-    private ActionEvent event;
 
     @FXML
     public void initialize() {
@@ -47,7 +48,6 @@ public class DashboardController {
 
     @FXML
     private void handleHome(ActionEvent event) {
-        this.event = event;
         setActiveTab(btnHome);
         loadProducts("Ô tô");
     }
@@ -85,6 +85,11 @@ public class DashboardController {
         // THAY ĐỔI: Gọi hàm setActiveFilterTab() dùng chung, xóa 4 dòng style lặp lại
         setActiveFilterTab(btnCar, btnBike);
         loadProducts("Ô tô");
+    }
+
+    @FXML
+    private void handleToggleBike() {
+        handleToggleBike(null);
     }
 
     @FXML
@@ -319,7 +324,8 @@ public class DashboardController {
      */
     private void navigateTo(ActionEvent event, String fxmlPath) {
         try {
-            Parent root = FXMLLoader.load(getClass().getResource(fxmlPath));
+            Parent root;
+            root = FXMLLoader.load(getClass().getResource(fxmlPath));
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             stage.setScene(new Scene(root));
         } catch (IOException e) {
@@ -335,10 +341,10 @@ public class DashboardController {
      */
     private void setActiveFilterTab(Button active, Button inactive) {
         active.setStyle("-fx-background-color: #00b894; -fx-background-radius: 32;");
-        active.setTextFill(javafx.scene.paint.Color.WHITE);
+        active.setTextFill(Color.WHITE);
 
         inactive.setStyle("-fx-background-color: transparent; -fx-background-radius: 32;");
-        inactive.setTextFill(javafx.scene.paint.Color.web("#cccccc"));
+        inactive.setTextFill(Color.web("#cccccc"));
     }
 
     /**
@@ -351,10 +357,10 @@ public class DashboardController {
             if (tab == activeButton) {
                 tab.setStyle("-fx-background-color: transparent; " +
                         "-fx-border-color: #00b894; -fx-border-width: 0 0 2 0;");
-                tab.setTextFill(javafx.scene.paint.Color.web("#00b894"));
+                tab.setTextFill(Color.web("#00b894"));
             } else {
                 tab.setStyle("-fx-background-color: transparent;");
-                tab.setTextFill(javafx.scene.paint.Color.WHITE);
+                tab.setTextFill(Color.WHITE);
             }
         }
     }
