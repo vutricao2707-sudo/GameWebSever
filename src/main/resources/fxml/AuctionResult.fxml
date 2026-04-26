@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<StackPane fx:id="rootPane" prefHeight="720.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.auction.controller.AuctionResultController">
+    <ImageView fitHeight="800.0" fitWidth="1200.0" pickOnBounds="true">
+        <Image url="@../image/background4.png" />
+    </ImageView>
+
+    <Region style="-fx-background-color: rgba(0, 0, 0, 0.6);" />
+
+    <VBox>
+        <HBox alignment="CENTER_LEFT" minHeight="65.0" prefHeight="65.0" style="-fx-background-color: rgba(0, 0, 0, 0.8); -fx-padding: 0 25;">
+            <ImageView fitHeight="40.0" pickOnBounds="true" preserveRatio="true">
+                <Image url="@../image/logo3.png" />
+            </ImageView>
+            <Region HBox.hgrow="ALWAYS" />
+            <HBox alignment="CENTER_RIGHT" spacing="15.0">
+                <Label text="Xin chào, Vũ Trí Cao" textFill="WHITE" />
+                <Button onAction="#handleLogout" style="-fx-background-color: transparent; -fx-border-color: #ff6b6b; -fx-border-radius: 20;" text="Đăng xuất" textFill="#ff6b6b" />
+            </HBox>
+        </HBox>
+
+        <HBox alignment="CENTER" spacing="30.0" style="-fx-padding: 15 25 0 25; -fx-background-color: rgba(0,0,0,0.4);">
+            <Button onAction="#handleBackHome" style="-fx-background-color: transparent;" text="Trang Chủ" textFill="WHITE" />
+            <Button style="-fx-background-color: transparent;" text="Lịch Sử Đấu Giá" textFill="WHITE" />
+            <Button style="-fx-background-color: transparent; -fx-border-color: #00b894; -fx-border-width: 0 0 2 0;" text="Kết Quả Đấu Giá" textFill="#00b894" />
+        </HBox>
+
+        <VBox alignment="CENTER" spacing="25.0" VBox.vgrow="ALWAYS">
+            <VBox alignment="CENTER" maxWidth="500.0" spacing="30.0" style="-fx-background-color: rgba(20, 25, 35, 0.9); -fx-background-radius: 25; -fx-border-color: rgba(255,255,255,0.1); -fx-border-radius: 25; -fx-padding: 50;">
+
+                <Label text="KẾT QUẢ ĐẤU GIÁ" textFill="WHITE">
+                    <font><Font name="System Bold" size="28.0" /></font>
+                </Label>
+
+                <VBox alignment="CENTER" maxWidth="350.0" style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 20;">
+                    <Label fx:id="lblPlateTop" text="30K" textFill="BLACK">
+                        <font><Font name="System Bold" size="30.0" /></font>
+                    </Label>
+                    <Label fx:id="lblPlateBottom" text="999.99" textFill="BLACK">
+                        <font><Font name="System Bold" size="55.0" /></font>
+                    </Label>
+                </VBox>
+
+                <VBox alignment="CENTER" spacing="5">
+                    <Label text="Mức giá bạn trả cao nhất" textFill="#94a3b8">
+                        <font><Font size="16.0" /></font>
+                    </Label>
+                    <Label fx:id="lblFinalPrice" text="150.000.000 VNĐ" textFill="#f1c40f">
+                        <font><Font name="System Bold" size="24.0" /></font>
+                    </Label>
+                </VBox>
+
+                <Label fx:id="lblStatus" text="ĐẤU GIÁ THÀNH CÔNG" textFill="#00b894">
+                    <font><Font name="System Bold" size="32.0" /></font>
+                </Label>
+
+                <Button onAction="#handleBackHome" prefWidth="250.0" style="-fx-background-color: #00b894; -fx-background-radius: 25; -fx-cursor: hand; -fx-padding: 12;" text="VỀ TRANG CHỦ" textFill="WHITE">
+                    <font><Font name="System Bold" size="14.0" /></font>
+                </Button>
+            </VBox>
+        </VBox>
+    </VBox>
+</StackPane>

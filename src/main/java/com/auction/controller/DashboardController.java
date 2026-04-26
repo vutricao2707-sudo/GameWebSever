@@ -60,8 +60,25 @@ public class DashboardController {
 
     @FXML
     private void handleShowResults(ActionEvent event) {
-        setActiveTab(btnResults);
-        showInfo("Kết Quả Đấu Giá", "Tính năng đang được phát triển.");
+        try {
+            // 1. Tải file FXML của trang Kết quả (nhưng CHƯA chuyển màn hình vội)
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AuctionResult.fxml"));
+            Parent root = loader.load();
+
+            // 2. Kỹ thuật "Lấy quyền điều khiển" (Tinh túy nằm ở đây)
+            AuctionResultController resultController = loader.getController();
+
+            // 3. Bơm dữ liệu giả lập vào để test giao diện
+            // Truyền vào: Biển số, Số tiền, Trạng thái (true = thành công, false = thất bại)
+            resultController.setAuctionData("30K-888.88", "150.000.000", true);
+
+            // 4. Bắt đầu đổi màn hình
+            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            stage.setScene(new Scene(root));
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
