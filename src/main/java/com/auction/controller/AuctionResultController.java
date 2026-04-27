@@ -6,48 +6,82 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
-import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.Objects;
 
 public class AuctionResultController {
 
-    @FXML private Label lblPlate;
-    @FXML private Label lblBidAmount;
+    @FXML private Label lblIcon;
     @FXML private Label lblStatus;
-    @FXML private Label lblSubStatus;
+    @FXML private Label lblPlate;
+    @FXML private Label lblFinalPrice;
 
-    // Hàm nhận dữ liệu từ màn hình Phòng Đấu Giá truyền sang
-    public void setAuctionData(String plate, double finalBid, boolean isWinner) {
-        lblPlate.setText("Biển số: " + plate);
+    // Nạp dữ liệu vào từng hàng ngang
+    public void setAuctionData(String plate, double finalBid, boolean isSuccess) {
+        lblPlate.setText(plate);
 
-        // Định dạng tiền tệ (VD: 50,000,000 VNĐ)
         DecimalFormat formatter = new DecimalFormat("#,###");
-        lblBidAmount.setText(formatter.format(finalBid) + " VNĐ");
+        lblFinalPrice.setText(formatter.format(finalBid) + " VNĐ");
 
-        // Đổi màu sắc và câu chữ phụ thuộc vào kết quả
-        if (isWinner) {
+        if (isSuccess) {
+            lblIcon.setText("✔");
+            lblIcon.setStyle("-fx-background-color: rgba(16, 185, 129, 0.15); -fx-text-fill: #10b981; -fx-background-radius: 60; -fx-padding: 20 30; -fx-font-size: 50px; -fx-font-weight: bold;");
+
             lblStatus.setText("ĐẤU GIÁ THÀNH CÔNG");
-            lblStatus.setStyle("-fx-text-fill: #00b894;"); // Màu xanh lá
-            lblSubStatus.setText("Chúc mừng bạn đã sở hữu biển số này!");
+            lblStatus.setStyle("-fx-text-fill: #10b981;");
         } else {
+            lblIcon.setText("✖");
+            lblIcon.setStyle("-fx-background-color: rgba(239, 68, 68, 0.15); -fx-text-fill: #ef4444; -fx-background-radius: 60; -fx-padding: 20 30; -fx-font-size: 50px; -fx-font-weight: bold;");
+
             lblStatus.setText("ĐẤU GIÁ THẤT BẠI");
-            lblStatus.setStyle("-fx-text-fill: #ff6b6b;"); // Màu đỏ hồng (khớp với nút Đăng xuất của Dashboard)
-            lblSubStatus.setText("Rất tiếc, đã có người trả giá cao hơn bạn.");
+            lblStatus.setStyle("-fx-text-fill: #ef4444;");
         }
     }
 
-    // Xử lý nút bấm quay lại (Dùng chung cho cả nút trên Header và dưới Thẻ)
+    // =========================================================================
+    // XỬ LÝ ĐIỀU HƯỚNG TỪ HEADER VÀ TAB (Không cần nút quay lại bên dưới nữa)
+    // =========================================================================
+
     @FXML
-    private void handleBackHome(ActionEvent event) {
+    private void handleHome(ActionEvent event) {
+        switchScene(event, "/fxml/Dashboard.fxml");
+    }
+
+    @FXML
+    private void handleShowHistory() {
+        showInfo("Lịch Sử Đấu Giá", "Tính năng đang được phát triển.");
+    }
+
+    @FXML
+    private void handleRegisterToSell(ActionEvent event) {
+        switchScene(event, "/fxml/RegisterSell.fxml");
+    }
+
+    @FXML
+    private void handleLogout(ActionEvent event) {
+        switchScene(event, "/fxml/Login.fxml");
+    }
+
+    private void switchScene(ActionEvent event, String fxmlPath) {
         try {
-            Parent root = FXMLLoader.load(getClass().getResource("/fxml/Dashboard.fxml"));
-            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            stage.setScene(new Scene(root));
+            Parent newRoot = FXMLLoader.load(Objects.requireNonNull(getClass().getResource(fxmlPath)));
+            Scene currentScene = ((Node) event.getSource()).getScene();
+            currentScene.setRoot(newRoot);
         } catch (IOException e) {
             e.printStackTrace();
+            showInfo("Lỗi hệ thống", "Không thể tải trang: " + fxmlPath);
         }
+    }
+
+    private void showInfo(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

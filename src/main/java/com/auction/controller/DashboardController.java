@@ -70,8 +70,7 @@ public class DashboardController {
 
             // 3. Bơm dữ liệu giả lập vào để test giao diện
             // Truyền vào: Biển số, Số tiền, Trạng thái (true = thành công, false = thất bại)
-            resultController.setAuctionData("30K-888.88", "150.000.000", true);
-
+            resultController.setAuctionData("30K-888.88", 150000000, true);
             // 4. Bắt đầu đổi màn hình
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             stage.setScene(new Scene(root));
