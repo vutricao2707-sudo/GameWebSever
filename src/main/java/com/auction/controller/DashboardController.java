@@ -20,6 +20,8 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import java.io.IOException;
 import java.util.List;
@@ -30,6 +32,7 @@ public class DashboardController {
     @FXML private Button btnHome, btnHistory, btnResults, btnCar, btnBike;
     @FXML private FlowPane productContainer;
 
+    private static final Logger logger = Logger.getLogger(DashboardController.class.getName());
     // =========================================================================
     // THAY ĐỔI CHÍNH: Khai báo Service — Controller chỉ giao tiếp với Service,
     // không bao giờ nhìn thấy DataStore nữa.
@@ -54,26 +57,23 @@ public class DashboardController {
 
     @FXML
     private void handleShowHistory(ActionEvent event) {
-        setActiveTab(btnHistory);
-        showInfo("Lịch Sử Đấu Giá", "Tính năng đang được phát triển.");
+        try {
+            Parent newRoot = FXMLLoader.load(getClass().getResource("/fxml/AuctionHistory.fxml"));
+            Scene currentScene = ((Node) event.getSource()).getScene();
+            currentScene.setRoot(newRoot);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
     private void handleShowResults(ActionEvent event) {
         try {
-            // 1. Tải file FXML của trang Kết quả (nhưng CHƯA chuyển màn hình vội)
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AuctionResult.fxml"));
-            Parent root = loader.load();
+            Parent newRoot = FXMLLoader.load(getClass().getResource("/fxml/AuctionResult.fxml"));
 
-            // 2. Kỹ thuật "Lấy quyền điều khiển" (Tinh túy nằm ở đây)
-            AuctionResultController resultController = loader.getController();
-
-            // 3. Bơm dữ liệu giả lập vào để test giao diện
-            // Truyền vào: Biển số, Số tiền, Trạng thái (true = thành công, false = thất bại)
-            resultController.setAuctionData("30K-888.88", 150000000, true);
-            // 4. Bắt đầu đổi màn hình
-            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            stage.setScene(new Scene(root));
+            // CƠ CHẾ CHROME TAB: Lấy Scene hiện tại và thay Ruột mới
+            Scene currentScene = ((Node) event.getSource()).getScene();
+            currentScene.setRoot(newRoot);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -141,6 +141,41 @@ public class DashboardController {
         Label lbl = new Label(msg);
         lbl.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 18px;");
         productContainer.getChildren().add(lbl);
+    }
+    // =========================================================================
+// CHUYỂN SANG PHÒNG ĐẤU GIÁ TRỰC TIẾP
+// =========================================================================
+    private void enterAuctionRoom(ActionEvent event, String plate, String stringPrice) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AuctionRoom.fxml"));
+            Parent root = loader.load();
+
+            // Lấy Controller của phòng đấu giá để truyền dữ liệu
+            AuctionRoomController roomController = loader.getController();
+
+            // Xử lý giá tiền (chuyển từ chuỗi "150.000.000" thành số thực 150000000.0)
+            double startingPrice = 0.0;
+            try {
+                // Xóa hết dấu chấm, phẩy và khoảng trắng trước khi ép kiểu
+                String cleanPrice = stringPrice.replaceAll("[^\\d]", "");
+                if (!cleanPrice.isEmpty()) {
+                    startingPrice = Double.parseDouble(cleanPrice);
+                }
+            } catch (NumberFormatException ex) {
+                logger.log(Level.WARNING, "Không thể đọc giá trị khởi điểm: " + stringPrice, ex);
+            }
+
+            // Truyền biển số và giá khởi điểm sang phòng đấu giá
+            roomController.setAuctionRoomData(plate, startingPrice);
+
+            // Chuyển màn hình
+            Scene currentScene = ((Node) event.getSource()).getScene();
+            currentScene.setRoot(root);
+
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Lỗi khi mở phòng đấu giá", e);
+            showInfo("Lỗi hệ thống", "Không thể tải phòng đấu giá: /fxml/AuctionRoom.fxml");
+        }
     }
 
     // =========================================================================
@@ -245,6 +280,7 @@ public class DashboardController {
                 "-fx-cursor: hand; -fx-padding: 8 0;");
         btnBid.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(btnBid, Priority.ALWAYS);
+        btnBid.setOnAction(e -> enterAuctionRoom(e, plate, price));
 
         Button btnDetail = new Button("Xem chi tiết");
         btnDetail.setStyle("-fx-background-color: transparent; -fx-border-color: #00b894; " +
