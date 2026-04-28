@@ -17,9 +17,17 @@ public class AuctionManager implements IAuctionService{
         this.auctions = new ArrayList<>();
         this.users = new ArrayList<>();
 
-        Seller admin = new Seller("U01", "admin", "ADMIN", "123456",
+        // 1. TÀI KHOẢN NGƯỜI DÙNG BÌNH THƯỜNG (Giữ nguyên cũ của bạn)
+        // Dùng để đăng nhập vào trang Dashboard.fxml
+        Seller normalUser = new Seller("U01", "admin", "Người Dùng Thường", "123456",
                 "admin@vnu.edu.vn", "012345", "Hà Nội ", 5.0);
-        this.users.add(admin);
+        this.users.add(normalUser);
+
+        // 2. TÀI KHOẢN QUẢN TRỊ VIÊN (MỚI THÊM)
+        // Dùng để đăng nhập vào trang AdminDashboard.fxml
+        Seller systemAdmin = new Seller("A01", "vpa_admin", "QUẢN TRỊ VIÊN HỆ THỐNG", "admin123",
+                "sysadmin@vnu.edu.vn", "099999", "Hà Nội ", 5.0);
+        this.users.add(systemAdmin);
     }
 
     public static AuctionManager getInstance(){
