@@ -21,11 +21,11 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @SuppressWarnings("ALL")
 public class DashboardController {
@@ -34,11 +34,11 @@ public class DashboardController {
     @FXML private FlowPane productContainer;
 
     private static final Logger logger = Logger.getLogger(DashboardController.class.getName());
-    // =========================================================================
-    // THAY ĐỔI CHÍNH: Khai báo Service — Controller chỉ giao tiếp với Service,
-    // không bao giờ nhìn thấy DataStore nữa.
-    // =========================================================================
     private final ProductService productService = new ProductService();
+
+    // =========================================================================
+    // KHỞI TẠO
+    // =========================================================================
 
     @FXML
     public void initialize() {
@@ -46,93 +46,50 @@ public class DashboardController {
         setActiveTab(btnHome);
     }
 
-    // =========================================================================
-    // XỬ LÝ SỰ KIỆN ĐIỀU HƯỚNG (Navigation Handlers)
-    // =========================================================================
-
-    @FXML
-    private void handleHome(ActionEvent event) {
-        setActiveTab(btnHome);
-        loadProducts("Ô tô");
-    }
-
-    @FXML
-    private void handleShowHistory(ActionEvent event) {
-        try {
-            Parent newRoot = FXMLLoader.load(getClass().getResource("/fxml/AuctionHistory.fxml"));
-            Scene currentScene = ((Node) event.getSource()).getScene();
-            currentScene.setRoot(newRoot);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @FXML
-    private void handleShowResults(ActionEvent event) {
-        try {
-            Parent newRoot = FXMLLoader.load(getClass().getResource("/fxml/AuctionResult.fxml"));
-
-            // CƠ CHẾ CHROME TAB: Lấy Scene hiện tại và thay Ruột mới
-            Scene currentScene = ((Node) event.getSource()).getScene();
-            currentScene.setRoot(newRoot);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @FXML
-    private void handleRegisterToSell(ActionEvent event) {
-        // THAY ĐỔI: Gọi hàm navigateTo() dùng chung thay vì copy-paste try-catch
-        navigateTo(event, "/fxml/RegisterSell.fxml");
-    }
-
-    @FXML
-    private void handleLogout(ActionEvent event) {
-        // THAY ĐỔI: Gọi hàm navigateTo() dùng chung thay vì copy-paste try-catch
-        navigateTo(event, "/fxml/Login.fxml");
+    /** Được gọi từ LoginController để nhận thông tin người dùng sau đăng nhập */
+    public void setUserInfo(User loggedInUser) {
+        // TODO: Hiển thị tên user lên Label "Xin chào, ..." trên Header
     }
 
     // =========================================================================
-    // XỬ LÝ SỰ KIỆN BỘ LỌC (Filter Handlers)
+    // ĐIỀU HƯỚNG — Tất cả đều dùng navigateTo() dùng chung, không còn copy-paste
+    // =========================================================================
+
+    @FXML private void handleHome(ActionEvent event)           { setActiveTab(btnHome); loadProducts("Ô tô"); }
+    @FXML private void handleShowHistory(ActionEvent event)    { navigateTo(event, "/fxml/AuctionHistory.fxml"); }
+    @FXML private void handleShowResults(ActionEvent event)    { navigateTo(event, "/fxml/AuctionResult.fxml"); }
+    @FXML private void handleRegisterToSell(ActionEvent event) { navigateTo(event, "/fxml/RegisterSell.fxml"); }
+    @FXML private void handleLogout(ActionEvent event)         { navigateTo(event, "/fxml/Login.fxml"); }
+
+    // =========================================================================
+    // BỘ LỌC LOẠI XE
     // =========================================================================
 
     @FXML
     private void handleToggleCar(ActionEvent event) {
-        // THAY ĐỔI: Gọi hàm setActiveFilterTab() dùng chung, xóa 4 dòng style lặp lại
         setActiveFilterTab(btnCar, btnBike);
         loadProducts("Ô tô");
     }
 
     @FXML
-    private void handleToggleBike() {
-        handleToggleBike(null);
-    }
-
-    @FXML
     private void handleToggleBike(ActionEvent event) {
-        // THAY ĐỔI: Gọi hàm setActiveFilterTab() dùng chung, xóa 4 dòng style lặp lại
         setActiveFilterTab(btnBike, btnCar);
         loadProducts("Xe máy");
     }
 
     // =========================================================================
-    // LOGIC TẢI SẢN PHẨM — Giờ chỉ hỏi Service và render kết quả
+    // TẢI VÀ HIỂN THỊ SẢN PHẨM
     // =========================================================================
 
     private void loadProducts(String type) {
         if (productContainer == null) return;
         productContainer.getChildren().clear();
 
-        // THAY ĐỔI CHÍNH: Không còn for-loop lọc DataStore ở đây nữa.
-        // Controller chỉ hỏi Service: "Cho tôi danh sách xe loại X" và nhận về kết quả.
         List<String[]> products = productService.getApprovedProductsByType(type);
-
         if (products.isEmpty()) {
             showEmptyMessage("Chưa có " + type.toUpperCase() + " nào được đăng bán.");
             return;
         }
-
         for (String[] p : products) {
             productContainer.getChildren().add(createProductCard(p));
         }
@@ -143,48 +100,14 @@ public class DashboardController {
         lbl.setStyle("-fx-text-fill: #cccccc; -fx-font-size: 18px;");
         productContainer.getChildren().add(lbl);
     }
-    // =========================================================================
-// CHUYỂN SANG PHÒNG ĐẤU GIÁ TRỰC TIẾP
-// =========================================================================
-    private void enterAuctionRoom(ActionEvent event, String plate, String stringPrice) {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AuctionRoom.fxml"));
-            Parent root = loader.load();
-
-            // Lấy Controller của phòng đấu giá để truyền dữ liệu
-            AuctionRoomController roomController = loader.getController();
-
-            // Xử lý giá tiền (chuyển từ chuỗi "150.000.000" thành số thực 150000000.0)
-            double startingPrice = 0.0;
-            try {
-                // Xóa hết dấu chấm, phẩy và khoảng trắng trước khi ép kiểu
-                String cleanPrice = stringPrice.replaceAll("[^\\d]", "");
-                if (!cleanPrice.isEmpty()) {
-                    startingPrice = Double.parseDouble(cleanPrice);
-                }
-            } catch (NumberFormatException ex) {
-                logger.log(Level.WARNING, "Không thể đọc giá trị khởi điểm: " + stringPrice, ex);
-            }
-
-            // Truyền biển số và giá khởi điểm sang phòng đấu giá
-            roomController.setAuctionRoomData(plate, startingPrice);
-
-            // Chuyển màn hình
-            Scene currentScene = ((Node) event.getSource()).getScene();
-            currentScene.setRoot(root);
-
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "Lỗi khi mở phòng đấu giá", e);
-            showInfo("Lỗi hệ thống", "Không thể tải phòng đấu giá: /fxml/AuctionRoom.fxml");
-        }
-    }
 
     // =========================================================================
-    // XÂY DỰNG THẺ SẢN PHẨM (Product Card Builder)
-    // Giữ nguyên bố cục UI, chỉ dọn sạch cấu trúc bên trong.
+    // XÂY DỰNG THẺ SẢN PHẨM — Orchestrator gọi 5 hàm build* chuyên biệt
     // =========================================================================
 
     private VBox createProductCard(String[] p) {
+        // Giải nén mảng dữ liệu một lần ở đây để các hàm helper nhận tham số rõ ràng
+        String type     = p.length > 0 ? p[0] : "";
         String plate    = p.length > 1 ? p[1] : "";
         String province = p.length > 2 ? p[2] : "";
         String price    = p.length > 3 ? p[3] : "Đang cập nhật";
@@ -193,114 +116,158 @@ public class DashboardController {
         String email    = p.length > 6 ? p[6] : "Chưa cập nhật";
         String address  = p.length > 7 ? p[7] : "Chưa cập nhật";
 
-        // --- Khung thẻ chính ---
         VBox card = new VBox(12);
         card.setStyle("-fx-background-color: #1a2230; -fx-background-radius: 12; " +
                 "-fx-border-color: #2a364a; -fx-border-radius: 12; " +
                 "-fx-border-width: 1; -fx-padding: 15;");
         card.setPrefWidth(280);
+        card.getChildren().addAll(
+                buildPlateSection(plate, type),
+                buildLocationRow(province),
+                buildUsersRow(),
+                buildTimeRow(),
+                buildCardButtons(plate, price, fullName, address, phone, email)
+        );
+        return card;
+    }
 
-        // --- Khu vực biển số ---
+    // =========================================================================
+    // 5 HÀM BUILD* — Mỗi hàm chịu trách nhiệm DUY NHẤT 1 khu vực của card
+    // =========================================================================
+
+    /** Khu vực biển số: hộp trắng + huy hiệu loại xe góc phải trên */
+    private StackPane buildPlateSection(String plate, String type) {
         VBox plateBox = new VBox();
         plateBox.setAlignment(Pos.CENTER);
         plateBox.setStyle("-fx-background-color: white; -fx-background-radius: 8; -fx-padding: 15 10;");
 
-        String[] plateParts = plate.split("-");
-        String topText    = plateParts.length > 0 ? plateParts[0] : plate;
-        String bottomText = plateParts.length > 1 ? plateParts[1] : "";
+        String[] parts = plate.split("-");
+        Label lblTop    = new Label(parts.length > 0 ? parts[0] : plate);
+        Label lblBottom = new Label(parts.length > 1 ? parts[1] : "");
+        lblTop.setStyle("-fx-text-fill: black; -fx-font-size: 32px; -fx-font-weight: bold;");
+        lblBottom.setStyle("-fx-text-fill: black; -fx-font-size: 40px; -fx-font-weight: bold;");
+        plateBox.getChildren().addAll(lblTop, lblBottom);
 
-        Label lblPlateTop = new Label(topText);
-        lblPlateTop.setStyle("-fx-text-fill: black; -fx-font-size: 32px; -fx-font-weight: bold;");
-
-        Label lblPlateBottom = new Label(bottomText);
-        lblPlateBottom.setStyle("-fx-text-fill: black; -fx-font-size: 40px; -fx-font-weight: bold;");
-
-        plateBox.getChildren().addAll(lblPlateTop, lblPlateBottom);
-
-        StackPane plateContainer = new StackPane(plateBox);
-        Label carBadge = new Label(p[0] != null && p[0].contains("máy") ? "🏍️" : "🚗");
-        carBadge.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; " +
+        Label badge = new Label(type.contains("máy") ? "🏍️" : "🚗");
+        badge.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; " +
                 "-fx-background-radius: 20; -fx-padding: 8; -fx-font-size: 14px;");
-        StackPane.setAlignment(carBadge, Pos.TOP_RIGHT);
-        StackPane.setMargin(carBadge, new Insets(-10, -10, 0, 0));
-        plateContainer.getChildren().add(carBadge);
+        StackPane.setAlignment(badge, Pos.TOP_RIGHT);
+        StackPane.setMargin(badge, new Insets(-10, -10, 0, 0));
 
-        // --- Khu vực tỉnh thành + phiên đấu giá ---
-        HBox locationBox = new HBox();
-        locationBox.setAlignment(Pos.CENTER_LEFT);
+        return new StackPane(plateBox, badge);
+    }
 
+    /** Hàng tỉnh thành + nhãn phiên đấu giá */
+    private HBox buildLocationRow(String province) {
         Label lblProv = new Label("• " + province);
         lblProv.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 13px;");
 
-        Region locSpacer = new Region();
-        HBox.setHgrow(locSpacer, Priority.ALWAYS);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Label lblSession = new Label("Phiên 9");
         lblSession.setStyle("-fx-background-color: #475569; -fx-text-fill: white; " +
                 "-fx-background-radius: 12; -fx-padding: 3 10; -fx-font-size: 12px;");
 
-        locationBox.getChildren().addAll(lblProv, locSpacer, lblSession);
+        HBox row = new HBox();
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.getChildren().addAll(lblProv, spacer, lblSession);
+        return row;
+    }
 
-        // --- Khu vực số người tham gia ---
-        HBox usersBox = new HBox();
-        usersBox.setAlignment(Pos.CENTER_LEFT);
-
+    /** Hàng số người tham gia + icon biểu đồ */
+    private HBox buildUsersRow() {
         Label lblUsers = new Label("👤 9");
         lblUsers.setStyle("-fx-text-fill: #00b894; -fx-font-size: 14px;");
 
-        Region userSpacer = new Region();
-        HBox.setHgrow(userSpacer, Priority.ALWAYS);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Label lblChart = new Label("📈");
         lblChart.setStyle("-fx-text-fill: #00b894; -fx-font-size: 14px;");
 
-        usersBox.getChildren().addAll(lblUsers, userSpacer, lblChart);
+        HBox row = new HBox();
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.getChildren().addAll(lblUsers, spacer, lblChart);
+        return row;
+    }
 
-        // --- Khu vực đồng hồ đếm ngược ---
-        HBox timeBox = new HBox(10);
-        timeBox.setAlignment(Pos.CENTER_LEFT);
-
+    /** Hàng đồng hồ đếm ngược thời gian đăng ký */
+    private HBox buildTimeRow() {
         Label clockIcon = new Label("🕒");
         clockIcon.setStyle("-fx-text-fill: white; -fx-font-size: 20px;");
 
-        VBox timeTexts = new VBox();
         Label lblTimeLabel = new Label("Thời gian đăng ký còn lại");
         lblTimeLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
         Label lblTimeValue = new Label("2 ngày 4 giờ 59 phút");
         lblTimeValue.setStyle("-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;");
+
+        VBox timeTexts = new VBox();
         timeTexts.getChildren().addAll(lblTimeLabel, lblTimeValue);
 
-        timeBox.getChildren().addAll(clockIcon, timeTexts);
+        HBox row = new HBox(10);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.getChildren().addAll(clockIcon, timeTexts);
+        return row;
+    }
 
-        // --- Khu vực 2 nút bấm ---
-        HBox buttonBox = new HBox(10);
-
+    /** Hàng 2 nút bấm: Đăng ký đấu giá + Xem chi tiết */
+    private HBox buildCardButtons(String plate, String price, String fullName,
+                                  String address, String phone, String email) {
         Button btnBid = new Button("Đăng ký đấu giá");
         btnBid.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; " +
-                "-fx-font-weight: bold; -fx-background-radius: 20; " +
-                "-fx-cursor: hand; -fx-padding: 8 0;");
+                "-fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 8 0;");
         btnBid.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(btnBid, Priority.ALWAYS);
         btnBid.setOnAction(e -> enterAuctionRoom(e, plate, price));
 
         Button btnDetail = new Button("Xem chi tiết");
         btnDetail.setStyle("-fx-background-color: transparent; -fx-border-color: #00b894; " +
-                "-fx-border-radius: 20; -fx-text-fill: white; " +
-                "-fx-cursor: hand; -fx-padding: 8 0;");
+                "-fx-border-radius: 20; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 8 0;");
         btnDetail.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(btnDetail, Priority.ALWAYS);
-
         btnDetail.setOnAction(e -> showProductDetails(plate, fullName, address, phone, email, price));
 
-        buttonBox.getChildren().addAll(btnBid, btnDetail);
+        HBox box = new HBox(10);
+        box.getChildren().addAll(btnBid, btnDetail);
+        return box;
+    }
 
-        card.getChildren().addAll(plateContainer, locationBox, usersBox, timeBox, buttonBox);
-        return card;
+    // =========================================================================
+    // CHUYỂN VÀO PHÒNG ĐẤU GIÁ
+    // =========================================================================
+
+    private void enterAuctionRoom(ActionEvent event, String plate, String stringPrice) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AuctionRoom.fxml"));
+            Parent root = loader.load();
+
+            double startingPrice = parsePrice(stringPrice);
+
+            AuctionRoomController roomController = loader.getController();
+            roomController.setAuctionRoomData(plate, startingPrice);
+
+            ((Node) event.getSource()).getScene().setRoot(root);
+
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Lỗi khi mở phòng đấu giá", e);
+            showInfo("Lỗi hệ thống", "Không thể tải phòng đấu giá.");
+        }
+    }
+
+    /** Chuyển chuỗi giá "150.000.000" thành số thực 150000000.0 */
+    private double parsePrice(String rawPrice) {
+        try {
+            String clean = rawPrice.replaceAll("[^\\d]", "");
+            return clean.isEmpty() ? 0.0 : Double.parseDouble(clean);
+        } catch (NumberFormatException e) {
+            logger.log(Level.WARNING, "Không thể đọc giá trị: " + rawPrice, e);
+            return 0.0;
+        }
     }
 
     // =========================================================================
     // DIALOG CHI TIẾT SẢN PHẨM
-    // THAY ĐỔI: Thêm hàm makeInfoBox() để xóa 5 đoạn code VBox lặp lại y hệt nhau.
     // =========================================================================
 
     private void showProductDetails(String plate, String fullName, String address,
@@ -319,49 +286,39 @@ public class DashboardController {
         lblTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 20px;");
         VBox.setMargin(lblTitle, new Insets(0, 0, 10, 0));
 
-        // THAY ĐỔI: Dùng makeInfoBox() thay vì viết tay 5 lần cùng 1 đoạn code
-        VBox boxPrice   = makeInfoBox("GIÁ KHỞI ĐIỂM",          price + " VNĐ", "#00b894", true);
-        VBox boxName    = makeInfoBox("HỌ VÀ TÊN NGƯỜI BÁN",    fullName,       "#0ea5e9", false);
-        VBox boxAddress = makeInfoBox("ĐỊA CHỈ LIÊN HỆ",        address,        "#0ea5e9", false);
-        VBox boxPhone   = makeInfoBox("SỐ ĐIỆN THOẠI LIÊN HỆ",  phone,          "#0ea5e9", false);
-        VBox boxEmail   = makeInfoBox("EMAIL LIÊN HỆ",           email,          "#0ea5e9", false);
-
         Button btnClose = new Button("Quay lại");
         btnClose.setStyle("-fx-background-color: transparent; -fx-border-color: white; " +
-                "-fx-border-radius: 20; -fx-text-fill: white; " +
-                "-fx-cursor: hand; -fx-padding: 8 30; -fx-font-weight: bold;");
+                "-fx-border-radius: 20; -fx-text-fill: white; -fx-cursor: hand; " +
+                "-fx-padding: 8 30; -fx-font-weight: bold;");
         btnClose.setOnAction(e ->
                 ((StackPane) btnHome.getScene().getRoot()).getChildren().remove(overlay)
         );
 
-        dialog.getChildren().addAll(lblTitle, boxPrice, boxName, boxAddress, boxPhone, boxEmail, btnClose);
+        dialog.getChildren().addAll(
+                lblTitle,
+                makeInfoBox("GIÁ KHỞI ĐIỂM",          price + " VNĐ", "#00b894", true),
+                makeInfoBox("HỌ VÀ TÊN NGƯỜI BÁN",    fullName,        "#0ea5e9", false),
+                makeInfoBox("ĐỊA CHỈ LIÊN HỆ",        address,         "#0ea5e9", false),
+                makeInfoBox("SỐ ĐIỆN THOẠI LIÊN HỆ",  phone,           "#0ea5e9", false),
+                makeInfoBox("EMAIL LIÊN HỆ",           email,           "#0ea5e9", false),
+                btnClose
+        );
+
         overlay.getChildren().add(dialog);
         ((StackPane) btnHome.getScene().getRoot()).getChildren().add(overlay);
     }
 
-    /**
-     * Hàm tiện ích: Tạo một nhóm thông tin (tiêu đề màu + nội dung trắng) trong dialog.
-     * Giúp xóa 5 đoạn VBox lặp lại y hệt nhau ở showProductDetails().
-     *
-     * @param titleText  Chữ tiêu đề, ví dụ: "HỌ VÀ TÊN NGƯỜI BÁN"
-     * @param valueText  Nội dung hiển thị
-     * @param titleColor Màu hex của tiêu đề
-     * @param isBold     true nếu muốn chữ nội dung to và đậm hơn (dùng cho giá tiền)
-     */
+    /** Tạo một cặp (tiêu đề màu + nội dung trắng) trong dialog chi tiết */
     private VBox makeInfoBox(String titleText, String valueText, String titleColor, boolean isBold) {
-        VBox box = new VBox(5);
-
         Label lblTitle = new Label(titleText);
-        lblTitle.setStyle("-fx-text-fill: " + titleColor + "; " +
-                "-fx-font-weight: bold; -fx-font-size: 15px;");
+        lblTitle.setStyle("-fx-text-fill: " + titleColor + "; -fx-font-weight: bold; -fx-font-size: 15px;");
 
         Label lblValue = new Label("• " + valueText);
-        if (isBold) {
-            lblValue.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
-        } else {
-            lblValue.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
-        }
+        lblValue.setStyle(isBold
+                ? "-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;"
+                : "-fx-text-fill: white; -fx-font-size: 14px;");
 
+        VBox box = new VBox(5);
         box.getChildren().addAll(lblTitle, lblValue);
         return box;
     }
@@ -370,39 +327,27 @@ public class DashboardController {
     // HÀM TIỆN ÍCH DÙNG CHUNG
     // =========================================================================
 
-    /**
-     * Chuyển màn hình sang một FXML khác.
-     * THAY ĐỔI: Gộp handleRegisterToSell và handleLogout thành 1 hàm dùng chung,
-     * xóa 2 đoạn try-catch copy-paste y hệt nhau.
-     */
+    /** Chuyển màn hình bằng cách thay Scene của Stage — dùng chung cho mọi navigation */
     private void navigateTo(ActionEvent event, String fxmlPath) {
         try {
-            Parent root;
-            root = FXMLLoader.load(getClass().getResource(fxmlPath));
+            Parent root = FXMLLoader.load(getClass().getResource(fxmlPath));
             Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
             stage.setScene(new Scene(root));
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Lỗi khi chuyển trang: " + fxmlPath, e);
             showInfo("Lỗi hệ thống", "Không thể tải màn hình: " + fxmlPath);
         }
     }
 
-    /**
-     * Đặt trạng thái active cho nút lọc loại xe (Ô tô / Xe máy).
-     * THAY ĐỔI: Gộp 2 hàm handleToggleCar và handleToggleBike thành 1 hàm dùng chung,
-     * xóa 4 dòng setStyle và setTextFill lặp lại.
-     */
+    /** Đặt trạng thái active cho nút lọc loại xe */
     private void setActiveFilterTab(Button active, Button inactive) {
         active.setStyle("-fx-background-color: #00b894; -fx-background-radius: 32;");
         active.setTextFill(Color.WHITE);
-
         inactive.setStyle("-fx-background-color: transparent; -fx-background-radius: 32;");
         inactive.setTextFill(Color.web("#cccccc"));
     }
 
-    /**
-     * Đặt trạng thái active cho tab điều hướng chính (Trang Chủ / Lịch Sử / Kết Quả).
-     */
+    /** Đặt trạng thái active cho tab điều hướng chính (Trang Chủ / Lịch Sử / Kết Quả) */
     private void setActiveTab(Button activeButton) {
         Button[] tabs = {btnHome, btnHistory, btnResults};
         for (Button tab : tabs) {
@@ -424,8 +369,5 @@ public class DashboardController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
-    }
-
-    public void setUserInfo(User loggedInUser) {
     }
 }
