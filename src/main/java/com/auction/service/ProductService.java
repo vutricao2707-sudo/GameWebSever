@@ -1,52 +1,60 @@
 package com.auction.service;
 
-import com.auction.model.DataStore;
-
+import com.auction.data.DataStore;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * ProductService: Tầng Service chịu trách nhiệm duy nhất về dữ liệu sản phẩm.
- * Controller KHÔNG được phép đụng vào DataStore trực tiếp nữa.
- * Mọi thao tác đọc/ghi sản phẩm đều phải đi qua class này.
- */
 public class ProductService {
 
-    /**
-     * Lấy danh sách sản phẩm đã được lọc theo loại xe.
-     *
-     * @param type Loại xe cần lọc, ví dụ: "Ô tô" hoặc "Xe máy"
-     * @return Danh sách các sản phẩm khớp với loại xe yêu cầu
-     */
-    public List<String[]> getProductsByType(String type) {
+    // ==========================================
+    // CHO USER: Chỉ lấy những xe "ĐÃ DUYỆT"
+    // ==========================================
+    public List<String[]> getApprovedProductsByType(String type) {
         List<String[]> result = new ArrayList<>();
-
-        // Logic lọc được chuyển từ DashboardController sang đây
-        boolean isCarTab = type.equals("Ô tô");
-
-        for (String[] p : DataStore.products) {
-            if (p[0] == null) continue;
-
-            boolean matchCar  = isCarTab  && (p[0].equals("Ô tô")  || p[0].contains("tô")  || p[0].contains("to"));
-            boolean matchBike = !isCarTab && (p[0].equals("Xe máy") || p[0].contains("máy") || p[0].contains("may"));
-
-            if (matchCar || matchBike) {
-                result.add(p);
+        for (String[] product : DataStore.products) {
+            // Điều kiện lọc: Đúng loại xe (Ô tô/Xe máy) VÀ trạng thái phải là APPROVED
+            if (product[0].equalsIgnoreCase(type) && product[8].equals("APPROVED")) {
+                result.add(product);
             }
         }
-
         return result;
     }
 
-    /**
-     * Thêm một sản phẩm mới vào kho dữ liệu.
-     * Hàm này sẽ được RegisterSellController dùng ở bước refactor tiếp theo.
-     *
-     * @param product Mảng dữ liệu sản phẩm theo thứ tự:
-     *                [0] loại xe, [1] biển số, [2] tỉnh, [3] giá,
-     *                [4] họ tên, [5] sđt, [6] email, [7] địa chỉ
-     */
-    public void addProduct(String[] product) {
-        DataStore.products.add(product);
+    // ==========================================
+    // CHO ADMIN: Lấy tất cả xe "CHỜ DUYỆT"
+    // ==========================================
+    public List<String[]> getPendingProducts() {
+        List<String[]> result = new ArrayList<>();
+        for (String[] product : DataStore.products) {
+            // Lọc ra những xe có chữ PENDING
+            if (product[8].equals("PENDING")) {
+                result.add(product);
+            }
+        }
+        return result;
+    }
+
+    // ==========================================
+    // CHO ADMIN: Logic bấm nút "Duyệt Xe" (✔)
+    // ==========================================
+    public boolean approveProduct(String plateToApprove) {
+        for (String[] product : DataStore.products) {
+            if (product[1].equals(plateToApprove)) {
+                product[8] = "APPROVED"; // Sửa trạng thái trong kho
+                return true; // Duyệt thành công
+            }
+        }
+        return false; // Không tìm thấy biển số này
+    }
+
+    // ==========================================
+    // CHO USER: Logic bấm nút "Đăng Ký Bán"
+    // ==========================================
+    public void addNewProduct(String type, String plate, String province, String price,
+                              String name, String phone, String email, String address) {
+
+        // Mặc định xe mới nhét vào kho sẽ bị gán mác "PENDING"
+        String[] newProduct = {type, plate, province, price, name, phone, email, address, "PENDING"};
+        DataStore.products.add(newProduct);
     }
 }

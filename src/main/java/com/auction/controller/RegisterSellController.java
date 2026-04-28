@@ -47,11 +47,12 @@ public class RegisterSellController {
         // THAY ĐỔI CHÍNH: Không còn DataStore.products.add() nằm trong Controller.
         // Controller chỉ đóng gói dữ liệu từ form và giao cho Service xử lý.
         // Đây đúng trách nhiệm của Controller trong MVC.
-        String[] newProduct = {type, plate, province, price, fullName, phone, email, address};
-        productService.addProduct(newProduct);
+        // Gọi hàm addNewProduct từ Service (hàm này đã tự động gán nhãn "PENDING" ở dưới đáy)
+        productService.addNewProduct(type, plate, province, price, fullName, phone, email, address);
 
-        showAlert(Alert.AlertType.INFORMATION, "Thành công!", "Đã đăng ký bán biển số: " + plate);
-        NavigationUtil.navigateTo(event, "/fxml/Dashboard.fxml");
+        // Đổi câu thông báo để User biết là phải chờ duyệt chứ chưa lên sàn ngay
+        showAlert(Alert.AlertType.INFORMATION, "Gửi yêu cầu thành công!",
+                "Biển số " + plate + " đã được gửi đi.\nVui lòng chờ hệ thống duyệt!.");
     }
 
     @FXML

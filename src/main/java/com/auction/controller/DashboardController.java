@@ -1,5 +1,6 @@
 package com.auction.controller;
 
+import com.auction.model.User;
 import com.auction.service.ProductService;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -125,7 +126,7 @@ public class DashboardController {
 
         // THAY ĐỔI CHÍNH: Không còn for-loop lọc DataStore ở đây nữa.
         // Controller chỉ hỏi Service: "Cho tôi danh sách xe loại X" và nhận về kết quả.
-        List<String[]> products = productService.getProductsByType(type);
+        List<String[]> products = productService.getApprovedProductsByType(type);
 
         if (products.isEmpty()) {
             showEmptyMessage("Chưa có " + type.toUpperCase() + " nào được đăng bán.");
@@ -423,5 +424,8 @@ public class DashboardController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    public void setUserInfo(User loggedInUser) {
     }
 }

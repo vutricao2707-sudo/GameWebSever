@@ -5,9 +5,16 @@ import com.auction.service.AuctionManager;
 import com.auction.util.NavigationUtil;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.stage.Stage;
+
+import java.io.IOException;
 
 public class LoginController {
 
@@ -24,17 +31,43 @@ public class LoginController {
             return;
         }
 
-        // THAY ĐỔI CHÍNH: Bỏ hoàn toàn đoạn "admin".equals(...) cứng ở đây.
-        // Gọi AuctionManager.login() — class này đã có sẵn trong dự án từ đầu
-        // nhưng chưa được dùng. Đây đúng là trách nhiệm của Service, không phải Controller.
+        // Gọi Service kiểm tra tài khoản
         User loggedInUser = AuctionManager.getInstance().login(username, password);
 
         if (loggedInUser != null) {
-            // Đăng nhập thành công → chuyển sang Dashboard
-            NavigationUtil.navigateTo(event, "/fxml/Dashboard.fxml");
+            try {
+                if (loggedInUser.getUserName().equals("vpa_admin")) {
+                    // 1. TẢI TRANG ADMIN VÀ TRUYỀN DỮ LIỆU
+                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AdminDashboard.fxml"));
+                    Parent root = loader.load();
+
+                    AdminController adminController = loader.getController();
+                    adminController.setAdminInfo(loggedInUser);
+
+                    switchScene(event, root);
+                } else {
+                    // 2. TẢI TRANG USER VÀ TRUYỀN DỮ LIỆU
+                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/Dashboard.fxml"));
+                    Parent root = loader.load();
+
+                    DashboardController userController = loader.getController();
+                    userController.setUserInfo(loggedInUser); // Gọi hàm bên Dashboard
+
+                    switchScene(event, root);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+                showAlert(Alert.AlertType.ERROR, "Lỗi hệ thống", "Không thể tải giao diện!");
+            }
         } else {
             showAlert(Alert.AlertType.ERROR, "Lỗi đăng nhập", "Tài khoản hoặc mật khẩu không chính xác!");
         }
+    }
+
+    // Hàm tiện ích để chuyển cảnh
+    private void switchScene(ActionEvent event, Parent root) {
+        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+        stage.setScene(new Scene(root));
     }
 
     @FXML
