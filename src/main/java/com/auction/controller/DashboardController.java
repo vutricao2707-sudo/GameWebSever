@@ -46,9 +46,15 @@ public class DashboardController {
         setActiveTab(btnHome);
     }
 
-    /** Được gọi từ LoginController để nhận thông tin người dùng sau đăng nhập */
-    public void setUserInfo(User loggedInUser) {
-        // TODO: Hiển thị tên user lên Label "Xin chào, ..." trên Header
+    @FXML private Label lblUserName;
+    private User currentUser; // Lưu lại để dùng cho chức năng khác
+
+    public void setUserInfo(User user) {
+        this.currentUser = user;
+        if (user != null && user.getFullName() != null) {
+            // Đổi chữ mặc định thành tên thật của user
+            lblUserName.setText("Xin chào, " + user.getFullName());
+        }
     }
 
     // =========================================================================

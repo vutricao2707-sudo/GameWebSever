@@ -49,19 +49,20 @@ public class AdminController {
     // =========================================================================
     // TẢI DANH SÁCH CHỜ DUYỆT — Lấy từ Service thay vì hardcode
     // =========================================================================
-
+    @FXML private Label lblTotalRequests;
     private void loadPendingItems() {
+        if (adminListContainer == null) return;
         adminListContainer.getChildren().clear();
-
         List<String[]> pendingList = productService.getPendingProducts();
-
+        if (lblTotalRequests != null) {
+            lblTotalRequests.setText("Tổng cộng: " + pendingList.size() + " yêu cầu");
+        }
         if (pendingList.isEmpty()) {
             Label emptyLabel = new Label("✅ Không có xe nào đang chờ duyệt.");
             emptyLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 16px; -fx-padding: 30;");
             adminListContainer.getChildren().add(emptyLabel);
             return;
         }
-
         for (String[] product : pendingList) {
             // Cấu trúc DataStore: [0]type [1]plate [2]province [3]price [4]name ... [8]status
             String plate  = product[1];

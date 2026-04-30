@@ -38,23 +38,43 @@ public class RegisterSellController {
         String province = txtProvince.getText().trim();
         String price    = txtStartingPrice.getText().trim();
 
+        // 1. Kiểm tra rỗng
         if (fullName.isEmpty() || phone.isEmpty() || email.isEmpty() || address.isEmpty()
                 || type == null || plate.isEmpty() || province.isEmpty() || price.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập đầy đủ các ô có dấu *");
             return;
         }
 
-        // THAY ĐỔI CHÍNH: Không còn DataStore.products.add() nằm trong Controller.
-        // Controller chỉ đóng gói dữ liệu từ form và giao cho Service xử lý.
-        // Đây đúng trách nhiệm của Controller trong MVC.
-        // Gọi hàm addNewProduct từ Service (hàm này đã tự động gán nhãn "PENDING" ở dưới đáy)
-        productService.addNewProduct(type, plate, province, price, fullName, phone, email, address);
+        // 2. Validate giá tiền (Chặn nhập chữ và số âm)
+        double validPrice = 0;
+        try {
+            validPrice = Double.parseDouble(price);
+            if (validPrice <= 0) {
+                showAlert(Alert.AlertType.ERROR, "Lỗi nhập liệu", "Giá khởi điểm phải lớn hơn 0!");
+                return;
+            }
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi nhập liệu", "Giá tiền chỉ được phép nhập số (ví dụ: 50000000)!");
+            return;
+        }
 
-        // Đổi câu thông báo để User biết là phải chờ duyệt chứ chưa lên sàn ngay
+        // 3. Gọi Service để thêm mới và kiểm tra trùng lặp
+        boolean isSuccess = productService.addNewProduct(type, plate, province, price, fullName, phone, email, address);
+
+        // Nếu isSuccess là false (tức là bị trùng biển số)
+        if (!isSuccess) {
+            showAlert(Alert.AlertType.ERROR, "Từ chối đăng ký", "Biển số " + plate + " đã tồn tại trên hệ thống! Vui lòng kiểm tra lại.");
+            return; // Dừng lại, không cho đăng ký tiếp
+        }
+
+        // 4. Nếu qua hết các ải trên thì thông báo thành công
         showAlert(Alert.AlertType.INFORMATION, "Gửi yêu cầu thành công!",
-                "Biển số " + plate + " đã được gửi đi.\nVui lòng chờ hệ thống duyệt!.");
-    }
+                "Biển số " + plate + " đã được gửi đi.\nVui lòng chờ hệ thống duyệt!");
 
+        // (Tùy chọn) Xóa trắng các ô nhập liệu sau khi đăng ký thành công
+        // txtPlateNumber.clear();
+        // txtStartingPrice.clear();
+    }
     @FXML
     private void handleCancel(ActionEvent event) {
         NavigationUtil.navigateTo(event, "/fxml/Dashboard.fxml");

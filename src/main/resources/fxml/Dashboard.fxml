@@ -61,10 +61,8 @@
                     </padding>
                 </Button>
 
-                <Label text="Xin chào, User" textFill="WHITE">
-                    <font>
-                        <Font size="12.0"/>
-                    </font>
+                <Label fx:id="lblUserName" text="Xin chào, User" textFill="WHITE">
+                    <font><Font size="12.0"/></font>
                 </Label>
 
                 <Button onAction="#handleLogout" text="Đăng xuất"
