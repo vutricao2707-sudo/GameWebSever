@@ -44,27 +44,47 @@ bids           ← Lịch sử đặt giá
 
 ## 🚀 Cách Setup
 
-### **Bước 1: Thay Password MySQL**
+### **Bước 1: Copy File Config**
 
-File: `src/main/java/com/auction/database/DatabaseConnection.java`
+File: `src/main/resources/database.properties.example`
 
-```java
-private static final String PASSWORD = "123456";  // <- ĐỔI THÀNH MẬT KHẨU CỦA BẠN
+```bash
+1. Mở folder: src/main/resources/
+2. Copy file: database.properties.example
+3. Tạo file mới: database.properties (paste)
+4. KHÔNG commit file này lên Git (có trong .gitignore)
 ```
 
-### **Bước 2: Tạo Database (MySQL Workbench)**
+### **Bước 2: Sửa Password MySQL**
 
-Mở MySQL Workbench, chạy lệnh này:
+File: `src/main/resources/database.properties`
+
+```properties
+db.url=jdbc:mysql://localhost:3306/auction_db
+db.username=root
+db.password=123456  ← ĐỔI THÀNH MẬT KHẨU CỦA BẠN
+```
+
+**Giải thích:**
+- Mỗi người có file riêng
+- Mỗi người có password khác
+- Code không cứng password
+- Git bỏ qua file này
+
+### **Bước 3: Tạo Database**
+
+Mở MySQL Workbench, chạy:
 
 ```sql
 CREATE DATABASE auction_db;
 ```
 
-### **Bước 3: Chạy App**
+### **Bước 4: Chạy App**
 
-App sẽ tự động tạo 4 bảng. Kiểm tra console log:
+App sẽ tự động tạo 4 bảng. Kiểm tra console:
 
 ```
+✅ Đã load config từ database.properties
 ✅ Bảng users sẵn sàng
 ✅ Bảng items sẵn sàng
 ✅ Bảng auctions sẵn sàng
@@ -73,7 +93,7 @@ App sẽ tự động tạo 4 bảng. Kiểm tra console log:
 ✅✅✅ Database khởi tạo thành công! ✅✅✅
 ```
 
-**XONG!** Database đã sẵn sàng 🎉
+**XONG!** 🎉
 
 ---
 
@@ -245,12 +265,30 @@ BidDAO.countBidsForAuction(1);
 
 ## ⚠️ Lưu Ý
 
-- **Mỗi người nhóm**: Thay password MySQL của từng máy vào `DatabaseConnection.java`
+### **Về File Config (database.properties)**
+
+✅ **Mỗi người có file riêng**
+- Bạn A: `database.properties` → password "123456"
+- Bạn B: `database.properties` → password "abcxyz"
+- Code giống nhau, chỉ config khác
+
+✅ **Không commit lên Git**
+- File `database.properties` trong `.gitignore`
+- Commit `database.properties.example` làm mẫu
+- Mỗi người copy `.example` → sửa password
+
+✅ **Cách hoạt động**
+- App chạy → ConfigLoader.java đọc `database.properties`
+- Connection dùng password từ file
+- Mỗi máy chạy code riêng → không lộ password
+
+### **Về Database**
+
 - **Tạo database 1 lần**: Chạy `CREATE DATABASE auction_db;` trong MySQL Workbench
 - **App chạy lần đầu**: DatabaseInitializer sẽ tạo 4 bảng tự động
 - **Lần 2 trở đi**: Bảng đã tồn tại, app không tạo lại
 
 ---
 
-**Vậy đó! Simple và dễ hiểu phải không? 😊**
+**Vậy đó! Simple, bảo mật, và dễ hiểu 😊**
 
