@@ -1,7 +1,7 @@
 package com.auction.controller;
 
+import com.auction.database.UserDAO;
 import com.auction.model.User;
-import com.auction.service.AuctionManager;
 import com.auction.util.NavigationUtil;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -31,29 +31,32 @@ public class LoginController {
             return;
         }
 
-        // Gọi Service kiểm tra tài khoản
-        User loggedInUser = AuctionManager.getInstance().login(username, password);
-
-        if (loggedInUser != null) {
+        // Kiểm tra thông tin đăng nhập từ database
+        if (UserDAO.checkLogin(username, password)) {
             try {
-                if (loggedInUser.getUserName().equals("vpa_admin")) {
-                    // 1. TẢI TRANG ADMIN VÀ TRUYỀN DỮ LIỆU
-                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AdminDashboard.fxml"));
-                    Parent root = loader.load();
+                // Lấy thông tin user từ database
+                User loggedInUser = UserDAO.getUserByUsernameAndPassword(username, password);
 
-                    AdminController adminController = loader.getController();
-                    adminController.setAdminInfo(loggedInUser);
+                if (loggedInUser != null) {
+                    if (loggedInUser.getUserName().equals("vpa_admin")) {
+                        // 1. TẢI TRANG ADMIN VÀ TRUYỀN DỮ LIỆU
+                        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AdminDashboard.fxml"));
+                        Parent root = loader.load();
 
-                    switchScene(event, root);
-                } else {
-                    // 2. TẢI TRANG USER VÀ TRUYỀN DỮ LIỆU
-                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/Dashboard.fxml"));
-                    Parent root = loader.load();
+                        AdminController adminController = loader.getController();
+                        adminController.setAdminInfo(loggedInUser);
 
-                    DashboardController userController = loader.getController();
-                    userController.setUserInfo(loggedInUser); // Gọi hàm bên Dashboard
+                        switchScene(event, root);
+                    } else {
+                        // 2. TẢI TRANG USER VÀ TRUYỀN DỮ LIỆU
+                        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/Dashboard.fxml"));
+                        Parent root = loader.load();
 
-                    switchScene(event, root);
+                        DashboardController userController = loader.getController();
+                        userController.setUserInfo(loggedInUser); // Gọi hàm bên Dashboard
+
+                        switchScene(event, root);
+                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();

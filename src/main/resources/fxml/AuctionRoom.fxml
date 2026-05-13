@@ -94,7 +94,7 @@
                         </HBox>
                     </HBox>
 
-                    <Button fx:id="btnPlaceBid" onAction="#handlePlaceBid" maxWidth="1000.0" text="ĐẶT GIÁ: 14.125.000.000 đ" textFill="WHITE" style="-fx-background-color: #2563eb; -fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 12;">qu
+                    <Button fx:id="btnPlaceBid" onAction="#handlePlaceBid" maxWidth="1000.0" text="ĐẶT GIÁ: 14.125.000.000 đ" textFill="WHITE" style="-fx-background-color: #2563eb; -fx-background-radius: 12; -fx-cursor: hand; -fx-padding: 12;">
                         <font><Font name="System Bold" size="16.0"/></font>
                     </Button>
 

@@ -25,6 +25,7 @@ public class AdminController {
     private static final Logger logger = Logger.getLogger(AdminController.class.getName());
 
     @FXML private Label lblAdminName;
+    @FXML private Label lblTotalRequests;
     @FXML private VBox adminListContainer;
 
     // Admin chỉ nói chuyện với Service — không bao giờ đụng thẳng vào DataStore
@@ -49,7 +50,6 @@ public class AdminController {
     // =========================================================================
     // TẢI DANH SÁCH CHỜ DUYỆT — Lấy từ Service thay vì hardcode
     // =========================================================================
-    @FXML private Label lblTotalRequests;
     private void loadPendingItems() {
         if (adminListContainer == null) return;
         adminListContainer.getChildren().clear();
@@ -132,7 +132,12 @@ public class AdminController {
         boolean success = productService.approveProduct(plate);
         if (success) {
             adminListContainer.getChildren().remove(rowToRemove);
-            showInfo("Duyệt thành công", "Biển số " + plate + " đã được đẩy lên sàn đấu giá!");
+            // Cập nhật lại số đếm sau khi duyệt
+            int remaining = adminListContainer.getChildren().size();
+            if (lblTotalRequests != null) {
+                lblTotalRequests.setText("Tổng cộng: " + remaining + " yêu cầu");
+            }
+            showInfo("Duyệt thành công", "Biển số " + plate + " đã được đẩy lên sàn!");
         } else {
             showInfo("Thất bại", "Không tìm thấy biển số " + plate + " trong hệ thống.");
         }
