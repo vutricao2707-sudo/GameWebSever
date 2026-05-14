@@ -5,16 +5,29 @@ public class ItemDTO {
     private String sellerName, sellerPhone, sellerEmail, sellerAddress;
 
     public static ItemDTO fromApprovedArray(String[] p) {
-        if (p == null || p.length < 10) return null;
+        // SỬA: Đổi điều kiện từ 10 thành 11 vì mảng p bây giờ có 11 phần tử (do mới thêm address)
+        if (p == null || p.length < 11) return null;
+
         ItemDTO dto = new ItemDTO();
         dto.plateNumber = p[1];
-        dto.formattedPrice = p[2]; // start_price
+
+        // SỬA (Vấn đề 2): Format giá tiền từ "150000000.0" thành "150,000,000"
+        try {
+            double rawPrice = Double.parseDouble(p[2]); // Ép chuỗi về số thực
+            dto.formattedPrice = String.format("%,.0f", rawPrice); // Format số có dấu phẩy
+        } catch (NumberFormatException e) {
+            dto.formattedPrice = p[2]; // Đề phòng lỗi ép kiểu thì gán lại chuỗi gốc
+        }
+
         dto.vehicleType = p[5];
         dto.sellerName = p[7];
         dto.sellerPhone = p[8];
         dto.sellerEmail = p[9];
-        dto.province = ""; // Tạm thời để trống hoặc query thêm nếu cần
-        dto.sellerAddress = "";
+        dto.province = "";
+
+        // SỬA (Vấn đề 1): Đọc địa chỉ người bán từ vị trí p[10]
+        dto.sellerAddress = p[10];
+
         return dto;
     }
 

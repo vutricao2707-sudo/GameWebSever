@@ -49,7 +49,14 @@ public class DatabaseInitializer {
                     "  seller_name VARCHAR(100)," +
                     "  seller_phone VARCHAR(15)," +
                     "  seller_email VARCHAR(100)," +
-                    "  seller_address TEXT" +
+                    "  seller_address TEXT," +
+                    "  registration_duration INT DEFAULT 1440," +
+                    "  registration_start_time DATETIME," +
+                    "  registration_end_time DATETIME," +
+                    "  auction_start_time DATETIME," +
+                    "  auction_end_time DATETIME," +
+                    "  participant_count INT DEFAULT 0," +
+                    "  auction_status VARCHAR(20) DEFAULT 'WAITING'" +
                     ")";
             stmt.execute(createItems);
             System.out.println("✅ Bảng items sẵn sàng");

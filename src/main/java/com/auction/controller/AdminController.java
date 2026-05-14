@@ -1,5 +1,6 @@
 package com.auction.controller;
 
+import com.auction.database.ItemDAO;
 import com.auction.model.User;
 import com.auction.service.ProductService;
 import javafx.event.ActionEvent;
@@ -11,12 +12,14 @@ import javafx.scene.Parent;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -126,21 +129,53 @@ public class AdminController {
     }
 
     // =========================================================================
-    // LOGIC DUYỆT XE — Gọi Service để cập nhật DataStore (sửa lỗi không lưu)
+    // LOGIC DUYỆT XE — Gọi Service để cập nhật Database + Bắt đầu giai đoạn đăng ký
     // =========================================================================
 
     private void handleApprove(String plate, HBox rowToRemove) {
+        // Bước 1: Duyệt biển số (cập nhật APPROVED)
         boolean success = productService.approveProduct(plate);
-        if (success) {
+        if (!success) {
+            showInfo("Thất bại", "Không tìm thấy biển số " + plate + " trong hệ thống.");
+            return;
+        }
+
+        // Bước 2: Hỏi admin thời gian đăng ký bao lâu (phút)
+        TextInputDialog dialog = new TextInputDialog("60");
+        dialog.setTitle("Cấu hình thời gian đăng ký");
+        dialog.setHeaderText("Nhập thời gian đăng ký (phút):");
+        dialog.setContentText("Thời gian (phút):");
+
+        Optional<String> result = dialog.showAndWait();
+        int registrationDurationMinutes = 60; // Mặc định 60 phút
+
+        if (result.isPresent()) {
+            try {
+                registrationDurationMinutes = Integer.parseInt(result.get());
+                if (registrationDurationMinutes <= 0) {
+                    showAlert(Alert.AlertType.WARNING, "Lỗi", "Vui lòng nhập một số dương!");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                showAlert(Alert.AlertType.WARNING, "Lỗi", "Vui lòng nhập một số hợp lệ!");
+                return;
+            }
+        }
+
+        // Bước 3: Bắt đầu giai đoạn đăng ký (cập nhật thời gian vào database)
+        boolean registrationStarted = ItemDAO.startRegistrationPhase(plate, registrationDurationMinutes);
+        if (registrationStarted) {
             adminListContainer.getChildren().remove(rowToRemove);
-            // Cập nhật lại số đếm sau khi duyệt
             int remaining = adminListContainer.getChildren().size();
             if (lblTotalRequests != null) {
                 lblTotalRequests.setText("Tổng cộng: " + remaining + " yêu cầu");
             }
-            showInfo("Duyệt thành công", "Biển số " + plate + " đã được đẩy lên sàn!");
+            showInfo("Duyệt thành công",
+                    "Biển số " + plate + " đã được duyệt!\n" +
+                    "Giai đoạn đăng ký: " + registrationDurationMinutes + " phút\n" +
+                    "Giai đoạn đấu giá: 60 phút (sau khi đăng ký hết)");
         } else {
-            showInfo("Thất bại", "Không tìm thấy biển số " + plate + " trong hệ thống.");
+            showInfo("Lỗi", "Không thể bắt đầu giai đoạn đăng ký cho biển số " + plate);
         }
     }
 
@@ -199,6 +234,14 @@ public class AdminController {
 
     private void showInfo(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);

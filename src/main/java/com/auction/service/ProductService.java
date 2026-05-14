@@ -9,16 +9,16 @@ import java.util.List;
 public class ProductService {
 
     // ==========================================
-    // CHO USER: Chỉ lấy những xe "ĐÃ DUYỆT" từ DATABASE
+    // CHO USER: Chỉ lấy những xe "ĐÃ DUYỆT" và "CHƯA KẾT THÚC" từ DATABASE
     // ==========================================
     public List<String[]> getApprovedProductsByType(String type) {
-        // Lấy từ database
-        List<String[]> allApproved = ItemDAO.getAllApprovedItems();
+        // Lấy từ database - CHỈ lấy những xe đã duyệt và chưa kết thúc phiên
+        List<String[]> allApproved = ItemDAO.getAllApprovedActiveItems();
         List<String[]> result = new ArrayList<>();
 
         for (String[] product : allApproved) {
             // Cấu trúc từ database: [0]id [1]plate [2]start_price [3]current_price
-            // [4]description [5]vehicle_type [6]status [7]seller_name [8]seller_phone [9]seller_email
+            // [4]description [5]vehicle_type [6]status [7]seller_name [8]seller_phone [9]seller_email [10]seller_address [11]auction_status
             if (product[5].equalsIgnoreCase(type)) {  // product[5] là vehicle_type
                 result.add(product);
             }

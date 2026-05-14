@@ -1,5 +1,6 @@
 package com.auction.controller;
 
+import com.auction.database.ItemDAO;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
@@ -9,6 +10,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
@@ -35,26 +37,29 @@ public class AuctionRoomController {
     @FXML private VBox liveHistoryContainer;
     @FXML private Label lblCurrentPrice, lblStepMultiplier;
     @FXML private Button btnPlaceBid;
+    @FXML private Label lblParticipants;  // Mới: Hiển thị số người tham gia
 
     // --- Biến lưu trữ Logic Đấu Giá ---
-    private double currentPrice = 14120000000.0; // VD: 14.12 tỷ
-    private final double stepValue = 5000000.0;  // Bước giá cố định 5 triệu
-    private int stepMultiplier = 1;              // Hệ số nhân (1, 2, 3...)
+    private double currentPrice;                   // Giá khởi điểm từ database
+    private final double stepValue = 5000000.0;    // Bước giá cố định 5 triệu
+    private int stepMultiplier = 1;                // Hệ số nhân (1, 2, 3...)
+    private String currentPlateNumber;             // Lưu biển số hiện tại
+    private int currentParticipants = 0;           // Số người tham gia
 
     // --- Biến Đồng hồ ---
-    private int timeRemainingSeconds = 5 * 60;   // Đếm ngược 5 phút
+    private int timeRemainingSeconds = 60 * 60;   // Đếm ngược 60 phút
     private Timeline countdownTimeline;
     private final DecimalFormat formatter = new DecimalFormat("#,###");
+
+    // --- Biến Cooldown (1 phút sau mỗi lần đặt giá) ---
+    private long lastBidTime = 0;
+    private static final long BID_COOLDOWN_SECONDS = 60; // 1 phút
 
     @FXML
     public void initialize() {
         startCountdown();
         updatePricingUI();
-
-        // Load vài dòng lịch sử mẫu cho giống ảnh
-        addHistoryRow("14.120.000.000", "VPA-I0ZH...");
-        addHistoryRow("14.115.000.000", "VPA-625U...");
-        addHistoryRow("14.105.000.000", "VPA-GFUC...");
+        updateParticipantCount();
     }
 
     // =========================================================================
@@ -72,10 +77,14 @@ public class AuctionRoomController {
                 lblSeconds.setText(String.format("%02d", seconds));
             } else {
                 countdownTimeline.stop();
-                // ĐÃ SỬA: Làm cho nút bị khóa trông chìm hơn
+                // Phiên đấu giá kết thúc
                 btnPlaceBid.setText("PHIÊN ĐẤU GIÁ KẾT THÚC");
                 btnPlaceBid.setStyle("-fx-background-color: #334155; -fx-text-fill: #94a3b8; -fx-background-radius: 12; -fx-font-size: 16px; -fx-font-weight: bold;");
-                btnPlaceBid.setDisable(true); // Khóa nút bấm
+                btnPlaceBid.setDisable(true);
+                // Cập nhật trạng thái trong database
+                if (currentPlateNumber != null && !currentPlateNumber.isEmpty()) {
+                    ItemDAO.finishAuction(currentPlateNumber);
+                }
             }
         }));
         countdownTimeline.setCycleCount(Timeline.INDEFINITE);
@@ -110,20 +119,42 @@ public class AuctionRoomController {
     }
 
     // =========================================================================
-    // LOGIC BẤM NÚT "TRẢ GIÁ"
+    // LOGIC BẤM NÚT "TRẢ GIÁ" - CÓ COOLDOWN
     // =========================================================================
     @FXML
     private void handlePlaceBid() {
+        // Kiểm tra cooldown (phải chờ 60 giây sau lần cuối)
+        long currentTime = System.currentTimeMillis() / 1000; // Thời gian hiện tại (seconds)
+        long timeSinceLastBid = currentTime - lastBidTime;
+
+        if (timeSinceLastBid < BID_COOLDOWN_SECONDS) {
+            long remainingTime = BID_COOLDOWN_SECONDS - timeSinceLastBid;
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Chờ một chút");
+            alert.setHeaderText(null);
+            alert.setContentText("Bạn phải chờ " + remainingTime + " giây nữa mới được đặt giá!\n(Tránh spam)");
+            alert.showAndWait();
+            return; // Dừng lại, không cho đặt giá
+        }
+
         // 1. Tính toán giá mới
         double newBid = currentPrice + (stepValue * stepMultiplier);
         currentPrice = newBid;
+
+        // Cập nhật vào database
+        if (currentPlateNumber != null && !currentPlateNumber.isEmpty()) {
+            ItemDAO.updateCurrentPrice(currentPlateNumber, newBid);
+        }
 
         // 2. Reset hệ số về 1
         stepMultiplier = 1;
         updatePricingUI();
 
-        // 3. Thêm vào đầu danh sách lịch sử (LIFO)
-        addHistoryRow(formatter.format(newBid), "VPA-USER (Bạn)");
+        // 3. Ghi lại thời gian đặt giá
+        lastBidTime = currentTime;
+
+        // 4. Thêm vào đầu danh sách lịch sử (LIFO)
+        addHistoryRow(formatter.format(newBid), currentPlateNumber + " - Bạn");
     }
 
     private void addHistoryRow(String priceStr, String userId) {
@@ -162,18 +193,34 @@ public class AuctionRoomController {
         liveHistoryContainer.getChildren().add(0, row);
     }
 
+    // =====================================================================
+    // PHẦN MỚI: QUẢN LÝ SỐ NGƯỜI THAM GIA
+    // =====================================================================
+    private void updateParticipantCount() {
+        if (currentPlateNumber != null && !currentPlateNumber.isEmpty()) {
+            currentParticipants = ItemDAO.getParticipantCount(currentPlateNumber);
+            if (lblParticipants != null) {
+                lblParticipants.setText("👥 " + currentParticipants + " người tham gia");
+            }
+        }
+    }
+
     // =========================================================================
     // TRUYỀN DỮ LIỆU VÀ ĐIỀU HƯỚNG
     // =========================================================================
 
-    // Hàm này sẽ được gọi từ Dashboard truyền sang
+    // Hàm này sẽ được gọi từ Dashboard truyền sang tất cả thông tin từ database
     public void setAuctionRoomData(String plate, double startingPrice) {
+        this.currentPlateNumber = plate;
+        this.currentPrice = startingPrice;
+
         String[] parts = plate.split("-");
         lblPlateTop.setText(parts.length > 0 ? parts[0] : plate);
         lblPlateBottom.setText(parts.length > 1 ? parts[1] : "");
 
-        this.currentPrice = startingPrice;
+        // Cập nhật UI giá cả
         updatePricingUI();
+        updateParticipantCount();
     }
 
     @FXML
