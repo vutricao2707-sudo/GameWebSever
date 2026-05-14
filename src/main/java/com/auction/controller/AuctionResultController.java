@@ -1,5 +1,6 @@
 package com.auction.controller;
 
+import com.auction.database.ItemDAO;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -17,6 +18,7 @@ import java.util.logging.Logger;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.List;
 import java.util.Objects;
 
 public class AuctionResultController {
@@ -26,21 +28,40 @@ public class AuctionResultController {
 
     @FXML
     public void initialize() {
-        // Gọi hàm giả lập dữ liệu ngay khi mở trang để xem giao diện
-        loadDummyData();
+        // Tải dữ liệu từ database - kết quả đấu giá đã kết thúc
+        loadAuctionResults();
     }
 
     // =========================================================================
-    // HÀM TẠO VÀ NẠP DỮ LIỆU
+    // HÀM TẠO VÀ NẠP DỮ LIỆU KẾT QUẢ TỪ DATABASE
     // =========================================================================
 
-    private void loadDummyData() {
+    private void loadAuctionResults() {
+        if (resultListContainer == null) return;
         resultListContainer.getChildren().clear();
 
-        // Tạo 3 hàng giả lập để test giao diện
-        resultListContainer.getChildren().add(createRow(1, "30K-888.88", 150000000, "27/04/2026 10:30", true));
-        resultListContainer.getChildren().add(createRow(2, "51G-123.45", 45000000, "26/04/2026 15:45", false));
-        resultListContainer.getChildren().add(createRow(3, "29A-999.99", 300000000, "25/04/2026 09:00", true));
+        // Lấy dữ liệu từ ItemDAO - những phiên đã FINISHED
+        List<String[]> finishedItems = ItemDAO.getFinishedAuctions();
+
+        if (finishedItems.isEmpty()) {
+            Label emptyLabel = new Label("🏆 Chưa có kết quả đấu giá nào.");
+            emptyLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 16px; -fx-padding: 30;");
+            resultListContainer.getChildren().add(emptyLabel);
+            return;
+        }
+
+        // Duyệt qua các items đã kết thúc
+        for (int i = 0; i < finishedItems.size(); i++) {
+            String[] item = finishedItems.get(i);
+            // Cấu trúc: [0]id, [1]plate, [2]start_price, [3]current_price, [4]vehicle_type, [5]seller_name, [6]auction_status, [7]auction_end_time
+            int stt = i + 1;
+            String plate = item[1];
+            double finalPrice = Double.parseDouble(item[3]);
+            String endTime = item[7];
+            boolean isSuccess = finalPrice > Double.parseDouble(item[2]); // Nếu final_price > start_price thì thành công
+
+            resultListContainer.getChildren().add(createRow(stt, plate, finalPrice, endTime, isSuccess));
+        }
     }
 
     /**
@@ -72,12 +93,12 @@ public class AuctionResultController {
         lblPrice.setStyle("-fx-text-fill: #f59e0b; -fx-font-size: 16px; -fx-font-weight: bold;");
 
         // Cột 4: Thời gian
-        Label lblTime = new Label(time);
+        Label lblTime = new Label(time != null ? time.substring(0, Math.min(16, time.length())) : "N/A");
         lblTime.setPrefWidth(200);
         lblTime.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 14px;");
 
         // Cột 5: Trạng thái (Xanh lá hoặc Đỏ)
-        Label lblStatus = new Label(isSuccess ? "Thành công" : "Thất bại");
+        Label lblStatus = new Label(isSuccess ? "✅ Thành công" : "❌ Thất bại");
         lblStatus.setPrefWidth(180);
         if (isSuccess) {
             lblStatus.setStyle("-fx-text-fill: #10b981; -fx-font-weight: bold; -fx-font-size: 15px;");

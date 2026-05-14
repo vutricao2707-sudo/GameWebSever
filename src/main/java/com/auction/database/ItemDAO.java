@@ -273,10 +273,11 @@ public class ItemDAO {
                 "registration_start_time = NOW(), " +
                 "registration_end_time = DATE_ADD(NOW(), INTERVAL ? MINUTE), " +
                 "auction_start_time = DATE_ADD(NOW(), INTERVAL ? MINUTE), " +
-                "auction_end_time = DATE_ADD(NOW(), INTERVAL ? + 60 MINUTE), " +
+                "auction_end_time = DATE_ADD(DATE_ADD(NOW(), INTERVAL ? MINUTE), INTERVAL 60 MINUTE), " +
                 "registration_duration = ?, " +
-                "auction_status = 'REGISTRATION' " +
-                "WHERE plate_number = ?";
+                "auction_status = 'REGISTRATION', " +
+                "approval_status = 'APPROVED' " +
+                "WHERE plate_number = ? AND approval_status = 'PENDING'";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -457,6 +458,40 @@ public class ItemDAO {
             System.out.println("❌ Lỗi: " + e.getMessage());
         }
         return 0;
+    }
+
+    // ===== PHƯƠNG THỨC MỚI: Lấy kết quả đấu giá =====
+
+    // Lấy tất cả items đã kết thúc phiên (FINISHED)
+    public static List<String[]> getFinishedAuctions() {
+        List<String[]> result = new ArrayList<>();
+        String sql = "SELECT id, plate_number, start_price, current_price, vehicle_type, seller_name, auction_status, auction_end_time " +
+                "FROM items WHERE auction_status = 'FINISHED' " +
+                "ORDER BY auction_end_time DESC LIMIT 50";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                String[] item = {
+                        String.valueOf(rs.getInt("id")),
+                        rs.getString("plate_number"),
+                        String.valueOf(rs.getDouble("start_price")),
+                        String.valueOf(rs.getDouble("current_price")),
+                        rs.getString("vehicle_type"),
+                        rs.getString("seller_name"),
+                        rs.getString("auction_status"),
+                        rs.getString("auction_end_time")
+                };
+                result.add(item);
+            }
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi: " + e.getMessage());
+        }
+
+        return result;
     }
 }
 

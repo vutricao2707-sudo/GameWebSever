@@ -54,7 +54,7 @@ public class DashboardController {
         this.currentUser = user;
         if (user != null && user.getFullName() != null) {
             // Đổi chữ mặc định thành tên thật của user
-            lblUserName.setText("Xin chào, " + user.getFullName());
+            lblUserName.setText("Xin chào, người dùng");
         }
     }
 

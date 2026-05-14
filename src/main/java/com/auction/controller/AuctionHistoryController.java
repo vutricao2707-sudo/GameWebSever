@@ -1,5 +1,6 @@
 package com.auction.controller;
 
+import com.auction.database.BidDAO;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -14,6 +15,7 @@ import javafx.scene.layout.VBox;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -27,32 +29,40 @@ public class AuctionHistoryController {
 
     @FXML
     public void initialize() {
-        // Tải dữ liệu mẫu khi vừa mở trang
-        loadDummyData();
+        // Tải dữ liệu từ database - lịch sử đặt giá
+        loadAuctionHistory();
     }
 
     // =========================================================================
-    // HÀM TẠO VÀ NẠP DỮ LIỆU LỊCH SỬ
+    // HÀM TẠO VÀ NẠP DỮ LIỆU LỊCH SỬ TỪ DATABASE
     // =========================================================================
 
-    private void loadDummyData() {
+    private void loadAuctionHistory() {
         if (historyListContainer == null) return;
         historyListContainer.getChildren().clear();
 
-        // Mô phỏng: Dữ liệu được nạp vào từ quá khứ đến hiện tại
-        // Dùng add(0, ...) để luôn đẩy hàng mới nhất LÊN ĐẦU DANH SÁCH
+        // Lấy dữ liệu từ BidDAO
+        List<String[]> bids = BidDAO.getAllBids();
 
-        // Phiên của biển 51G diễn ra ngày 26/04 (Cũ nhất)
-        historyListContainer.getChildren().add(0, createRow(4, "51G-123.45", 45000000, "26/04/2026 15:45:00", 1));
+        if (bids.isEmpty()) {
+            Label emptyLabel = new Label("📝 Chưa có lịch sử đặt giá nào.");
+            emptyLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 16px; -fx-padding: 30;");
+            historyListContainer.getChildren().add(emptyLabel);
+            return;
+        }
 
-        // Phiên của biển 30K diễn ra ngày 27/04 (Mới hơn)
-        historyListContainer.getChildren().add(0, createRow(1, "30K-888.88", 50000000, "27/04/2026 10:15:02", 1));
+        // Duyệt qua các bids và thêm vào container
+        for (int i = 0; i < bids.size(); i++) {
+            String[] bid = bids.get(i);
+            // Cấu trúc: [0]stt, [1]plate, [2]amount, [3]bid_time
+            int stt = i + 1;
+            String plate = bid[1];
+            String amount = bid[2];
+            String bidTime = bid[3];
 
-        // Cập nhật giá lần 2
-        historyListContainer.getChildren().add(0, createRow(2, "30K-888.88", 80000000, "27/04/2026 10:20:45", 2));
-
-        // Cập nhật giá lần 3 (Đây là hành động vừa mới xảy ra xong)
-        historyListContainer.getChildren().add(0, createRow(3, "30K-888.88", 150000000, "27/04/2026 10:29:50", 3));
+            historyListContainer.getChildren().add(0, createRow(stt, plate,
+                    Double.parseDouble(amount), bidTime, stt));
+        }
     }
 
     private HBox createRow(int stt, String plate, double bidAmount, String time, int attemptNumber) {
