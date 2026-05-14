@@ -12,14 +12,14 @@ import javafx.scene.control.TextField;
 
 public class RegisterController {
 
-    @FXML private TextField txtUsername;
-    @FXML private TextField txtFullName;
-    @FXML private TextField txtPhone;
-    @FXML private TextField txtEmail;
+    @FXML private TextField     txtUsername;
+    @FXML private TextField     txtFullName;
+    @FXML private TextField     txtPhone;
+    @FXML private TextField     txtEmail;
     @FXML private PasswordField txtPass;
     @FXML private PasswordField txtConfirmPass;
-    @FXML private CheckBox cbCommit;
-    @FXML private Button btnRegister;
+    @FXML private CheckBox      cbCommit;
+    @FXML private Button        btnRegister;
 
     private static final String STYLE_BTN_ACTIVE   = "-fx-background-color: #0984e3; -fx-background-radius: 30; -fx-cursor: hand;";
     private static final String STYLE_BTN_INACTIVE = "-fx-background-color: #444;    -fx-background-radius: 30;";
@@ -36,8 +36,8 @@ public class RegisterController {
     private void handleRegister(ActionEvent event) {
         String username = txtUsername.getText().trim();
         String fullName = txtFullName.getText().trim();
-        String phone = txtPhone.getText().trim();
-        String email = txtEmail.getText().trim();
+        String phone    = txtPhone.getText().trim();
+        String email    = txtEmail.getText().trim();
         String password = txtPass.getText().trim();
         String confirm  = txtConfirmPass.getText().trim();
 
@@ -45,6 +45,29 @@ public class RegisterController {
         if (username.isEmpty() || fullName.isEmpty() || phone.isEmpty() ||
                 email.isEmpty() || password.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Thông báo", "Vui lòng nhập đầy đủ thông tin!");
+            return;
+        }
+
+        // =====================================================================
+        // MỚI THÊM: Kiểm tra username bị cấm (admin, vpa_admin, root…)
+        // =====================================================================
+        if (UserDAO.isReservedUsername(username)) {
+            showAlert(Alert.AlertType.ERROR, "Tên đăng nhập không hợp lệ",
+                    "Tên đăng nhập \"" + username + "\" không được phép sử dụng.\n"
+                            + "Vui lòng chọn tên đăng nhập khác.");
+            txtUsername.requestFocus();
+            return;
+        }
+
+        // =====================================================================
+        // MỚI THÊM: Kiểm tra username đã tồn tại trên server chưa
+        // =====================================================================
+        if (UserDAO.usernameExists(username)) {
+            showAlert(Alert.AlertType.ERROR, "Tên đăng nhập đã tồn tại",
+                    "Tên đăng nhập \"" + username + "\" đã được đăng ký trước đó.\n"
+                            + "Vui lòng chọn tên đăng nhập khác.");
+            txtUsername.clear();
+            txtUsername.requestFocus();
             return;
         }
 
