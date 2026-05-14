@@ -3,6 +3,7 @@ package com.auction.controller;
 import com.auction.database.UserDAO;
 import com.auction.model.User;
 import com.auction.util.NavigationUtil;
+import com.auction.util.SessionManager; // <-- Đã thêm dòng import này
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -38,6 +39,11 @@ public class LoginController {
                 User loggedInUser = UserDAO.getUserByUsernameAndPassword(username, password);
 
                 if (loggedInUser != null) {
+                    // =========================================================
+                    // Lưu thông tin người dùng vừa đăng nhập vào Session
+                    SessionManager.getInstance().setCurrentUser(loggedInUser);
+                    // =========================================================
+
                     if (loggedInUser.getUserName().equals("vpa_admin")) {
                         // 1. TẢI TRANG ADMIN VÀ TRUYỀN DỮ LIỆU
                         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AdminDashboard.fxml"));

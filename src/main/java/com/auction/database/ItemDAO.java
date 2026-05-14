@@ -277,7 +277,8 @@ public class ItemDAO {
                 "registration_duration = ?, " +
                 "auction_status = 'REGISTRATION', " +
                 "approval_status = 'APPROVED' " +
-                "WHERE plate_number = ? AND approval_status = 'PENDING'";
+                // ✅ ĐÃ SỬA CHỮ 'PENDING' THÀNH 'APPROVED' Ở DÒNG DƯỚI ĐÂY:
+                "WHERE plate_number = ? AND approval_status = 'APPROVED'";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {

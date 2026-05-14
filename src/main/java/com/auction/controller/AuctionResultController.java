@@ -1,6 +1,7 @@
 package com.auction.controller;
 
 import com.auction.database.ItemDAO;
+import com.auction.util.SessionManager; // <-- Thêm import SessionManager để xử lý đăng xuất
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -13,13 +14,10 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.List;
-import java.util.Objects;
+import java.util.logging.Logger;
 
 public class AuctionResultController {
     private static final Logger logger = Logger.getLogger(AuctionResultController.class.getName());
@@ -121,33 +119,35 @@ public class AuctionResultController {
 
     @FXML
     private void handleHome(ActionEvent event) {
-        switchScene(event, "/fxml/Dashboard.fxml");
+        navigateTo(event, "/fxml/Dashboard.fxml");
     }
 
     @FXML
     private void handleShowHistory(ActionEvent event) {
-        switchScene(event, "/fxml/AuctionHistory.fxml");
+        navigateTo(event, "/fxml/AuctionHistory.fxml");
     }
 
     @FXML
     private void handleRegisterToSell(ActionEvent event) {
-        switchScene(event, "/fxml/RegisterSell.fxml");
+        navigateTo(event, "/fxml/RegisterSell.fxml");
     }
 
     @FXML
     private void handleLogout(ActionEvent event) {
-        switchScene(event, "/fxml/Login.fxml");
+        SessionManager.getInstance().logout(); // Đăng xuất thì xóa Session
+        navigateTo(event, "/fxml/Login.fxml");
     }
 
-    private void switchScene(ActionEvent event, String fxmlPath) {
+    // ĐÃ THÊM HÀM NAVIGATE THEO ĐÚNG YÊU CẦU CỦA BẠN (Thay thế switchScene)
+    private void navigateTo(ActionEvent event, String fxmlPath) {
         try {
-            Parent newRoot = FXMLLoader.load(Objects.requireNonNull(getClass().getResource(fxmlPath)));
+            Parent newRoot = FXMLLoader.load(getClass().getResource(fxmlPath));
+            // Thống nhất dùng setRoot() thay vì tạo Scene mới
             Scene currentScene = ((Node) event.getSource()).getScene();
             currentScene.setRoot(newRoot);
         } catch (IOException e) {
-            // 2. Ghi lỗi vào sổ một cách chuyên nghiệp
-            logger.log(Level.SEVERE, "Lỗi khi chuyển đổi màn hình", e);
-            showInfo("Lỗi", "Không thể tải màn hình!");
+            e.printStackTrace();
+            showInfo("Lỗi hệ thống", "Không thể tải màn hình: " + fxmlPath);
         }
     }
 

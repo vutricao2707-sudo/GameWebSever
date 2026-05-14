@@ -1,8 +1,9 @@
 package com.auction.controller;
 
+import com.auction.dto.ItemDTO;
 import com.auction.model.User;
 import com.auction.service.ProductService;
-import com.auction.dto.ItemDTO;
+import com.auction.util.SessionManager;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -14,14 +15,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.util.List;
@@ -33,9 +28,11 @@ public class DashboardController {
 
     @FXML private Button btnHome, btnHistory, btnResults, btnCar, btnBike;
     @FXML private FlowPane productContainer;
+    @FXML private Label lblUserName;
 
     private static final Logger logger = Logger.getLogger(DashboardController.class.getName());
     private final ProductService productService = new ProductService();
+    private User currentUser;
 
     // =========================================================================
     // KHỞI TẠO
@@ -43,30 +40,36 @@ public class DashboardController {
 
     @FXML
     public void initialize() {
+        // Lấy user từ Session hiện tại
+        User user = SessionManager.getInstance().getCurrentUser();
+        if (user != null && user.getFullName() != null) {
+            lblUserName.setText("Xin chào, " + user.getFullName());
+        } else {
+            lblUserName.setText("Xin chào, Người dùng");
+        }
+
+        // Các logic tải dữ liệu khác
         loadProducts("Ô tô");
         setActiveTab(btnHome);
     }
 
-    @FXML private Label lblUserName;
-    private User currentUser; // Lưu lại để dùng cho chức năng khác
-
+    // Giữ lại hàm này để LoginController gọi không bị báo lỗi đỏ
     public void setUserInfo(User user) {
         this.currentUser = user;
-        if (user != null && user.getFullName() != null) {
-            // Đổi chữ mặc định thành tên thật của user
-            lblUserName.setText("Xin chào, người dùng");
-        }
     }
 
     // =========================================================================
-    // ĐIỀU HƯỚNG — Tất cả đều dùng navigateTo() dùng chung, không còn copy-paste
+    // ĐIỀU HƯỚNG — Tất cả đều dùng navigateTo() dùng chung
     // =========================================================================
 
     @FXML private void handleHome(ActionEvent event)           { setActiveTab(btnHome); loadProducts("Ô tô"); }
     @FXML private void handleShowHistory(ActionEvent event)    { navigateTo(event, "/fxml/AuctionHistory.fxml"); }
     @FXML private void handleShowResults(ActionEvent event)    { navigateTo(event, "/fxml/AuctionResult.fxml"); }
     @FXML private void handleRegisterToSell(ActionEvent event) { navigateTo(event, "/fxml/RegisterSell.fxml"); }
-    @FXML private void handleLogout(ActionEvent event)         { navigateTo(event, "/fxml/Login.fxml"); }
+    @FXML private void handleLogout(ActionEvent event) {
+        SessionManager.getInstance().logout(); // Đăng xuất thì xóa Session
+        navigateTo(event, "/fxml/Login.fxml");
+    }
 
     // =========================================================================
     // BỘ LỌC LOẠI XE
@@ -112,12 +115,10 @@ public class DashboardController {
     }
 
     // =========================================================================
-    // XÂY DỰNG THẺ SẢN PHẨM — Orchestrator gọi 5 hàm build* chuyên biệt
+    // XÂY DỰNG THẺ SẢN PHẨM
     // =========================================================================
 
-    // ĐÃ SỬA THAM SỐ Ở ĐÂY TỪ String[] p THÀNH ItemDTO item
     private VBox createProductCard(ItemDTO item) {
-        // Giải nén mảng dữ liệu một lần ở đây để các hàm helper nhận tham số rõ ràng
         String type     = item.getVehicleType();
         String plate    = item.getPlateNumber();
         String province = item.getProvince();
@@ -146,7 +147,6 @@ public class DashboardController {
     // 5 HÀM BUILD* — Mỗi hàm chịu trách nhiệm DUY NHẤT 1 khu vực của card
     // =========================================================================
 
-    /** Khu vực biển số: hộp trắng + huy hiệu loại xe góc phải trên */
     private StackPane buildPlateSection(String plate, String type) {
         VBox plateBox = new VBox();
         plateBox.setAlignment(Pos.CENTER);
@@ -168,7 +168,6 @@ public class DashboardController {
         return new StackPane(plateBox, badge);
     }
 
-    /** Hàng tỉnh thành + nhãn phiên đấu giá */
     private HBox buildLocationRow(String province) {
         Label lblProv = new Label("• " + province);
         lblProv.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 13px;");
@@ -186,7 +185,6 @@ public class DashboardController {
         return row;
     }
 
-    /** Hàng số người tham gia + icon biểu đồ */
     private HBox buildUsersRow() {
         Label lblUsers = new Label("👤 9");
         lblUsers.setStyle("-fx-text-fill: #00b894; -fx-font-size: 14px;");
@@ -203,7 +201,6 @@ public class DashboardController {
         return row;
     }
 
-    /** Hàng đồng hồ đếm ngược thời gian đăng ký */
     private HBox buildTimeRow() {
         Label clockIcon = new Label("🕒");
         clockIcon.setStyle("-fx-text-fill: white; -fx-font-size: 20px;");
@@ -222,7 +219,6 @@ public class DashboardController {
         return row;
     }
 
-    /** Hàng 2 nút bấm: Đăng ký đấu giá + Xem chi tiết */
     private HBox buildCardButtons(String plate, String price, String fullName,
                                   String address, String phone, String email) {
         Button btnBid = new Button("Đăng ký đấu giá");
@@ -266,7 +262,6 @@ public class DashboardController {
         }
     }
 
-    /** Chuyển chuỗi giá "150.000.000" thành số thực 150000000.0 */
     private double parsePrice(String rawPrice) {
         try {
             String clean = rawPrice.replaceAll("[^\\d]", "");
@@ -319,7 +314,6 @@ public class DashboardController {
         ((StackPane) btnHome.getScene().getRoot()).getChildren().add(overlay);
     }
 
-    /** Tạo một cặp (tiêu đề màu + nội dung trắng) trong dialog chi tiết */
     private VBox makeInfoBox(String titleText, String valueText, String titleColor, boolean isBold) {
         Label lblTitle = new Label(titleText);
         lblTitle.setStyle("-fx-text-fill: " + titleColor + "; -fx-font-weight: bold; -fx-font-size: 15px;");
@@ -338,19 +332,18 @@ public class DashboardController {
     // HÀM TIỆN ÍCH DÙNG CHUNG
     // =========================================================================
 
-    /** Chuyển màn hình bằng cách thay Scene của Stage — dùng chung cho mọi navigation */
     private void navigateTo(ActionEvent event, String fxmlPath) {
         try {
-            Parent root = FXMLLoader.load(getClass().getResource(fxmlPath));
-            Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            stage.setScene(new Scene(root));
+            Parent newRoot = FXMLLoader.load(getClass().getResource(fxmlPath));
+            // Thống nhất dùng setRoot() thay vì tạo Scene mới
+            Scene currentScene = ((Node) event.getSource()).getScene();
+            currentScene.setRoot(newRoot);
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Lỗi khi chuyển trang: " + fxmlPath, e);
-            showInfo("Lỗi hệ thống", "Không thể tải màn hình: " + fxmlPath);
+            e.printStackTrace();
+            // Có thể thêm Alert thông báo lỗi ở đây
         }
     }
 
-    /** Đặt trạng thái active cho nút lọc loại xe */
     private void setActiveFilterTab(Button active, Button inactive) {
         active.setStyle("-fx-background-color: #00b894; -fx-background-radius: 32;");
         active.setTextFill(Color.WHITE);
@@ -358,7 +351,6 @@ public class DashboardController {
         inactive.setTextFill(Color.web("#cccccc"));
     }
 
-    /** Đặt trạng thái active cho tab điều hướng chính (Trang Chủ / Lịch Sử / Kết Quả) */
     private void setActiveTab(Button activeButton) {
         Button[] tabs = {btnHome, btnHistory, btnResults};
         for (Button tab : tabs) {

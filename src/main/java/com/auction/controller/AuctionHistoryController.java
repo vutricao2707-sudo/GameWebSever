@@ -1,6 +1,7 @@
 package com.auction.controller;
 
 import com.auction.database.BidDAO;
+import com.auction.util.SessionManager; // <-- Thêm import SessionManager để xử lý đăng xuất
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -16,7 +17,6 @@ import javafx.scene.layout.VBox;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.List;
-import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -108,37 +108,39 @@ public class AuctionHistoryController {
     }
 
     // =========================================================================
-    // XỬ LÝ ĐIỀU HƯỚNG CÁC TAB (Hàm bị thiếu nằm ở đây)
+    // XỬ LÝ ĐIỀU HƯỚNG CÁC TAB
     // =========================================================================
 
     @FXML
     private void handleHome(ActionEvent event) {
-        switchScene(event, "/fxml/Dashboard.fxml");
+        navigateTo(event, "/fxml/Dashboard.fxml");
     }
 
     @FXML
     private void handleShowResults(ActionEvent event) {
-        switchScene(event, "/fxml/AuctionResult.fxml");
+        navigateTo(event, "/fxml/AuctionResult.fxml");
     }
 
-    // ĐÂY CHÍNH LÀ HÀM BẠN BỊ THIẾU GÂY RA LỖI
     @FXML
     private void handleRegisterToSell(ActionEvent event) {
-        switchScene(event, "/fxml/RegisterSell.fxml");
+        navigateTo(event, "/fxml/RegisterSell.fxml");
     }
 
     @FXML
     private void handleLogout(ActionEvent event) {
-        switchScene(event, "/fxml/Login.fxml");
+        SessionManager.getInstance().logout(); // Đăng xuất thì xóa Session
+        navigateTo(event, "/fxml/Login.fxml");
     }
 
-    private void switchScene(ActionEvent event, String fxmlPath) {
+    // ĐÃ THÊM HÀM NAVIGATE THEO ĐÚNG YÊU CẦU CỦA BẠN (Thay thế switchScene)
+    private void navigateTo(ActionEvent event, String fxmlPath) {
         try {
-            Parent newRoot = FXMLLoader.load(Objects.requireNonNull(getClass().getResource(fxmlPath)));
+            Parent newRoot = FXMLLoader.load(getClass().getResource(fxmlPath));
+            // Thống nhất dùng setRoot() thay vì tạo Scene mới
             Scene currentScene = ((Node) event.getSource()).getScene();
             currentScene.setRoot(newRoot);
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Lỗi khi tải file giao diện: " + fxmlPath, e);
+            e.printStackTrace();
             showInfo("Không thể tải trang: " + fxmlPath);
         }
     }
