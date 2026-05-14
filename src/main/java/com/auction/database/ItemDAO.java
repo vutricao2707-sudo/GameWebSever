@@ -80,6 +80,30 @@ public class ItemDAO {
             return null;
         }
     }
+    public static String[] getItemDataByPlate(String plateNumber) {
+        String sql = "SELECT * FROM items WHERE plate_number = ?";
+        // Dùng try-with-resources để tự động đóng Connection, PreparedStatement và ResultSet
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, plateNumber);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return new String[]{
+                            rs.getString("id"),
+                            rs.getString("plate_number"),
+                            rs.getString("start_price"),
+                            rs.getString("vehicle_type"),
+                            rs.getString("approval_status")
+                    };
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi: " + e.getMessage());
+        }
+        return null;
+    }
 
     // Lấy tất cả items - trả về List
     public static List<String[]> getAllApprovedItems() {

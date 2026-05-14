@@ -1,4 +1,4 @@
-package com.auction.data;
+package com.auction.database;
 
 import java.util.ArrayList;
 import java.util.List;

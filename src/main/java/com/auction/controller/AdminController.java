@@ -67,7 +67,7 @@ public class AdminController {
             // Cấu trúc DataStore: [0]type [1]plate [2]province [3]price [4]name ... [8]status
             String plate  = product[1];
             String owner  = product[4];
-            String price  = product[3];
+            String price  = product[2];
             adminListContainer.getChildren().add(createAdminRow(plate, owner, price, "Đang chờ", "PENDING"));
         }
     }

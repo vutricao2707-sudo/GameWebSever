@@ -2,6 +2,7 @@ package com.auction.controller;
 
 import com.auction.model.User;
 import com.auction.service.ProductService;
+import com.auction.dto.ItemDTO;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -97,7 +98,10 @@ public class DashboardController {
             return;
         }
         for (String[] p : products) {
-            productContainer.getChildren().add(createProductCard(p));
+            ItemDTO item = ItemDTO.fromApprovedArray(p);
+            if (item != null) {
+                productContainer.getChildren().add(createProductCard(item));
+            }
         }
     }
 
@@ -111,16 +115,17 @@ public class DashboardController {
     // XÂY DỰNG THẺ SẢN PHẨM — Orchestrator gọi 5 hàm build* chuyên biệt
     // =========================================================================
 
-    private VBox createProductCard(String[] p) {
+    // ĐÃ SỬA THAM SỐ Ở ĐÂY TỪ String[] p THÀNH ItemDTO item
+    private VBox createProductCard(ItemDTO item) {
         // Giải nén mảng dữ liệu một lần ở đây để các hàm helper nhận tham số rõ ràng
-        String type     = p.length > 0 ? p[0] : "";
-        String plate    = p.length > 1 ? p[1] : "";
-        String province = p.length > 2 ? p[2] : "";
-        String price    = p.length > 3 ? p[3] : "Đang cập nhật";
-        String fullName = p.length > 4 ? p[4] : "Chưa cập nhật";
-        String phone    = p.length > 5 ? p[5] : "Chưa cập nhật";
-        String email    = p.length > 6 ? p[6] : "Chưa cập nhật";
-        String address  = p.length > 7 ? p[7] : "Chưa cập nhật";
+        String type     = item.getVehicleType();
+        String plate    = item.getPlateNumber();
+        String province = item.getProvince();
+        String price    = item.getFormattedPrice();
+        String fullName = item.getSellerName();
+        String phone    = item.getSellerPhone();
+        String email    = item.getSellerEmail();
+        String address  = item.getSellerAddress();
 
         VBox card = new VBox(12);
         card.setStyle("-fx-background-color: #1a2230; -fx-background-radius: 12; " +

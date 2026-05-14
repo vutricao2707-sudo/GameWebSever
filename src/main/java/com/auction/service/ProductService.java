@@ -1,6 +1,6 @@
 package com.auction.service;
 
-import com.auction.data.DataStore;
+import com.auction.database.DataStore;
 import com.auction.database.ItemDAO;
 
 import java.util.ArrayList;
