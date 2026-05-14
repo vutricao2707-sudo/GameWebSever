@@ -43,7 +43,12 @@ public class DatabaseInitializer {
                     "  current_price DECIMAL(15,2)," +
                     "  description TEXT," +
                     "  vehicle_type VARCHAR(50)," +
-                    "  status VARCHAR(20)" +
+                    "  status VARCHAR(20)," +
+                    "  approval_status VARCHAR(20) DEFAULT 'PENDING'," +
+                    "  seller_name VARCHAR(100)," +
+                    "  seller_phone VARCHAR(15)," +
+                    "  seller_email VARCHAR(100)," +
+                    "  seller_address TEXT" +
                     ")";
             stmt.execute(createItems);
             System.out.println("✅ Bảng items sẵn sàng");

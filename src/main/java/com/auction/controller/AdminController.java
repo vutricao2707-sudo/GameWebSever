@@ -108,6 +108,7 @@ public class AdminController {
 
             Button btnReject = new Button("✖");
             btnReject.setStyle("-fx-background-color: rgba(239, 68, 68, 0.2); -fx-text-fill: #ef4444; -fx-cursor: hand; -fx-font-weight: bold;");
+            btnReject.setOnAction(e -> handleReject(plate, parentRow));
 
             actionBox.getChildren().addAll(btnApprove, btnReject);
 
@@ -138,6 +139,25 @@ public class AdminController {
                 lblTotalRequests.setText("Tổng cộng: " + remaining + " yêu cầu");
             }
             showInfo("Duyệt thành công", "Biển số " + plate + " đã được đẩy lên sàn!");
+        } else {
+            showInfo("Thất bại", "Không tìm thấy biển số " + plate + " trong hệ thống.");
+        }
+    }
+
+    // =========================================================================
+    // LOGIC TỪ CHỐI XE — Gọi Service để cập nhật Database
+    // =========================================================================
+
+    private void handleReject(String plate, HBox rowToRemove) {
+        boolean success = productService.rejectProduct(plate);
+        if (success) {
+            adminListContainer.getChildren().remove(rowToRemove);
+            // Cập nhật lại số đếm sau khi từ chối
+            int remaining = adminListContainer.getChildren().size();
+            if (lblTotalRequests != null) {
+                lblTotalRequests.setText("Tổng cộng: " + remaining + " yêu cầu");
+            }
+            showInfo("Từ chối thành công", "Biển số " + plate + " đã bị từ chối!");
         } else {
             showInfo("Thất bại", "Không tìm thấy biển số " + plate + " trong hệ thống.");
         }
