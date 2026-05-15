@@ -1,7 +1,7 @@
 package com.auction.controller;
 
 import com.auction.database.BidDAO;
-import com.auction.util.SessionManager; // <-- Thêm import SessionManager để xử lý đăng xuất
+import com.auction.util.SessionManager;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -27,10 +27,26 @@ public class AuctionHistoryController {
     // Nơi chứa các hàng lịch sử
     @FXML private VBox historyListContainer;
 
+    // ✅ ĐÃ THÊM: Khai báo nhãn hiển thị tên người dùng
+    @FXML private Label lblUserName;
+
     @FXML
     public void initialize() {
+        // ✅ ĐÃ THÊM: Hiển thị tên người dùng từ Session
+        updateUserInfo();
+
         // Tải dữ liệu từ database - lịch sử đặt giá
         loadAuctionHistory();
+    }
+
+    // =========================================================================
+    // HÀM HIỂN THỊ THÔNG TIN NGƯỜI DÙNG
+    // =========================================================================
+    private void updateUserInfo() {
+        if (lblUserName != null && SessionManager.getInstance().getCurrentUser() != null) {
+            String fullName = SessionManager.getInstance().getCurrentUser().getFullName();
+            lblUserName.setText("Xin chào, " + fullName);
+        }
     }
 
     // =========================================================================
@@ -60,6 +76,7 @@ public class AuctionHistoryController {
             String amount = bid[2];
             String bidTime = bid[3];
 
+            // Thêm vào đầu danh sách để cái mới nhất hiện lên trên
             historyListContainer.getChildren().add(0, createRow(stt, plate,
                     Double.parseDouble(amount), bidTime, stt));
         }
@@ -132,22 +149,20 @@ public class AuctionHistoryController {
         navigateTo(event, "/fxml/Login.fxml");
     }
 
-    // ĐÃ THÊM HÀM NAVIGATE THEO ĐÚNG YÊU CẦU CỦA BẠN (Thay thế switchScene)
     private void navigateTo(ActionEvent event, String fxmlPath) {
         try {
             Parent newRoot = FXMLLoader.load(getClass().getResource(fxmlPath));
-            // Thống nhất dùng setRoot() thay vì tạo Scene mới
             Scene currentScene = ((Node) event.getSource()).getScene();
             currentScene.setRoot(newRoot);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Lỗi khi chuyển trang", e);
             showInfo("Không thể tải trang: " + fxmlPath);
         }
     }
 
     private void showInfo(String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Lỗi hệ thống");
+        alert.setTitle("Thông báo");
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();

@@ -1,6 +1,8 @@
 package com.auction.controller;
 
+import com.auction.database.BidDAO;
 import com.auction.database.ItemDAO;
+import com.auction.util.SessionManager;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
@@ -58,6 +60,10 @@ public class AuctionRoomController {
 
     @FXML
     public void initialize() {
+        // Ép nhãn hiển thị 60:00 ngay khi vừa mở page, tránh bị hiện 05:00 của FXML
+        lblMinutes.setText("60");
+        lblSeconds.setText("00");
+
         updatePricingUI();
         updateParticipantCount();
     }
@@ -143,7 +149,16 @@ public class AuctionRoomController {
 
         // Cập nhật vào database
         if (currentPlateNumber != null && !currentPlateNumber.isEmpty()) {
+            // Cập nhật giá mới trên bảng items
             ItemDAO.updateCurrentPrice(currentPlateNumber, newBid);
+
+            // =========================================================
+            // THÊM MỚI (FIX 3 & 4): LƯU LỊCH SỬ VÀO BẢNG BIDS
+            // =========================================================
+            if (SessionManager.getInstance().getCurrentUser() != null) {
+                int userId = SessionManager.getInstance().getCurrentUser().getId();
+                BidDAO.saveBid(currentPlateNumber, userId, newBid);
+            }
         }
 
         // 2. Reset hệ số về 1
@@ -153,7 +168,7 @@ public class AuctionRoomController {
         // 3. Ghi lại thời gian đặt giá
         lastBidTime = currentTime;
 
-        // 4. Thêm vào đầu danh sách lịch sử (LIFO)
+        // 4. Thêm vào đầu danh sách lịch sử (LIFO) trên giao diện hiện tại
         addHistoryRow(formatter.format(newBid), currentPlateNumber + " - Bạn");
     }
 

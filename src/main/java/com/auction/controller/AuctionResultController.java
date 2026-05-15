@@ -1,7 +1,7 @@
 package com.auction.controller;
 
 import com.auction.database.ItemDAO;
-import com.auction.util.SessionManager; // <-- Thêm import SessionManager để xử lý đăng xuất
+import com.auction.util.SessionManager;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -21,13 +21,30 @@ import java.util.logging.Logger;
 
 public class AuctionResultController {
     private static final Logger logger = Logger.getLogger(AuctionResultController.class.getName());
+
     // Nơi chứa các hàng kết quả
     @FXML private VBox resultListContainer;
 
+    // ✅ ĐÃ THÊM: Khai báo nhãn hiển thị tên người dùng
+    @FXML private Label lblUserName;
+
     @FXML
     public void initialize() {
+        // ✅ ĐÃ THÊM: Hiển thị tên người dùng từ Session
+        updateUserInfo();
+
         // Tải dữ liệu từ database - kết quả đấu giá đã kết thúc
         loadAuctionResults();
+    }
+
+    // =========================================================================
+    // HÀM HIỂN THỊ THÔNG TIN NGƯỜI DÙNG
+    // =========================================================================
+    private void updateUserInfo() {
+        if (lblUserName != null && SessionManager.getInstance().getCurrentUser() != null) {
+            String fullName = SessionManager.getInstance().getCurrentUser().getFullName();
+            lblUserName.setText("Xin chào, " + fullName);
+        }
     }
 
     // =========================================================================
@@ -138,11 +155,9 @@ public class AuctionResultController {
         navigateTo(event, "/fxml/Login.fxml");
     }
 
-    // ĐÃ THÊM HÀM NAVIGATE THEO ĐÚNG YÊU CẦU CỦA BẠN (Thay thế switchScene)
     private void navigateTo(ActionEvent event, String fxmlPath) {
         try {
             Parent newRoot = FXMLLoader.load(getClass().getResource(fxmlPath));
-            // Thống nhất dùng setRoot() thay vì tạo Scene mới
             Scene currentScene = ((Node) event.getSource()).getScene();
             currentScene.setRoot(newRoot);
         } catch (IOException e) {

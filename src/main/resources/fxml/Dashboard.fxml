@@ -13,18 +13,6 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<!--
-    THAY ĐỔI: Xoá 6 thành phần UI "chết" không có @FXML field tương ứng:
-      - AnchorPane fx:id="paneOverlay"
-      - StackPane  fx:id="panePopupContainer"
-      - Button     fx:id="btnCloseModal"
-      - TableView  fx:id="tableHistory"
-      - TableColumn fx:id="colBienSo", "colThoiGian", "colGiaDat"
-    Các thành phần này không được dùng trong bất kỳ Controller nào,
-    gây nhầm lẫn khi đọc code và làm nặng cây FXML không cần thiết.
-    Khi tính năng Lịch Sử được phát triển thật, sẽ thêm lại đúng chỗ.
--->
-<!--suppress JavaFxEventHandler -->
 <StackPane prefHeight="720.0" prefWidth="1024.0"
            xmlns="http://javafx.com/javafx/25"
            xmlns:fx="http://javafx.com/fxml/1"

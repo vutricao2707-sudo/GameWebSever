@@ -20,6 +20,21 @@ public abstract class User {
         this.address = address;
     }
 
+    // =========================================================
+    // ĐÃ THÊM: Hàm getId() trả về kiểu số nguyên (int)
+    // Để khớp với code ở AuctionRoomController và Database
+    // =========================================================
+    public int getId() {
+        try {
+            if (this.userId != null && !this.userId.isEmpty()) {
+                return Integer.parseInt(this.userId);
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("⚠️ Cảnh báo: userId không phải là số hợp lệ (" + this.userId + ")");
+        }
+        return 0; // Trả về mặc định nếu có lỗi
+    }
+
     public String getUserId() {
         return userId;
     }
