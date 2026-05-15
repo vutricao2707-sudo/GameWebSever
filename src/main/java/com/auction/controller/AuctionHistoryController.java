@@ -57,28 +57,51 @@ public class AuctionHistoryController {
         if (historyListContainer == null) return;
         historyListContainer.getChildren().clear();
 
-        // Lấy dữ liệu từ BidDAO
-        List<String[]> bids = BidDAO.getAllBids();
-
-        if (bids.isEmpty()) {
-            Label emptyLabel = new Label("📝 Chưa có lịch sử đặt giá nào.");
+        // 1. Kiểm tra xem có người dùng nào đang đăng nhập không
+        if (SessionManager.getInstance().getCurrentUser() == null) {
+            Label emptyLabel = new Label("🔒 Vui lòng đăng nhập để xem lịch sử của bạn.");
             emptyLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 16px; -fx-padding: 30;");
             historyListContainer.getChildren().add(emptyLabel);
             return;
         }
 
-        // Duyệt qua các bids và thêm vào container
-        for (int i = 0; i < bids.size(); i++) {
+        // 2. Lấy ID của tài khoản đang đăng nhập
+        int userId = SessionManager.getInstance().getCurrentUser().getId();
+
+        // 3. Lấy dữ liệu cá nhân từ BidDAO (Chỉ lấy của user này)
+        List<String[]> bids = BidDAO.getBidsByUserId(userId);
+
+        if (bids == null || bids.isEmpty()) {
+            Label emptyLabel = new Label("📝 Bạn chưa có lịch sử đặt giá nào.");
+            emptyLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 16px; -fx-padding: 30;");
+            historyListContainer.getChildren().add(emptyLabel);
+            return;
+        }
+
+        // ✅ BỔ SUNG: Tính tổng số lần đặt để hiển thị "Lần X" cho đúng
+        int totalBids = bids.size();
+
+        // 4. Duyệt qua các bids và thêm vào container
+        for (int i = 0; i < totalBids; i++) {
             String[] bid = bids.get(i);
-            // Cấu trúc: [0]stt, [1]plate, [2]amount, [3]bid_time
+            // Cấu trúc từ DAO: [0]stt, [1]plate, [2]amount, [3]bid_time
             int stt = i + 1;
             String plate = bid[1];
-            String amount = bid[2];
+            String amountStr = bid[2];
             String bidTime = bid[3];
 
-            // Thêm vào đầu danh sách để cái mới nhất hiện lên trên
-            historyListContainer.getChildren().add(0, createRow(stt, plate,
-                    Double.parseDouble(amount), bidTime, stt));
+            try {
+                double amount = Double.parseDouble(amountStr);
+
+                // ✅ BỔ SUNG LOGIC:
+                // Vì danh sách lấy ra là DESC (mới nhất ở index 0),
+                // nên dòng đầu tiên (i=0) thực tế là lần đặt giá cuối cùng của người dùng.
+                int actualAttempt = totalBids - i;
+
+                historyListContainer.getChildren().add(createRow(stt, plate, amount, bidTime, actualAttempt));
+            } catch (NumberFormatException e) {
+                logger.log(Level.WARNING, "Lỗi định dạng giá tiền tại hàng " + i);
+            }
         }
     }
 
@@ -102,15 +125,17 @@ public class AuctionHistoryController {
         lblPrice.setPrefWidth(220);
         lblPrice.setStyle("-fx-text-fill: #38bdf8; -fx-font-size: 16px; -fx-font-weight: bold;");
 
-        Label lblTime = new Label(time);
+        // ✅ BỔ SUNG: Cắt bớt phần mili giây dư thừa để thời gian trông chuyên nghiệp hơn
+        String displayTime = time.length() > 19 ? time.substring(0, 19) : time;
+        Label lblTime = new Label(displayTime);
         lblTime.setPrefWidth(200);
         lblTime.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 14px;");
 
         Label lblAttempt = new Label("Lần " + attemptNumber);
         lblAttempt.setPrefWidth(80);
         lblAttempt.setAlignment(Pos.CENTER);
-        lblAttempt.setStyle("-fx-background-color: #475569; -fx-text-fill: white; " +
-                "-fx-background-radius: 12; -fx-padding: 4 10; -fx-font-size: 13px; -fx-font-weight: bold;");
+        lblAttempt.setStyle("-fx-background-color: #334155; -fx-text-fill: #38bdf8; " +
+                "-fx-background-radius: 12; -fx-padding: 4 10; -fx-font-size: 12px; -fx-font-weight: bold;");
 
         HBox boxAttempt = new HBox(lblAttempt);
         boxAttempt.setAlignment(Pos.CENTER_LEFT);
@@ -118,7 +143,8 @@ public class AuctionHistoryController {
 
         row.getChildren().addAll(lblStt, lblPlate, lblPrice, lblTime, boxAttempt);
 
-        row.setOnMouseEntered(e -> row.setStyle("-fx-background-color: rgba(255,255,255,0.05); -fx-padding: 15 15; -fx-border-color: #1e293b; -fx-border-width: 0 0 1 0;"));
+        // Hiệu ứng Hover - Sáng nhẹ khi di chuột qua
+        row.setOnMouseEntered(e -> row.setStyle("-fx-background-color: rgba(56, 189, 248, 0.1); -fx-padding: 15 15; -fx-border-color: #1e293b; -fx-border-width: 0 0 1 0;"));
         row.setOnMouseExited(e -> row.setStyle("-fx-background-color: transparent; -fx-padding: 15 15; -fx-border-color: #1e293b; -fx-border-width: 0 0 1 0;"));
 
         return row;

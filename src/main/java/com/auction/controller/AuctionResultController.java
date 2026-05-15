@@ -55,17 +55,28 @@ public class AuctionResultController {
         if (resultListContainer == null) return;
         resultListContainer.getChildren().clear();
 
-        // Lấy dữ liệu từ ItemDAO - những phiên đã FINISHED
-        List<String[]> finishedItems = ItemDAO.getFinishedAuctions();
-
-        if (finishedItems.isEmpty()) {
-            Label emptyLabel = new Label("🏆 Chưa có kết quả đấu giá nào.");
+        // 1. Kiểm tra xem có người dùng đang đăng nhập không
+        if (SessionManager.getInstance().getCurrentUser() == null) {
+            Label emptyLabel = new Label("🔒 Vui lòng đăng nhập để xem kết quả của bạn.");
             emptyLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 16px; -fx-padding: 30;");
             resultListContainer.getChildren().add(emptyLabel);
             return;
         }
 
-        // Duyệt qua các items đã kết thúc
+        // 2. Lấy ID của tài khoản đang đăng nhập
+        int userId = SessionManager.getInstance().getCurrentUser().getId();
+
+        // 3. Lấy dữ liệu từ ItemDAO - chỉ những phiên đã FINISHED mà user này có tham gia trả giá
+        List<String[]> finishedItems = ItemDAO.getFinishedAuctionsByUserId(userId);
+
+        if (finishedItems.isEmpty()) {
+            Label emptyLabel = new Label("🏆 Bạn chưa tham gia phiên đấu giá nào đã kết thúc.");
+            emptyLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 16px; -fx-padding: 30;");
+            resultListContainer.getChildren().add(emptyLabel);
+            return;
+        }
+
+        // 4. Duyệt qua các items đã kết thúc
         for (int i = 0; i < finishedItems.size(); i++) {
             String[] item = finishedItems.get(i);
             // Cấu trúc: [0]id, [1]plate, [2]start_price, [3]current_price, [4]vehicle_type, [5]seller_name, [6]auction_status, [7]auction_end_time

@@ -417,13 +417,15 @@ public class ItemDAO {
 
         return result;
     }
-
-    // Kiểm tra lần đặt giá cuối cùng của user (để tính cooldown)
+    
+    // Kiểm tra lần đặt giá cuối cùng của user
     public static long getLastBidTime(String plateNumber, int userId) {
-        String sql = "SELECT UNIX_TIMESTAMP(bid_time) FROM bids " +
-                "WHERE auction_id = (SELECT id FROM auctions WHERE item_id = " +
-                "(SELECT id FROM items WHERE plate_number = ?)) " +
-                "AND bidder_id = ? ORDER BY bid_time DESC LIMIT 1";
+
+        String sql = "SELECT UNIX_TIMESTAMP(bid_time) " +
+                "FROM bids " +
+                "WHERE item_id = (SELECT id FROM items WHERE plate_number = ?) " +
+                "AND user_id = ? " +
+                "ORDER BY bid_time DESC LIMIT 1";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -432,13 +434,14 @@ public class ItemDAO {
             pstmt.setInt(2, userId);
 
             try (ResultSet rs = pstmt.executeQuery()) {
+
                 if (rs.next()) {
                     return rs.getLong(1);
                 }
             }
 
         } catch (SQLException e) {
-            System.out.println("❌ Lỗi: " + e.getMessage());
+            System.out.println("❌ Lỗi getLastBidTime: " + e.getMessage());
         }
 
         return 0;
@@ -504,6 +507,41 @@ public class ItemDAO {
         }
 
         return result;
+    }
+    // =====================================================================
+    // LẤY KẾT QUẢ CÁC PHIÊN ĐẤU GIÁ MÀ USER NÀY ĐÃ THAM GIA
+    // =====================================================================
+    public static List<String[]> getFinishedAuctionsByUserId(int userId) {
+        List<String[]> results = new ArrayList<>();
+        // JOIN với bảng bids và lọc những item đã FINISHED mà user này có đặt giá (DISTINCT để không bị lặp)
+        String sql = "SELECT DISTINCT i.id, i.plate_number, i.start_price, i.current_price, i.vehicle_type, i.auction_status, i.auction_end_time " +
+                "FROM items i " +
+                "JOIN bids b ON i.id = b.item_id " +
+                "WHERE i.auction_status = 'FINISHED' AND b.user_id = ? " +
+                "ORDER BY i.auction_end_time DESC";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                results.add(new String[]{
+                        String.valueOf(rs.getInt("id")),
+                        rs.getString("plate_number"),
+                        String.valueOf(rs.getDouble("start_price")),
+                        String.valueOf(rs.getDouble("current_price")),
+                        rs.getString("vehicle_type"),
+                        "N/A", // seller_name nếu không dùng tới
+                        rs.getString("auction_status"),
+                        rs.getString("auction_end_time")
+                });
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi lấy kết quả đấu giá cá nhân: " + e.getMessage());
+        }
+        return results;
     }
 }
 

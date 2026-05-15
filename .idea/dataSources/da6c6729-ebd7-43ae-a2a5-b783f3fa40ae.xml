@@ -999,20 +999,20 @@ sys|schema||mysql.sys|localhost|TRIGGER|G</Grants>
       <AutoIntrospectionLevel>3</AutoIntrospectionLevel>
       <Current>1</Current>
       <LastIntrospectionLevel>3</LastIntrospectionLevel>
-      <LastIntrospectionLocalTimestamp>2026-05-15.14:46:54</LastIntrospectionLocalTimestamp>
+      <LastIntrospectionLocalTimestamp>2026-05-15.15:39:36</LastIntrospectionLocalTimestamp>
       <CollationName>utf8mb4_0900_ai_ci</CollationName>
     </schema>
     <schema id="289" parent="1" name="information_schema">
       <AutoIntrospectionLevel>2</AutoIntrospectionLevel>
       <LastIntrospectionLevel>2</LastIntrospectionLevel>
-      <LastIntrospectionLocalTimestamp>2026-05-15.14:46:54</LastIntrospectionLocalTimestamp>
+      <LastIntrospectionLocalTimestamp>2026-05-15.15:39:36</LastIntrospectionLocalTimestamp>
       <CollationName>utf8mb3_general_ci</CollationName>
     </schema>
     <schema id="290" parent="1" name="mysql">
       <AutoIntrospectionLevel>3</AutoIntrospectionLevel>
       <Grants>user|||mysql.session|localhost|SELECT|G</Grants>
       <LastIntrospectionLevel>3</LastIntrospectionLevel>
-      <LastIntrospectionLocalTimestamp>2026-05-15.14:46:54</LastIntrospectionLocalTimestamp>
+      <LastIntrospectionLocalTimestamp>2026-05-15.15:39:36</LastIntrospectionLocalTimestamp>
       <CollationName>utf8mb4_0900_ai_ci</CollationName>
     </schema>
     <schema id="291" parent="1" name="performance_schema">
@@ -1863,32 +1863,35 @@ stats_persistent
       <Position>1</Position>
       <StoredType>int|0s</StoredType>
     </column>
-    <column id="435" parent="298" name="auction_id">
+    <column id="435" parent="298" name="item_id">
       <NotNull>1</NotNull>
       <Position>2</Position>
       <StoredType>int|0s</StoredType>
     </column>
-    <column id="436" parent="298" name="bidder_id">
+    <column id="436" parent="298" name="user_id">
       <NotNull>1</NotNull>
       <Position>3</Position>
       <StoredType>int|0s</StoredType>
     </column>
-    <column id="437" parent="298" name="amount">
+    <column id="437" parent="298" name="bid_amount">
+      <NotNull>1</NotNull>
       <Position>4</Position>
-      <StoredType>decimal(15,2 digit)|0s</StoredType>
+      <StoredType>double|0s</StoredType>
     </column>
     <column id="438" parent="298" name="bid_time">
       <DefaultExpression>CURRENT_TIMESTAMP</DefaultExpression>
       <Position>5</Position>
-      <StoredType>timestamp|0s</StoredType>
+      <StoredType>datetime|0s</StoredType>
     </column>
     <foreign-key id="439" parent="298" name="bids_ibfk_1">
-      <ColNames>auction_id</ColNames>
+      <ColNames>item_id</ColNames>
+      <OnDelete>cascade</OnDelete>
       <RefColNames>id</RefColNames>
-      <RefTableName>auctions</RefTableName>
+      <RefTableName>items</RefTableName>
     </foreign-key>
     <foreign-key id="440" parent="298" name="bids_ibfk_2">
-      <ColNames>bidder_id</ColNames>
+      <ColNames>user_id</ColNames>
+      <OnDelete>cascade</OnDelete>
       <RefColNames>id</RefColNames>
       <RefTableName>users</RefTableName>
     </foreign-key>
@@ -1897,12 +1900,12 @@ stats_persistent
       <Type>btree</Type>
       <Unique>1</Unique>
     </index>
-    <index id="442" parent="298" name="auction_id">
-      <ColNames>auction_id</ColNames>
+    <index id="442" parent="298" name="item_id">
+      <ColNames>item_id</ColNames>
       <Type>btree</Type>
     </index>
-    <index id="443" parent="298" name="bidder_id">
-      <ColNames>bidder_id</ColNames>
+    <index id="443" parent="298" name="user_id">
+      <ColNames>user_id</ColNames>
       <Type>btree</Type>
     </index>
     <key id="444" parent="298" name="PRIMARY">
