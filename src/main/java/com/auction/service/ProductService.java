@@ -1,8 +1,8 @@
 package com.auction.service;
 
-import com.auction.database.DataStore;
 import com.auction.database.ItemDAO;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,20 +17,12 @@ public class ProductService {
         List<String[]> result = new ArrayList<>();
 
         for (String[] product : allApproved) {
-            // Cấu trúc từ database: [0]id [1]plate [2]start_price [3]current_price
-            // [4]description [5]vehicle_type [6]status [7]seller_name [8]seller_phone [9]seller_email [10]seller_address [11]auction_status
-            if (product[5].equalsIgnoreCase(type)) {  // product[5] là vehicle_type
+            // Index [5] trong database format là vehicle_type
+            if (product[5].equalsIgnoreCase(type)) {
                 result.add(product);
             }
         }
-
-        // Fallback thêm dữ liệu từ DataStore nếu cần (legacy)
-        for (String[] product : DataStore.products) {
-            if (product[0].equalsIgnoreCase(type) && product[8].equals("APPROVED")) {
-                result.add(product);
-            }
-        }
-
+        // Đã loại bỏ hoàn toàn vòng lặp DataStore legacy
         return result;
     }
 
@@ -38,43 +30,20 @@ public class ProductService {
     // CHO ADMIN: Lấy tất cả xe "CHỜ DUYỆT" từ DATABASE
     // ==========================================
     public List<String[]> getPendingProducts() {
-        // Lấy từ database (ưu tiên)
-        List<String[]> pendingFromDB = ItemDAO.getPendingItems();
-        if (!pendingFromDB.isEmpty()) {
-            return pendingFromDB;
-        }
-
-        // Fallback từ DataStore nếu DB trống
-        List<String[]> result = new ArrayList<>();
-        for (String[] product : DataStore.products) {
-            if (product[8].equals("PENDING")) {
-                result.add(product);
-            }
-        }
-        return result;
+        // Gọi thẳng dữ liệu từ database, không dùng fallback
+        return ItemDAO.getPendingItems();
     }
 
     // ==========================================
-    // CHO ADMIN: Logic bấm nút "Duyệt Xe" (✔) từ DATABASE
+    // CHO ADMIN: Logic bấm nút "Duyệt Xe" (✔)
     // ==========================================
     public boolean approveProduct(String plateToApprove) {
-        // Thử duyệt từ database trước
-        if (ItemDAO.approveItem(plateToApprove)) {
-            return true;
-        }
-
-        // Fallback vào DataStore nếu DB không có
-        for (String[] product : DataStore.products) {
-            if (product[1].equals(plateToApprove)) {
-                product[8] = "APPROVED";
-                return true;
-            }
-        }
-        return false;
+        // Chỉ thực hiện trên Database
+        return ItemDAO.approveItem(plateToApprove);
     }
 
     // ==========================================
-    // CHO ADMIN: Logic bấm nút "Từ chối Xe" (✖️) vào DATABASE
+    // CHO ADMIN: Logic bấm nút "Từ chối Xe" (✖️)
     // ==========================================
     public boolean rejectProduct(String plateToReject) {
         return ItemDAO.rejectItem(plateToReject);
@@ -83,28 +52,36 @@ public class ProductService {
     // ==========================================
     // CHO USER: Logic bấm nút "Đăng Ký Bán" - LƯU VÀO DATABASE
     // ==========================================
+    // ProductService.java
     public boolean addNewProduct(String type, String plate, String province, String price,
                                  String name, String phone, String email, String address) {
 
-        // BƯỚC 1: Kiểm tra chống trùng lặp - kiểm tra DATABASE trước
+        // BƯỚC 1: Vẫn kiểm tra plateExists như cũ để tối ưu (tránh gọi lệnh INSERT thừa)
         if (ItemDAO.plateExists(plate)) {
-            return false;  // Biển số đã tồn tại
+            return false;
         }
 
-        // BƯỚC 2: Kiểm tra chống trùng lặp trong DataStore (legacy)
-        for (String[] product : DataStore.products) {
-            if (product[1].equalsIgnoreCase(plate)) {
-                return false;
-            }
-        }
-
-        // BƯỚC 3: Nếu không trùng, thêm vào DATABASE với status PENDING
+        // BƯỚC 2: Thực hiện thêm vào DB và xử lý Exception
         try {
             double priceDouble = Double.parseDouble(price);
+
+            // Gọi hàm DAO (bây giờ hàm này có thể ném lỗi)
             ItemDAO.addItemFromSeller(plate, priceDouble, "Biển số xe đẹp", type, name, phone, email, address);
-            return true;
+
+            return true; // Thành công
+
+        } catch (SQLException e) {
+            // ✅ Kiểm tra nếu lỗi là do trùng khóa (Duplicate Entry) trong MySQL
+            if (e.getMessage().contains("Duplicate entry")) {
+                System.out.println("⚠️ Biển số đã tồn tại (Lỗi trùng lặp từ DB)");
+                return false;
+            }
+
+            // Với các lỗi DB khác (như mất kết nối), ném Runtime để UI biết có lỗi nghiêm trọng
+            throw new RuntimeException("Lỗi database nghiêm trọng: " + e.getMessage(), e);
+
         } catch (NumberFormatException e) {
-            System.out.println("❌ Lỗi parse giá: " + e.getMessage());
+            System.out.println("❌ Lỗi định dạng giá: " + e.getMessage());
             return false;
         }
     }

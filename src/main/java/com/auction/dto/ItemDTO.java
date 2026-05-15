@@ -4,29 +4,34 @@ public class ItemDTO {
     private String vehicleType, plateNumber, province, formattedPrice;
     private String sellerName, sellerPhone, sellerEmail, sellerAddress;
 
+    // Chuyển đổi từ mảng String (DB) sang đối tượng DTO (Giao diện)
     public static ItemDTO fromApprovedArray(String[] p) {
-        // SỬA: Đổi điều kiện từ 10 thành 11 vì mảng p bây giờ có 11 phần tử (do mới thêm address)
-        if (p == null || p.length < 11) return null;
-
-        ItemDTO dto = new ItemDTO();
-        dto.plateNumber = p[1];
-
-        // SỬA (Vấn đề 2): Format giá tiền từ "150000000.0" thành "150,000,000"
-        try {
-            double rawPrice = Double.parseDouble(p[2]); // Ép chuỗi về số thực
-            dto.formattedPrice = String.format("%,.0f", rawPrice); // Format số có dấu phẩy
-        } catch (NumberFormatException e) {
-            dto.formattedPrice = p[2]; // Đề phòng lỗi ép kiểu thì gán lại chuỗi gốc
+        // Kiểm tra an toàn: Nếu mảng rỗng hoặc thiếu các cột cơ bản (ít nhất 11 cột từ 0-10)
+        if (p == null || p.length < 11) {
+            System.out.println("⚠️ Cảnh báo: Dữ liệu mảng không đủ độ dài để tạo DTO");
+            return null;
         }
 
-        dto.vehicleType = p[5];
-        dto.sellerName = p[7];
-        dto.sellerPhone = p[8];
-        dto.sellerEmail = p[9];
-        dto.province = "";
+        ItemDTO dto = new ItemDTO();
+        dto.plateNumber = p[1]; // Index 1: Biển số
 
-        // SỬA (Vấn đề 1): Đọc địa chỉ người bán từ vị trí p[10]
-        dto.sellerAddress = p[10];
+        // FIX: Format giá tiền có dấu phẩy phân cách hàng nghìn
+        try {
+            double rawPrice = Double.parseDouble(p[2]); // Index 2: Giá khởi điểm
+            dto.formattedPrice = String.format("%,.0f", rawPrice); // Ví dụ: 50.000.000
+        } catch (NumberFormatException e) {
+            dto.formattedPrice = p[2];
+        }
+
+        dto.vehicleType = p[5]; // Index 5: Loại xe
+
+        // Kiểm tra an toàn cho các thông tin người bán (tránh NullPointer)
+        dto.sellerName    = (p.length > 7 && p[7] != null) ? p[7] : "N/A";
+        dto.sellerPhone   = (p.length > 8 && p[8] != null) ? p[8] : "N/A";
+        dto.sellerEmail   = (p.length > 9 && p[9] != null) ? p[9] : "N/A";
+        dto.sellerAddress = (p.length > 10 && p[10] != null) ? p[10] : "N/A";
+
+        dto.province = ""; // Có thể bổ sung logic cắt chuỗi địa chỉ để lấy tỉnh sau
 
         return dto;
     }

@@ -3,6 +3,7 @@ package com.auction.database;
 import com.auction.model.User;
 import com.auction.model.Seller;
 import com.auction.model.Bidder;
+import com.auction.util.PasswordUtil;
 import java.sql.*;
 
 /**
@@ -49,6 +50,10 @@ public class UserDAO {
 
     public static boolean addUser(String username, String password, String email,
                                   String fullName, String userType, String phone, String address) {
+
+        // ✅ THÊM DÒNG NÀY: Mã hóa mật khẩu đầu vào trước khi lưu vào database
+        String hashedPassword = PasswordUtil.hashPassword(password);
+
         String sql = "INSERT INTO users (username, password, email, full_name, user_type, phone, address) " +
                 "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
@@ -56,7 +61,8 @@ public class UserDAO {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
+            // ✅ SỬA DÒNG NÀY: Lưu chuỗi đã mã hóa thay vì mật khẩu gốc
+            pstmt.setString(2, hashedPassword);
             pstmt.setString(3, email);
             pstmt.setString(4, fullName);
             pstmt.setString(5, userType);
@@ -81,12 +87,17 @@ public class UserDAO {
     }
 
     public static User getUserByUsernameAndPassword(String username, String password) {
+        // ✅ THÊM DÒNG NÀY: Mã hóa mật khẩu đầu vào
+        String hashedPassword = PasswordUtil.hashPassword(password);
+
         String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
+            // ✅ SỬA DÒNG NÀY: Tìm kiếm bằng mật khẩu đã mã hóa
+            pstmt.setString(2, hashedPassword);
+
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
@@ -97,10 +108,11 @@ public class UserDAO {
                 String address  = rs.getString("address");
                 String userType = rs.getString("user_type");
 
+                // Lưu ý: Truyền hashedPassword vào constructor để đối tượng User giữ chuỗi an toàn
                 if ("Seller".equals(userType) || "Admin".equals(userType)) {
-                    return new Seller(userId, username, fullName, password, email, phone, address, 5.0);
+                    return new Seller(userId, username, fullName, hashedPassword, email, phone, address, 5.0);
                 } else {
-                    return new Bidder(userId, username, fullName, password, email, phone, address, 0.0);
+                    return new Bidder(userId, username, fullName, hashedPassword, email, phone, address, 0.0);
                 }
             }
         } catch (SQLException e) {
@@ -172,12 +184,17 @@ public class UserDAO {
     }
 
     public static boolean checkLogin(String username, String password) {
+        // ✅ THÊM DÒNG NÀY: Mã hóa mật khẩu người dùng vừa nhập
+        String hashedPassword = PasswordUtil.hashPassword(password);
+
         String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username);
-            pstmt.setString(2, password);
+            // ✅ SỬA DÒNG NÀY: Đem chuỗi đã mã hóa đi so sánh với Database
+            pstmt.setString(2, hashedPassword);
+
             ResultSet rs = pstmt.executeQuery();
             return rs.next();
 

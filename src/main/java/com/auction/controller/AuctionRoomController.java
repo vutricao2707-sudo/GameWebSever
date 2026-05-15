@@ -6,7 +6,6 @@ import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -30,7 +29,9 @@ import java.util.logging.Logger;
 public class AuctionRoomController {
 
     private static final Logger logger = Logger.getLogger(AuctionRoomController.class.getName());
-
+    // --- Biến cho Fix 6 ---
+    private Timeline bidPollingTimeline;
+    private double lastKnownPrice;
     // --- Các thành phần FXML ---
     @FXML private Label lblMinutes, lblSeconds;
     @FXML private Label lblPlateTop, lblPlateBottom;
@@ -57,7 +58,6 @@ public class AuctionRoomController {
 
     @FXML
     public void initialize() {
-        startCountdown();
         updatePricingUI();
         updateParticipantCount();
     }
@@ -214,19 +214,71 @@ public class AuctionRoomController {
         this.currentPlateNumber = plate;
         this.currentPrice = startingPrice;
 
+        // Hiển thị biển số lên giao diện
         String[] parts = plate.split("-");
         lblPlateTop.setText(parts.length > 0 ? parts[0] : plate);
         lblPlateBottom.setText(parts.length > 1 ? parts[1] : "");
 
-        // Cập nhật UI giá cả
+        // ✅ FIX 5: ĐỌC thời gian còn lại thực tế từ database
+        long remaining = ItemDAO.getAuctionTimeRemaining(plate);
+        if (remaining > 0) {
+            this.timeRemainingSeconds = (int) remaining;
+        } else {
+            // Nếu có lỗi hoặc chưa bắt đầu, mặc định là 60 phút
+            this.timeRemainingSeconds = 60 * 60;
+        }
+
+        // Cập nhật giao diện giá và số người xem
         updatePricingUI();
         updateParticipantCount();
+
+        // ✅ Bắt đầu đếm ngược ngay sau khi lấy được thời gian từ DB
+        startCountdown();
+
+        // ✅ Bắt đầu quét giá tự động (Chuẩn bị cho Fix 6)
+        startBidPolling();
+    }
+    private void startBidPolling() {
+        lastKnownPrice = currentPrice;
+
+        bidPollingTimeline = new Timeline(new KeyFrame(Duration.seconds(5), event -> {
+            // Mỗi 5 giây, kiểm tra dữ liệu mới nhất từ DB
+            String[] data = ItemDAO.getItemFullData(currentPlateNumber);
+
+            if (data != null) {
+                // Lấy giá hiện tại từ cột số [3] trong DB
+                double dbPrice = Double.parseDouble(data[3]);
+
+                if (dbPrice > lastKnownPrice) {
+                    // ✅ Có người khác đã đặt giá cao hơn!
+                    lastKnownPrice = dbPrice;
+                    currentPrice = dbPrice;
+                    updatePricingUI(); // Cập nhật nút bấm và nhãn giá
+
+                    // Thêm thông báo vào lịch sử đấu giá
+                    addHistoryRow(formatter.format(dbPrice), "Người dùng khác");
+                }
+
+                // Cập nhật số người tham gia (cột số [10])
+                int count = Integer.parseInt(data[10]);
+                if (count != currentParticipants) {
+                    currentParticipants = count;
+                    if (lblParticipants != null) {
+                        lblParticipants.setText("👥 " + currentParticipants + " người tham gia");
+                    }
+                }
+            }
+        }));
+
+        bidPollingTimeline.setCycleCount(Timeline.INDEFINITE);
+        bidPollingTimeline.play();
     }
 
     @FXML
     private void handleBack(ActionEvent event) {
-        // Tắt đồng hồ để tiết kiệm RAM khi thoát trang
+        // ✅ Dừng tất cả đồng hồ và luồng chạy ngầm khi thoát
         if (countdownTimeline != null) countdownTimeline.stop();
+        if (bidPollingTimeline != null) bidPollingTimeline.stop();
 
         try {
             Parent newRoot = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("/fxml/Dashboard.fxml")));

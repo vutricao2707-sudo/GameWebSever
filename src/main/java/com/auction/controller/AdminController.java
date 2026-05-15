@@ -67,11 +67,26 @@ public class AdminController {
             return;
         }
         for (String[] product : pendingList) {
-            // Cấu trúc DataStore: [0]type [1]plate [2]province [3]price [4]name ... [8]status
-            String plate  = product[1];
-            String owner  = product[4];
-            String price  = product[2];
-            adminListContainer.getChildren().add(createAdminRow(plate, owner, price, "Đang chờ", "PENDING"));
+            // Cấu trúc mảng từ DB:
+            // [0]id  [1]plate  [2]start_price  [3]vehicle_type
+            // [4]seller_name  [5]phone  [6]email  [7]address  [8]approval_status
+
+            String plate = product[1];  // Lấy Biển số
+            String owner = product[4];  // Lấy Tên người bán
+
+            // Xử lý và format giá tiền hiển thị cho đẹp
+            String price;
+            try {
+                double priceVal = Double.parseDouble(product[2]);
+                price = String.format("%,.0f", priceVal);  // Ví dụ: 50000000.0 -> "50,000,000"
+            } catch (NumberFormatException e) {
+                price = product[2];
+            }
+
+            // Gọi hàm tạo giao diện 1 hàng (Row) và ném nó vào màn hình
+            adminListContainer.getChildren().add(
+                    createAdminRow(plate, owner, price, "Đang chờ", "PENDING")
+            );
         }
     }
 
