@@ -17,6 +17,13 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
+
+import java.time.LocalDateTime;
+import java.sql.Timestamp;
+import java.time.format.DateTimeFormatter;
 
 import java.io.IOException;
 import java.util.List;
@@ -100,10 +107,10 @@ public class DashboardController {
             showEmptyMessage("Chưa có " + type.toUpperCase() + " nào được đăng bán.");
             return;
         }
-        for (String[] p : products) {
-            ItemDTO item = ItemDTO.fromApprovedArray(p);
+        for (int i = 0; i < products.size(); i++) {
+            ItemDTO item = ItemDTO.fromApprovedArray(products.get(i));
             if (item != null) {
-                productContainer.getChildren().add(createProductCard(item));
+                productContainer.getChildren().add(createProductCard(item, i + 1));
             }
         }
     }
@@ -118,7 +125,8 @@ public class DashboardController {
     // XÂY DỰNG THẺ SẢN PHẨM
     // =========================================================================
 
-    private VBox createProductCard(ItemDTO item) {
+    private VBox createProductCard(ItemDTO item, int sessionIndex) {
+
         String type     = item.getVehicleType();
         String plate    = item.getPlateNumber();
         String province = item.getProvince();
@@ -128,18 +136,61 @@ public class DashboardController {
         String email    = item.getSellerEmail();
         String address  = item.getSellerAddress();
 
+        // =========================
+        // BUTTON ĐẤU GIÁ
+        // =========================
+
+        Button btnBid = new Button("Đăng ký đấu giá");
+
+        btnBid.setStyle(
+                "-fx-background-color: #00b894; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-background-radius: 20;"
+        );
+
+        btnBid.setMaxWidth(Double.MAX_VALUE);
+
+        btnBid.setOnAction(e ->
+                enterAuctionRoom(e, plate, price)
+        );
+
+        // =========================
+        // CARD
+        // =========================
+
         VBox card = new VBox(12);
-        card.setStyle("-fx-background-color: #1a2230; -fx-background-radius: 12; " +
-                "-fx-border-color: #2a364a; -fx-border-radius: 12; " +
-                "-fx-border-width: 1; -fx-padding: 15;");
+
+        card.setStyle(
+                "-fx-background-color: #1a2230; " +
+                        "-fx-background-radius: 12; " +
+                        "-fx-border-color: #2a364a; " +
+                        "-fx-border-radius: 12; " +
+                        "-fx-border-width: 1; " +
+                        "-fx-padding: 15;"
+        );
+
         card.setPrefWidth(280);
+
+        HBox buttonBox =
+                buildCardButtons(
+                        btnBid,
+                        plate,
+                        price,
+                        fullName,
+                        address,
+                        phone,
+                        email
+                );
+
         card.getChildren().addAll(
                 buildPlateSection(plate, type),
-                buildLocationRow(province),
+                buildLocationRow(province, sessionIndex),
                 buildUsersRow(),
-                buildTimeRow(),
-                buildCardButtons(plate, price, fullName, address, phone, email)
+                buildTimeRow(item),
+                buttonBox
         );
+
         return card;
     }
 
@@ -168,77 +219,109 @@ public class DashboardController {
         return new StackPane(plateBox, badge);
     }
 
-    private HBox buildLocationRow(String province) {
+    private HBox buildLocationRow(String province, int sessionIndex) {
+
         Label lblProv = new Label("• " + province);
-        lblProv.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 13px;");
+
+        lblProv.setStyle(
+                "-fx-text-fill: #94a3b8; -fx-font-size: 13px;"
+        );
 
         Region spacer = new Region();
+
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Label lblSession = new Label("Phiên 9");
-        lblSession.setStyle("-fx-background-color: #475569; -fx-text-fill: white; " +
-                "-fx-background-radius: 12; -fx-padding: 3 10; -fx-font-size: 12px;");
+        Label lblSession =
+                new Label("Phiên " + sessionIndex);
+
+        lblSession.setStyle(
+                "-fx-background-color: #475569; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-background-radius: 12; " +
+                        "-fx-padding: 3 10; " +
+                        "-fx-font-size: 12px;"
+        );
 
         HBox row = new HBox();
+
         row.setAlignment(Pos.CENTER_LEFT);
-        row.getChildren().addAll(lblProv, spacer, lblSession);
+
+        row.getChildren().addAll(
+                lblProv,
+                spacer,
+                lblSession
+        );
+
         return row;
     }
 
     private HBox buildUsersRow() {
-        Label lblUsers = new Label("👤 9");
-        lblUsers.setStyle("-fx-text-fill: #00b894; -fx-font-size: 14px;");
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Label lblChart = new Label("📈");
-        lblChart.setStyle("-fx-text-fill: #00b894; -fx-font-size: 14px;");
-
+        // Tạo một hàng trống, không chứa hình người hay số 9 nữa
         HBox row = new HBox();
         row.setAlignment(Pos.CENTER_LEFT);
-        row.getChildren().addAll(lblUsers, spacer, lblChart);
+        // Có thể set padding nhỏ lại để thẻ xe không bị trống quá
+        row.setStyle("-fx-padding: 0;");
         return row;
     }
+    private HBox buildCardButtons(
+            Button btnBid,
+            String plate,
+            String price,
+            String fullName,
+            String address,
+            String phone,
+            String email
+    ) {
 
-    private HBox buildTimeRow() {
-        Label clockIcon = new Label("🕒");
-        clockIcon.setStyle("-fx-text-fill: white; -fx-font-size: 20px;");
+        btnBid.setStyle(
+                "-fx-background-color: #00b894; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-background-radius: 20; " +
+                        "-fx-cursor: hand; " +
+                        "-fx-padding: 8 0;"
+        );
 
-        Label lblTimeLabel = new Label("Thời gian đăng ký còn lại");
-        lblTimeLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
-        Label lblTimeValue = new Label("2 ngày 4 giờ 59 phút");
-        lblTimeValue.setStyle("-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;");
-
-        VBox timeTexts = new VBox();
-        timeTexts.getChildren().addAll(lblTimeLabel, lblTimeValue);
-
-        HBox row = new HBox(10);
-        row.setAlignment(Pos.CENTER_LEFT);
-        row.getChildren().addAll(clockIcon, timeTexts);
-        return row;
-    }
-
-    private HBox buildCardButtons(String plate, String price, String fullName,
-                                  String address, String phone, String email) {
-        Button btnBid = new Button("Đăng ký đấu giá");
-        btnBid.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; " +
-                "-fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand; -fx-padding: 8 0;");
         btnBid.setMaxWidth(Double.MAX_VALUE);
+
         HBox.setHgrow(btnBid, Priority.ALWAYS);
-        btnBid.setOnAction(e -> enterAuctionRoom(e, plate, price));
 
         Button btnDetail = new Button("Xem chi tiết");
-        btnDetail.setStyle("-fx-background-color: transparent; -fx-border-color: #00b894; " +
-                "-fx-border-radius: 20; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 8 0;");
+
+        btnDetail.setStyle(
+                "-fx-background-color: transparent; " +
+                        "-fx-border-color: #00b894; " +
+                        "-fx-border-radius: 20; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-cursor: hand; " +
+                        "-fx-padding: 8 0;"
+        );
+
         btnDetail.setMaxWidth(Double.MAX_VALUE);
+
         HBox.setHgrow(btnDetail, Priority.ALWAYS);
-        btnDetail.setOnAction(e -> showProductDetails(plate, fullName, address, phone, email, price));
+
+        btnDetail.setOnAction(e ->
+                showProductDetails(
+                        plate,
+                        fullName,
+                        address,
+                        phone,
+                        email,
+                        price
+                )
+        );
 
         HBox box = new HBox(10);
-        box.getChildren().addAll(btnBid, btnDetail);
+
+        box.getChildren().addAll(
+                btnBid,
+                btnDetail
+        );
+
         return box;
     }
+
 
     // =========================================================================
     // CHUYỂN VÀO PHÒNG ĐẤU GIÁ
@@ -372,5 +455,152 @@ public class DashboardController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+    private HBox buildTimeRow(ItemDTO item) {
+
+        Label clockIcon = new Label("🕒");
+
+        clockIcon.setStyle(
+                "-fx-text-fill: white; " +
+                        "-fx-font-size: 20px;"
+        );
+
+        Label lblTimeLabel =
+                new Label("Thời gian đăng ký còn lại");
+
+        lblTimeLabel.setStyle(
+                "-fx-text-fill: #94a3b8; " +
+                        "-fx-font-size: 11px;"
+        );
+
+        Label lblTimeValue =
+                new Label("Đang tải...");
+
+        lblTimeValue.setStyle(
+                "-fx-text-fill: white; " +
+                        "-fx-font-size: 15px; " +
+                        "-fx-font-weight: bold;"
+        );
+
+        VBox timeTexts = new VBox();
+
+        timeTexts.getChildren().addAll(
+                lblTimeLabel,
+                lblTimeValue
+        );
+
+        HBox row = new HBox(10);
+
+        row.setAlignment(Pos.CENTER_LEFT);
+
+        row.getChildren().addAll(
+                clockIcon,
+                timeTexts
+        );
+
+        // =====================================================
+        // ĐẾM NGƯỢC REALTIME
+        // =====================================================
+
+        String endTime =
+                item.getRegistrationEndTime();
+
+        if (endTime != null && !endTime.isEmpty()) {
+
+            try {
+
+                endTime = endTime.replace("T", " ");
+
+                if (endTime.contains(".")) {
+
+                    endTime =
+                            endTime.substring(
+                                    0,
+                                    endTime.indexOf(".")
+                            );
+                }
+
+                Timestamp timestamp =
+                        Timestamp.valueOf(endTime);
+
+                LocalDateTime targetTime =
+                        timestamp.toLocalDateTime();
+
+                Timeline timeline =
+                        new Timeline(
+                                new KeyFrame(
+                                        Duration.seconds(1),
+                                        event -> {
+
+                                            LocalDateTime now =
+                                                    LocalDateTime.now();
+
+                                            if (now.isBefore(targetTime)) {
+
+                                                java.time.Duration duration =
+                                                        java.time.Duration.between(
+                                                                now,
+                                                                targetTime
+                                                        );
+
+                                                long days =
+                                                        duration.toDays();
+
+                                                long hours =
+                                                        duration.toHoursPart();
+
+                                                long minutes =
+                                                        duration.toMinutesPart();
+
+                                                long seconds =
+                                                        duration.toSecondsPart();
+
+                                                lblTimeValue.setText(
+                                                        String.format(
+                                                                "%d ngày %02d:%02d:%02d",
+                                                                days,
+                                                                hours,
+                                                                minutes,
+                                                                seconds
+                                                        )
+                                                );
+
+                                            } else {
+
+                                                lblTimeValue.setText(
+                                                        "Đã mở đấu giá"
+                                                );
+
+                                                lblTimeValue.setStyle(
+                                                        "-fx-text-fill: #00b894; " +
+                                                                "-fx-font-size: 15px; " +
+                                                                "-fx-font-weight: bold;"
+                                                );
+                                            }
+                                        }
+                                )
+                        );
+
+                timeline.setCycleCount(
+                        Timeline.INDEFINITE
+                );
+
+                timeline.play();
+
+            } catch (Exception e) {
+
+                e.printStackTrace();
+
+                System.out.println("DEBUG endTime = " + endTime);
+
+                lblTimeValue.setText(endTime);
+            }
+
+        } else {
+
+            lblTimeValue.setText("Chưa có thời gian");
+        }
+
+        return row;
     }
 }

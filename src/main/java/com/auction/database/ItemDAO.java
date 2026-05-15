@@ -100,7 +100,8 @@ public class ItemDAO {
         List<String[]> result = new ArrayList<>();
         // SỬA: Thêm cột seller_address vào câu query
         String sql = "SELECT id, plate_number, start_price, current_price, description, vehicle_type, status, " +
-                "seller_name, seller_phone, seller_email, seller_address FROM items " +
+                "seller_name, seller_phone, seller_email, seller_address, registration_end_time " +
+                "FROM items " +
                 "WHERE approval_status = 'APPROVED' AND status = 'ACTIVE'";
 
         try (Connection conn = DatabaseConnection.getConnection();
@@ -119,7 +120,8 @@ public class ItemDAO {
                         rs.getString("seller_name"),
                         rs.getString("seller_phone"),
                         rs.getString("seller_email"),
-                        rs.getString("seller_address") // SỬA: Lấy thêm địa chỉ từ CSDL (Đây sẽ là p[10])
+                        rs.getString("seller_address"),
+                        rs.getString("registration_end_time")
                 };
                 result.add(item);
             }
@@ -385,10 +387,10 @@ public class ItemDAO {
     // Lấy tất cả items chỉ những cái ACTIVE (chưa kết thúc) cho Dashboard
     public static List<String[]> getAllApprovedActiveItems() {
         List<String[]> result = new ArrayList<>();
-        String sql = "SELECT id, plate_number, start_price, current_price, description, vehicle_type, status, " +
-                "seller_name, seller_phone, seller_email, seller_address, auction_status " +
-                "FROM items WHERE approval_status = 'APPROVED' AND status = 'ACTIVE' AND auction_status != 'FINISHED'";
-
+        String sql =
+                "SELECT id, plate_number, start_price, current_price, description, vehicle_type, " +
+                        "status, seller_name, seller_phone, seller_email, seller_address, registration_end_time " +
+                        "FROM items WHERE approval_status = 'APPROVED'";
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -406,7 +408,7 @@ public class ItemDAO {
                         rs.getString("seller_phone"),
                         rs.getString("seller_email"),
                         rs.getString("seller_address"),
-                        rs.getString("auction_status")
+                        rs.getString("registration_end_time")
                 };
                 result.add(item);
             }
