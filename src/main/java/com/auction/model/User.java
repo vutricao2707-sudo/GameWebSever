@@ -9,6 +9,8 @@ public abstract class User {
     private String phone;
     private String address;
 
+    private UserRole role;
+
     public User(String userId, String userName, String fullName
             , String password, String email, String phone, String address) {
         this.userId = userId;
@@ -21,7 +23,6 @@ public abstract class User {
     }
 
     // =========================================================
-    // ĐÃ THÊM: Hàm getId() trả về kiểu số nguyên (int)
     // Để khớp với code ở AuctionRoomController và Database
     // =========================================================
     public int getId() {
@@ -35,6 +36,16 @@ public abstract class User {
         return 0; // Trả về mặc định nếu có lỗi
     }
 
+    // ✅ BỔ SUNG: Getter và Setter cho UserRole
+    public UserRole getRole() {
+        return role;
+    }
+
+    public void setRole(UserRole role) {
+        this.role = role;
+    }
+
+    // CÁC GETTER/SETTER CŨ GIỮ NGUYÊN 100%
     public String getUserId() {
         return userId;
     }

@@ -6,98 +6,92 @@ import java.sql.*;
  * AuctionDAO - Quản lý phiên đấu giá (auctions)
  */
 public class AuctionDAO {
-    
+
     // Tạo phiên đấu giá mới
     public static void createAuction(int itemId, int sellerId) {
-        String sql = "INSERT INTO auctions (item_id, seller_id, is_open) VALUES (?, ?, TRUE)";
-        
+        // 💣 ĐÃ GỠ BOM: Thay vì INSERT bảng auctions, chỉ cần UPDATE trạng thái trong bảng items
+        String sql = "UPDATE items SET auction_status = 'AUCTION' WHERE id = ?";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
+
             pstmt.setInt(1, itemId);
-            pstmt.setInt(2, sellerId);
-            
+            // Lưu ý: sellerId được giữ lại ở tham số hàm để không làm lỗi code chỗ khác,
+            // nhưng không cần đưa vào câu lệnh SQL này nữa.
+
             pstmt.executeUpdate();
             System.out.println("✅ Tạo phiên đấu giá thành công");
-            
+
         } catch (SQLException e) {
             System.out.println("❌ Lỗi: " + e.getMessage());
         }
     }
-    
-    
+
+
     // Lấy tất cả phiên đấu giá đang mở
     public static void getOpenAuctions() {
-        String sql = "SELECT a.id, i.plate_number, i.current_price, u.full_name " +
-                     "FROM auctions a " +
-                     "JOIN items i ON a.item_id = i.id " +
-                     "JOIN users u ON a.seller_id = u.id " +
-                     "WHERE a.is_open = TRUE";
-        
+        // 💣 ĐÃ GỠ BOM: Query thẳng từ bảng items
+        String sql = "SELECT id, plate_number, current_price FROM items WHERE auction_status = 'AUCTION'";
+
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
-            
+
             System.out.println("\n📌 Phiên đấu giá đang mở:");
             while (rs.next()) {
-                System.out.println("  Phiên #" + rs.getInt("id") + 
-                                 " | Biển: " + rs.getString("plate_number") +
-                                 " | Giá: " + rs.getDouble("current_price") +
-                                 " | Seller: " + rs.getString("full_name"));
+                System.out.println("  Phiên #" + rs.getInt("id") +
+                        " | Biển: " + rs.getString("plate_number") +
+                        " | Giá: " + rs.getDouble("current_price"));
             }
             System.out.println();
-            
+
         } catch (SQLException e) {
             System.out.println("❌ Lỗi: " + e.getMessage());
         }
     }
-    
-    
+
+
     // Đóng phiên đấu giá (khi hết giờ)
     public static void closeAuction(int auctionId, int winnerId, double finalPrice) {
-        String sql = "UPDATE auctions SET is_open = FALSE, winner_id = ?, final_price = ? WHERE id = ?";
-        
+        String sql = "UPDATE items SET auction_status = 'FINISHED', current_price = ? WHERE id = ?";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
-            pstmt.setInt(1, winnerId);
-            pstmt.setDouble(2, finalPrice);
-            pstmt.setInt(3, auctionId);
-            
+
+            pstmt.setDouble(1, finalPrice);
+            pstmt.setInt(2, auctionId);
+            // Lưu ý: winnerId được giữ nguyên ở tham số để code cũ không báo lỗi.
+
             pstmt.executeUpdate();
             System.out.println("✅ Đóng phiên đấu giá thành công");
-            
+
         } catch (SQLException e) {
             System.out.println("❌ Lỗi: " + e.getMessage());
         }
     }
-    
-    
+
+
     // Lấy chi tiết phiên đấu giá
     public static void getAuctionDetails(int auctionId) {
-        String sql = "SELECT a.*, i.plate_number, u.full_name FROM auctions a " +
-                     "JOIN items i ON a.item_id = i.id " +
-                     "JOIN users u ON a.seller_id = u.id " +
-                     "WHERE a.id = ?";
-        
+        // 💣 ĐÃ GỠ BOM: Lấy dữ liệu từ bảng items
+        String sql = "SELECT id, plate_number, current_price, auction_status FROM items WHERE id = ?";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
-            pstmt.setInt(1, auctionId);
+
+            pstmt.setInt(1, auctionId); // auctionId truyền vào chính là id của item
             ResultSet rs = pstmt.executeQuery();
-            
+
             if (rs.next()) {
                 System.out.println("\n📌 Chi tiết phiên:");
                 System.out.println("  Phiên #: " + rs.getInt("id"));
                 System.out.println("  Biển: " + rs.getString("plate_number"));
-                System.out.println("  Người bán: " + rs.getString("full_name"));
-                System.out.println("  Giá hiện tại: " + rs.getDouble("final_price"));
-                System.out.println("  Trạng thái: " + (rs.getBoolean("is_open") ? "Đang mở" : "Đã đóng") + "\n");
+                System.out.println("  Giá hiện tại: " + rs.getDouble("current_price"));
+                System.out.println("  Trạng thái: " + rs.getString("auction_status") + "\n");
             }
-            
+
         } catch (SQLException e) {
             System.out.println("❌ Lỗi: " + e.getMessage());
         }
     }
 }
-
