@@ -151,10 +151,66 @@ public class DashboardController {
 
         btnBid.setMaxWidth(Double.MAX_VALUE);
 
-        btnBid.setOnAction(e ->
-                enterAuctionRoom(e, plate, price)
-        );
+        final String endTime = item.getRegistrationEndTime();
 
+        btnBid.setOnAction(e -> {
+
+            try {
+
+                if (endTime != null && !endTime.isEmpty()) {
+
+                    String fixedEndTime =
+                            endTime.replace("T", " ");
+
+                    if (fixedEndTime.contains(".")) {
+
+                        fixedEndTime =
+                                fixedEndTime.substring(
+                                        0,
+                                        fixedEndTime.indexOf(".")
+                                );
+                    }
+
+                    Timestamp timestamp =
+                            Timestamp.valueOf(fixedEndTime);
+
+                    LocalDateTime targetTime =
+                            timestamp.toLocalDateTime();
+
+                    LocalDateTime now =
+                            LocalDateTime.now();
+
+                    // =====================================
+                    // CHƯA HẾT THỜI GIAN ĐĂNG KÝ
+                    // =====================================
+
+                    if (now.isBefore(targetTime)) {
+
+                        showInfo(
+                                "Chưa mở đấu giá",
+                                "Hiện vẫn đang trong thời gian đăng ký tham gia đấu giá."
+                        );
+
+                        return;
+                    }
+                }
+
+                // =====================================
+                // ĐÃ HẾT ĐĂNG KÝ
+                // =====================================
+
+                enterAuctionRoom(e, plate, price);
+
+            } catch (Exception ex) {
+
+                ex.printStackTrace();
+
+                showInfo(
+                        "Lỗi thời gian",
+                        "Không thể kiểm tra thời gian đấu giá."
+                );
+            }
+        });
         // =========================
         // CARD
         // =========================
