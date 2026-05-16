@@ -83,14 +83,15 @@ public class DatabaseInitializer {
             // === BẢNG 4: BIDS - Lưu lịch sử đặt giá ===
             String createBids = "CREATE TABLE IF NOT EXISTS bids (" +
                     "  id INT PRIMARY KEY AUTO_INCREMENT," +
-                    "  auction_id INT NOT NULL," +
-                    "  bidder_id INT NOT NULL," +
-                    "  amount DECIMAL(15,2)," +
+                    "  item_id INT NOT NULL," +
+                    "  user_id INT NOT NULL," +
+                    "  bid_amount DECIMAL(15,2) NOT NULL," +
                     "  bid_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                    "  FOREIGN KEY (auction_id) REFERENCES auctions(id)," +
-                    "  FOREIGN KEY (bidder_id) REFERENCES users(id)" +
+                    "  FOREIGN KEY (item_id) REFERENCES items(id)," +
+                    "  FOREIGN KEY (user_id) REFERENCES users(id)" +
                     ")";
             stmt.execute(createBids);
+            migrateBidsTableIfNeeded(stmt);
             System.out.println("✅ Bảng bids sẵn sàng");
 
             // =====================================================================
@@ -113,5 +114,28 @@ public class DatabaseInitializer {
         } catch (SQLException e) {
             System.out.println("❌ Lỗi: " + e.getMessage());
         }
+    }
+    private static void migrateBidsTableIfNeeded(Statement stmt) {
+
+        try {
+            stmt.execute(
+                    "ALTER TABLE bids CHANGE COLUMN auction_id item_id INT NOT NULL"
+            );
+            System.out.println("✅ auction_id -> item_id");
+        } catch (SQLException ignored) {}
+
+        try {
+            stmt.execute(
+                    "ALTER TABLE bids CHANGE COLUMN bidder_id user_id INT NOT NULL"
+            );
+            System.out.println("✅ bidder_id -> user_id");
+        } catch (SQLException ignored) {}
+
+        try {
+            stmt.execute(
+                    "ALTER TABLE bids CHANGE COLUMN amount bid_amount DECIMAL(15,2) NOT NULL"
+            );
+            System.out.println("✅ amount -> bid_amount");
+        } catch (SQLException ignored) {}
     }
 }

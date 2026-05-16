@@ -1,6 +1,7 @@
 package com.auction.database;
 
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -96,13 +97,63 @@ public class ItemDAO {
     }
 
     public static String[] getItemFullData(String plateNumber) {
-        String sql = "SELECT * FROM items WHERE plate_number = ?";
+
+        String sql =
+                "SELECT * FROM items WHERE plate_number = ?";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, plateNumber);
+
             try (ResultSet rs = pstmt.executeQuery()) {
+
                 if (rs.next()) {
+
+                    // =====================================
+                    // TỰ CHUYỂN SANG AUCTION
+                    // =====================================
+
+                    String registrationEnd =
+                            rs.getString("registration_end_time");
+
+                    String auctionStatus =
+                            rs.getString("auction_status");
+
+                    if (registrationEnd != null &&
+                            "REGISTRATION".equalsIgnoreCase(auctionStatus)) {
+
+                        LocalDateTime now =
+                                LocalDateTime.now();
+
+                        LocalDateTime endTime =
+                                Timestamp.valueOf(registrationEnd)
+                                        .toLocalDateTime();
+
+                        if (now.isAfter(endTime)) {
+
+                            String updateSql =
+                                    "UPDATE items " +
+                                            "SET auction_status = 'AUCTION' " +
+                                            "WHERE plate_number = ?";
+
+                            try (PreparedStatement updateStmt =
+                                         conn.prepareStatement(updateSql)) {
+
+                                updateStmt.setString(1, plateNumber);
+
+                                updateStmt.executeUpdate();
+
+                                auctionStatus = "AUCTION";
+
+                                System.out.println(
+                                        "✅ Đã chuyển sang AUCTION: "
+                                                + plateNumber
+                                );
+                            }
+                        }
+                    }
+
                     return new String[]{
                             String.valueOf(rs.getInt("id")),           // [0]
                             rs.getString("plate_number"),              // [1]
@@ -113,14 +164,20 @@ public class ItemDAO {
                             rs.getString("seller_name"),               // [6]
                             rs.getString("registration_start_time"),   // [7]
                             rs.getString("registration_end_time"),     // [8]
-                            rs.getString("auction_status"),            // [9]
+                            auctionStatus,                             // [9]
                             String.valueOf(rs.getInt("participant_count")) // [10]
                     };
                 }
             }
+
         } catch (SQLException e) {
-            System.out.println("❌ Lỗi getItemFullData: " + e.getMessage());
+
+            System.out.println(
+                    "❌ Lỗi getItemFullData: "
+                            + e.getMessage()
+            );
         }
+
         return null;
     }
 
@@ -158,9 +215,12 @@ public class ItemDAO {
 
     public static List<String[]> getAllApprovedActiveItems() {
         List<String[]> result = new ArrayList<>();
-        String sql = "SELECT id, plate_number, start_price, current_price, description, vehicle_type, " +
-                "status, seller_name, seller_phone, seller_email, seller_address, registration_end_time " +
-                "FROM items WHERE approval_status = 'APPROVED'";
+        String sql =
+                "SELECT id, plate_number, start_price, current_price, description, vehicle_type, " +
+                        "status, seller_name, seller_phone, seller_email, seller_address, " +
+                        "registration_end_time, auction_start_time, auction_end_time, auction_status " +
+                        "FROM items " +
+                        "WHERE approval_status = 'APPROVED'";
 
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
@@ -168,18 +228,21 @@ public class ItemDAO {
 
             while (rs.next()) {
                 result.add(new String[]{
-                        String.valueOf(rs.getInt("id")),
-                        rs.getString("plate_number"),
-                        String.valueOf(rs.getDouble("start_price")),
-                        String.valueOf(rs.getDouble("current_price")),
-                        rs.getString("description"),
-                        rs.getString("vehicle_type"),
-                        rs.getString("status"),
-                        rs.getString("seller_name"),
-                        rs.getString("seller_phone"),
-                        rs.getString("seller_email"),
-                        rs.getString("seller_address"),
-                        rs.getString("registration_end_time")
+                        String.valueOf(rs.getInt("id")),              // [0]
+                        rs.getString("plate_number"),                 // [1]
+                        String.valueOf(rs.getDouble("start_price")), // [2]
+                        String.valueOf(rs.getDouble("current_price")), // [3]
+                        rs.getString("description"),                  // [4]
+                        rs.getString("vehicle_type"),                 // [5]
+                        rs.getString("status"),                       // [6]
+                        rs.getString("seller_name"),                  // [7]
+                        rs.getString("seller_phone"),                 // [8]
+                        rs.getString("seller_email"),                 // [9]
+                        rs.getString("seller_address"),               // [10]
+                        rs.getString("registration_end_time"),        // [11]
+                        rs.getString("auction_start_time"),           // [12]
+                        rs.getString("auction_status"),               // [13]
+                        rs.getString("auction_end_time")              // [14]
                 });
             }
         } catch (SQLException e) {
@@ -378,6 +441,58 @@ public class ItemDAO {
             }
         } catch (SQLException e) {
             System.out.println("❌ Lỗi finishAuction: " + e.getMessage());
+        }
+    }
+    public static void autoFinishAuction(String plateNumber) {
+
+        String sql =
+                "SELECT auction_end_time, auction_status " +
+                        "FROM items WHERE plate_number = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, plateNumber);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+
+                if (rs.next()) {
+
+                    String endTimeStr =
+                            rs.getString("auction_end_time");
+
+                    String status =
+                            rs.getString("auction_status");
+
+                    if (endTimeStr != null &&
+                            "AUCTION".equalsIgnoreCase(status)) {
+
+                        LocalDateTime now =
+                                LocalDateTime.now();
+
+                        LocalDateTime endTime =
+                                Timestamp.valueOf(endTimeStr)
+                                        .toLocalDateTime();
+
+                        if (now.isAfter(endTime)) {
+
+                            finishAuction(plateNumber);
+
+                            System.out.println(
+                                    "✅ AUTO FINISHED: "
+                                            + plateNumber
+                            );
+                        }
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+
+            System.out.println(
+                    "❌ Lỗi autoFinishAuction: "
+                            + e.getMessage()
+            );
         }
     }
 

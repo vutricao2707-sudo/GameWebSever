@@ -2,24 +2,38 @@ package com.auction.dto;
 
 public class ItemDTO {
 
+    // =========================================================
+    // FIELD CƠ BẢN
+    // =========================================================
+
+    private int id;
+
+    private double startPrice;
+    private double currentPrice;
+
     private String vehicleType;
     private String plateNumber;
     private String province;
+
     private String formattedPrice;
+
+    // =========================================================
+    // THÔNG TIN NGƯỜI BÁN
+    // =========================================================
 
     private String sellerName;
     private String sellerPhone;
     private String sellerEmail;
     private String sellerAddress;
+    private String auctionStartTime;
+    private String auctionStatus;
+    private String auctionEndTime;
+    // =========================================================
+    // THỜI GIAN & TRẠNG THÁI ĐẤU GIÁ
+    // =========================================================
 
-    // =========================
-    // THÊM FIELD THỜI GIAN
-    // =========================
     private String registrationEndTime;
 
-    // =========================================================
-    // CHUYỂN TỪ ARRAY DATABASE -> DTO
-    // =========================================================
     public static ItemDTO fromApprovedArray(String[] p) {
 
         if (p == null || p.length < 11) {
@@ -29,17 +43,22 @@ public class ItemDTO {
 
         ItemDTO dto = new ItemDTO();
 
-        // =========================
+        // =====================================================
         // THÔNG TIN CƠ BẢN
-        // =========================
+        // =====================================================
+
+        dto.id = Integer.parseInt(p[0]);
 
         dto.plateNumber = p[1];
 
         try {
-            double rawPrice = Double.parseDouble(p[2]);
+
+            dto.startPrice = Double.parseDouble(p[2]);
+
+            dto.currentPrice = Double.parseDouble(p[3]);
 
             dto.formattedPrice =
-                    String.format("%,.0f", rawPrice);
+                    String.format("%,.0f", dto.currentPrice);
 
         } catch (NumberFormatException e) {
 
@@ -48,9 +67,9 @@ public class ItemDTO {
 
         dto.vehicleType = p[5];
 
-        // =========================
+        // =====================================================
         // THÔNG TIN NGƯỜI BÁN
-        // =========================
+        // =====================================================
 
         dto.sellerName =
                 (p.length > 7 && p[7] != null)
@@ -72,13 +91,28 @@ public class ItemDTO {
                         ? p[10]
                         : "N/A";
 
-        // =========================
-        // THỜI GIAN ĐĂNG KÝ
-        // =========================
+        // =====================================================
+        // THỜI GIAN
+        // =====================================================
 
         dto.registrationEndTime =
                 (p.length > 11 && p[11] != null)
                         ? p[11]
+                        : "";
+
+        dto.auctionStartTime =
+                (p.length > 12 && p[12] != null)
+                        ? p[12]
+                        : "";
+
+        dto.auctionStatus =
+                (p.length > 13 && p[13] != null)
+                        ? p[13]
+                        : "WAITING";
+
+        dto.auctionEndTime =
+                (p.length > 14 && p[14] != null)
+                        ? p[14]
                         : "";
 
         dto.province = "";
@@ -89,6 +123,18 @@ public class ItemDTO {
     // =========================================================
     // GETTERS
     // =========================================================
+
+    public int getId() {
+        return id;
+    }
+
+    public double getStartPrice() {
+        return startPrice;
+    }
+
+    public double getCurrentPrice() {
+        return currentPrice;
+    }
 
     public String getVehicleType() {
         return vehicleType;
@@ -122,11 +168,16 @@ public class ItemDTO {
         return sellerAddress;
     }
 
-    // =========================
-    // GETTER MỚI
-    // =========================
-
     public String getRegistrationEndTime() {
         return registrationEndTime;
+    }
+    public String getAuctionStartTime() {
+        return auctionStartTime;
+    }
+    public String getAuctionStatus() {
+        return auctionStatus;
+    }
+    public String getAuctionEndTime() {
+        return auctionEndTime;
     }
 }

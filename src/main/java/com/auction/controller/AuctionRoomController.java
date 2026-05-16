@@ -129,6 +129,30 @@ public class AuctionRoomController {
     // =========================================================================
     @FXML
     private void handlePlaceBid() {
+        String[] itemData =
+                ItemDAO.getItemFullData(currentPlateNumber);
+
+        if (itemData != null) {
+
+            String auctionStatus =
+                    itemData[9];
+
+            if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
+
+                btnPlaceBid.setDisable(true);
+
+                btnPlaceBid.setText(
+                        "PHIÊN ĐẤU GIÁ ĐÃ KẾT THÚC"
+                );
+
+                showAlert(
+                        "Phiên đã kết thúc",
+                        "Không thể đặt giá nữa."
+                );
+
+                return;
+            }
+        }
         // Kiểm tra cooldown (phải chờ 60 giây sau lần cuối)
         long currentTime = System.currentTimeMillis() / 1000; // Thời gian hiện tại (seconds)
         long timeSinceLastBid = currentTime - lastBidTime;
@@ -226,6 +250,40 @@ public class AuctionRoomController {
 
     // Hàm này sẽ được gọi từ Dashboard truyền sang tất cả thông tin từ database
     public void setAuctionRoomData(String plate, double startingPrice) {
+        String[] itemData =
+                ItemDAO.getItemFullData(plate);
+        if (itemData != null) {
+
+            String auctionStatus = itemData[9];
+
+            // =====================================
+            // CHƯA BẮT ĐẦU
+            // =====================================
+
+            if ("REGISTRATION".equalsIgnoreCase(auctionStatus)) {
+
+                showAlert(
+                        "Phiên chưa bắt đầu",
+                        "Hiện vẫn đang trong giai đoạn đăng ký tham gia đấu giá."
+                );
+
+                return;
+            }
+
+            // =====================================
+            // ĐÃ KẾT THÚC
+            // =====================================
+
+            if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
+
+                showAlert(
+                        "Phiên đã kết thúc",
+                        "Phiên đấu giá này đã kết thúc."
+                );
+
+                return;
+            }
+        }
         this.currentPlateNumber = plate;
         this.currentPrice = startingPrice;
 
@@ -261,6 +319,34 @@ public class AuctionRoomController {
             String[] data = ItemDAO.getItemFullData(currentPlateNumber);
 
             if (data != null) {
+                String auctionStatus = data[9];
+
+                if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
+
+                    btnPlaceBid.setDisable(true);
+
+                    btnPlaceBid.setText("PHIÊN ĐẤU GIÁ ĐÃ KẾT THÚC");
+
+                    btnPlaceBid.setStyle(
+                            "-fx-background-color: #334155;" +
+                                    "-fx-text-fill: #94a3b8;" +
+                                    "-fx-background-radius: 12;" +
+                                    "-fx-font-size: 16px;" +
+                                    "-fx-font-weight: bold;"
+                    );
+
+                    // Dừng polling
+                    if (bidPollingTimeline != null) {
+                        bidPollingTimeline.stop();
+                    }
+
+                    // Dừng countdown
+                    if (countdownTimeline != null) {
+                        countdownTimeline.stop();
+                    }
+
+                    return;
+                }
                 // Lấy giá hiện tại từ cột số [3] trong DB
                 double dbPrice = Double.parseDouble(data[3]);
 
@@ -302,5 +388,18 @@ public class AuctionRoomController {
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Lỗi khi tải trang Dashboard", e);
         }
+    }
+    private void showAlert(String title, String message) {
+
+        Alert alert =
+                new Alert(Alert.AlertType.INFORMATION);
+
+        alert.setTitle(title);
+
+        alert.setHeaderText(null);
+
+        alert.setContentText(message);
+
+        alert.showAndWait();
     }
 }

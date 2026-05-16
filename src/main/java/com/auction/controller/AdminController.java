@@ -59,6 +59,7 @@ public class AdminController {
 
     /** Timeline đếm ngược realtime cho màn hình Giám Sát */
     private Timeline monitoringTimeline;
+    private Timeline autoRefreshTimeline;
     /** Cặp (label cần cập nhật, thời điểm kết thúc, true = phase đấu giá / false = đăng ký) */
     private final List<Label>         cntLabels     = new ArrayList<>();
     private final List<LocalDateTime> cntEndTimes   = new ArrayList<>();
@@ -219,6 +220,7 @@ public class AdminController {
     // ═════════════════════════════════════════════════════════════════════════
 
     private void loadMonitoringView() {
+        stopMonitoringTimeline();
         lblViewTitle.setText("GIÁM SÁT ĐẤU GIÁ");
         lblViewSubtitle.setText("Theo dõi realtime các biển số đang trong giai đoạn đăng ký / đấu giá.");
         buildHeader(
@@ -283,6 +285,7 @@ public class AdminController {
         }
 
         startMonitoringTimeline();
+        startAutoRefresh();
     }
 
     private void startMonitoringTimeline() {
@@ -319,9 +322,15 @@ public class AdminController {
     }
 
     private void stopMonitoringTimeline() {
+
         if (monitoringTimeline != null) {
             monitoringTimeline.stop();
             monitoringTimeline = null;
+        }
+
+        if (autoRefreshTimeline != null) {
+            autoRefreshTimeline.stop();
+            autoRefreshTimeline = null;
         }
     }
 
@@ -514,5 +523,20 @@ public class AdminController {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+    private void startAutoRefresh() {
+
+        autoRefreshTimeline = new Timeline(
+                new KeyFrame(javafx.util.Duration.seconds(5), e -> {
+
+                    // reload lại nếu đang ở màn hình monitor
+                    if (currentView == ViewMode.MONITORING) {
+                        loadMonitoringView();
+                    }
+                })
+        );
+
+        autoRefreshTimeline.setCycleCount(Timeline.INDEFINITE);
+        autoRefreshTimeline.play();
     }
 }

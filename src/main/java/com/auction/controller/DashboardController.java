@@ -151,7 +151,7 @@ public class DashboardController {
 
         btnBid.setMaxWidth(Double.MAX_VALUE);
 
-        final String endTime = item.getRegistrationEndTime();
+        String endTime = item.getRegistrationEndTime();
 
         btnBid.setOnAction(e -> {
 
@@ -521,16 +521,14 @@ public class DashboardController {
                         "-fx-font-size: 20px;"
         );
 
-        Label lblTimeLabel =
-                new Label("Thời gian đăng ký còn lại");
+        Label lblTimeLabel = new Label();
 
         lblTimeLabel.setStyle(
                 "-fx-text-fill: #94a3b8; " +
                         "-fx-font-size: 11px;"
         );
 
-        Label lblTimeValue =
-                new Label("Đang tải...");
+        Label lblTimeValue = new Label();
 
         lblTimeValue.setStyle(
                 "-fx-text-fill: white; " +
@@ -539,7 +537,6 @@ public class DashboardController {
         );
 
         VBox timeTexts = new VBox();
-
         timeTexts.getChildren().addAll(
                 lblTimeLabel,
                 lblTimeValue
@@ -554,107 +551,150 @@ public class DashboardController {
                 timeTexts
         );
 
-        // =====================================================
-        // ĐẾM NGƯỢC REALTIME
-        // =====================================================
+        String auctionStatus =
+                item.getAuctionStatus();
 
-        String endTime =
-                item.getRegistrationEndTime();
+        // =====================================
+        // WAITING
+        // =====================================
 
-        if (endTime != null && !endTime.isEmpty()) {
+        if ("WAITING".equalsIgnoreCase(auctionStatus)
+                || "PENDING".equalsIgnoreCase(auctionStatus)) {
 
-            try {
+            lblTimeLabel.setText("Trạng thái");
 
-                endTime = endTime.replace("T", " ");
+            lblTimeValue.setText("⏳ Chờ khai mạc");
 
-                if (endTime.contains(".")) {
+            return row;
+        }
 
-                    endTime =
-                            endTime.substring(
-                                    0,
-                                    endTime.indexOf(".")
-                            );
-                }
+        // =====================================
+        // FINISHED
+        // =====================================
 
-                Timestamp timestamp =
-                        Timestamp.valueOf(endTime);
+        if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
 
-                LocalDateTime targetTime =
-                        timestamp.toLocalDateTime();
+            lblTimeLabel.setText("Trạng thái");
 
-                Timeline timeline =
-                        new Timeline(
-                                new KeyFrame(
-                                        Duration.seconds(1),
-                                        event -> {
+            lblTimeValue.setText("🏁 Đã kết thúc");
 
-                                            LocalDateTime now =
-                                                    LocalDateTime.now();
+            return row;
+        }
 
-                                            if (now.isBefore(targetTime)) {
+        // =====================================
+        // REGISTRATION / AUCTION
+        // =====================================
 
-                                                java.time.Duration duration =
-                                                        java.time.Duration.between(
-                                                                now,
-                                                                targetTime
-                                                        );
+        try {
 
-                                                long days =
-                                                        duration.toDays();
+            String targetRaw;
 
-                                                long hours =
-                                                        duration.toHoursPart();
+            boolean isRegistration =
+                    "REGISTRATION".equalsIgnoreCase(
+                            auctionStatus
+                    );
 
-                                                long minutes =
-                                                        duration.toMinutesPart();
+            if (isRegistration) {
 
-                                                long seconds =
-                                                        duration.toSecondsPart();
-
-                                                lblTimeValue.setText(
-                                                        String.format(
-                                                                "%d ngày %02d:%02d:%02d",
-                                                                days,
-                                                                hours,
-                                                                minutes,
-                                                                seconds
-                                                        )
-                                                );
-
-                                            } else {
-
-                                                lblTimeValue.setText(
-                                                        "Đã mở đấu giá"
-                                                );
-
-                                                lblTimeValue.setStyle(
-                                                        "-fx-text-fill: #00b894; " +
-                                                                "-fx-font-size: 15px; " +
-                                                                "-fx-font-weight: bold;"
-                                                );
-                                            }
-                                        }
-                                )
-                        );
-
-                timeline.setCycleCount(
-                        Timeline.INDEFINITE
+                lblTimeLabel.setText(
+                        "Đăng ký còn lại"
                 );
 
-                timeline.play();
+                targetRaw =
+                        item.getRegistrationEndTime();
 
-            } catch (Exception e) {
+            } else {
 
-                e.printStackTrace();
+                lblTimeLabel.setText(
+                        "Đấu giá còn lại"
+                );
 
-                System.out.println("DEBUG endTime = " + endTime);
-
-                lblTimeValue.setText(endTime);
+                targetRaw =
+                        item.getAuctionEndTime();
             }
 
-        } else {
+            targetRaw =
+                    targetRaw.replace("T", " ");
 
-            lblTimeValue.setText("Chưa có thời gian");
+            if (targetRaw.contains(".")) {
+
+                targetRaw =
+                        targetRaw.substring(
+                                0,
+                                targetRaw.indexOf(".")
+                        );
+            }
+
+            Timestamp timestamp =
+                    Timestamp.valueOf(targetRaw);
+
+            LocalDateTime targetTime =
+                    timestamp.toLocalDateTime();
+
+            Timeline timeline =
+                    new Timeline(
+                            new KeyFrame(
+                                    Duration.seconds(1),
+                                    event -> {
+
+                                        LocalDateTime now =
+                                                LocalDateTime.now();
+
+                                        if (now.isBefore(targetTime)) {
+
+                                            java.time.Duration d =
+                                                    java.time.Duration.between(
+                                                            now,
+                                                            targetTime
+                                                    );
+
+                                            long days =
+                                                    d.toDays();
+
+                                            long hours =
+                                                    d.toHoursPart();
+
+                                            long minutes =
+                                                    d.toMinutesPart();
+
+                                            long seconds =
+                                                    d.toSecondsPart();
+
+                                            lblTimeValue.setText(
+                                                    String.format(
+                                                            "%d ngày %02d:%02d:%02d",
+                                                            days,
+                                                            hours,
+                                                            minutes,
+                                                            seconds
+                                                    )
+                                            );
+
+                                        } else {
+
+                                            lblTimeValue.setText(
+                                                    isRegistration
+                                                            ? "⚡ Đang đấu giá"
+                                                            : "🏁 Đã kết thúc"
+                                            );
+                                        }
+                                    }
+                            )
+                    );
+
+            timeline.setCycleCount(
+                    Timeline.INDEFINITE
+            );
+
+            timeline.play();
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            lblTimeValue.setText(
+                    "Không xác định"
+            );
         }
 
         return row;
