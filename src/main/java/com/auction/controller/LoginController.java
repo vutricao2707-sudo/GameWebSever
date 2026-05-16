@@ -44,7 +44,12 @@ public class LoginController {
                     SessionManager.getInstance().setCurrentUser(loggedInUser);
                     // =========================================================
 
-                    if (loggedInUser.getUserName().equals("vpa_admin")) {
+                    // SỬA DÒNG NÀY: Thay vì check username, ta check quyền user_type
+                    // Gọi thẳng cái hàm ta vừa tạo ở Bước 1 để lấy quyền từ DB
+                    String currentRole = UserDAO.getRoleByUsername(username);
+
+// So sánh bằng biến currentRole, không dùng loggedInUser nữa
+                    if ("ADMIN".equalsIgnoreCase(currentRole)) {
                         // 1. TẢI TRANG ADMIN VÀ TRUYỀN DỮ LIỆU
                         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AdminDashboard.fxml"));
                         Parent root = loader.load();
@@ -59,7 +64,7 @@ public class LoginController {
                         Parent root = loader.load();
 
                         DashboardController userController = loader.getController();
-                        userController.setUserInfo(loggedInUser); // Gọi hàm bên Dashboard
+                        userController.setUserInfo(loggedInUser);
 
                         switchScene(event, root);
                     }

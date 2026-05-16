@@ -274,4 +274,20 @@ public class UserDAO {
             return false;
         }
     }
+    public static String getRoleByUsername(String username) {
+        String sql = "SELECT user_type FROM users WHERE username = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, username.trim().toLowerCase());
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getString("user_type"); // Sẽ trả về "ADMIN" hoặc "USER"
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi lấy quyền: " + e.getMessage());
+        }
+        return "USER"; // Nếu lỗi thì mặc định là user thường
+    }
 }
