@@ -112,7 +112,12 @@ public class AuctionRoomController {
                 btnPlaceBid.setDisable(true);
                 // Cập nhật trạng thái trong database
                 if (currentPlateNumber != null && !currentPlateNumber.isEmpty()) {
-                    ItemDAO.finishAuction(currentPlateNumber);
+
+                    int itemId = ItemDAO.getItemIdByPlate(currentPlateNumber);
+
+                    if (itemId != -1) {
+                        ItemDAO.finishAuction(itemId, currentPrice);
+                    }
                 }
             }
         }));

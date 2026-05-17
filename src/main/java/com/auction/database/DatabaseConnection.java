@@ -24,11 +24,13 @@ public class DatabaseConnection {
 
     static {
 
-        HikariConfig config = new HikariConfig();
+        HikariConfig config =
+                new HikariConfig();
 
         // =========================
         // DATABASE INFO
         // =========================
+
         config.setJdbcUrl(URL);
 
         config.setUsername(USER);
@@ -39,53 +41,75 @@ public class DatabaseConnection {
         // RAILWAY OPTIMIZATION
         // =========================
 
-        // Railway free tier không nên quá nhiều
         config.setMaximumPoolSize(5);
 
-        // Giữ ít connection idle
         config.setMinimumIdle(1);
 
-        // Timeout lấy connection
         config.setConnectionTimeout(30000);
 
-        // Idle timeout
-        config.setIdleTimeout(600000);
+        // Railway kill idle connection khá nhanh
+        config.setIdleTimeout(60000);
 
-        // Max lifetime trước khi refresh
-        config.setMaxLifetime(1800000);
+        // Refresh connection sớm hơn Railway timeout
+        config.setMaxLifetime(300000);
 
-        // Test connection trước khi dùng
+        // Giữ connection luôn sống
+        config.setKeepaliveTime(60000);
+
         config.setValidationTimeout(5000);
 
-        // Tăng ổn định
+        // Detect leak
         config.setLeakDetectionThreshold(60000);
 
-        // Tên pool
-        config.setPoolName("AuctionSystemPool");
+        config.setPoolName(
+                "AuctionSystemPool"
+        );
 
         // =========================
         // MYSQL OPTIMIZATION
         // =========================
+
         config.addDataSourceProperty(
-                "cachePrepStmts", "true"
+                "cachePrepStmts",
+                "true"
         );
 
         config.addDataSourceProperty(
-                "prepStmtCacheSize", "250"
+                "prepStmtCacheSize",
+                "250"
         );
 
         config.addDataSourceProperty(
-                "prepStmtCacheSqlLimit", "2048"
+                "prepStmtCacheSqlLimit",
+                "2048"
         );
 
         config.addDataSourceProperty(
-                "useServerPrepStmts", "true"
+                "useServerPrepStmts",
+                "true"
+        );
+
+        config.addDataSourceProperty(
+                "rewriteBatchedStatements",
+                "true"
+        );
+
+        config.addDataSourceProperty(
+                "cacheResultSetMetadata",
+                "true"
+        );
+
+        config.addDataSourceProperty(
+                "cacheServerConfiguration",
+                "true"
         );
 
         // =========================
         // CREATE POOL
         // =========================
-        dataSource = new HikariDataSource(config);
+
+        dataSource =
+                new HikariDataSource(config);
 
         System.out.println(
                 "✅ HikariCP connected to Railway!"
@@ -115,7 +139,8 @@ public class DatabaseConnection {
         } catch (SQLException e) {
 
             System.out.println(
-                    "❌ DB Error: " + e.getMessage()
+                    "❌ DB Error: "
+                            + e.getMessage()
             );
         }
     }

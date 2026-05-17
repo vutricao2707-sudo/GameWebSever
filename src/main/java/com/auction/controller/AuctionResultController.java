@@ -41,8 +41,8 @@ public class AuctionResultController {
     // HÀM HIỂN THỊ THÔNG TIN NGƯỜI DÙNG
     // =========================================================================
     private void updateUserInfo() {
-        if (lblUserName != null && SessionManager.getInstance().getCurrentUser() != null) {
-            String fullName = SessionManager.getInstance().getCurrentUser().getFullName();
+        if (lblUserName != null && SessionManager.INSTANCE.getCurrentUser() != null) {
+            String fullName = SessionManager.INSTANCE.getCurrentUser().getFullName();
             lblUserName.setText("Xin chào, " + fullName);
         }
     }
@@ -56,7 +56,7 @@ public class AuctionResultController {
         resultListContainer.getChildren().clear();
 
         // 1. Kiểm tra xem có người dùng đang đăng nhập không
-        if (SessionManager.getInstance().getCurrentUser() == null) {
+        if (SessionManager.INSTANCE.getCurrentUser() == null) {
             Label emptyLabel = new Label("🔒 Vui lòng đăng nhập để xem kết quả của bạn.");
             emptyLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 16px; -fx-padding: 30;");
             resultListContainer.getChildren().add(emptyLabel);
@@ -64,7 +64,7 @@ public class AuctionResultController {
         }
 
         // 2. Lấy ID của tài khoản đang đăng nhập
-        int userId = SessionManager.getInstance().getCurrentUser().getId();
+        int userId = SessionManager.INSTANCE.getCurrentUser().getId();
 
         // 3. Lấy dữ liệu từ ItemDAO - chỉ những phiên đã FINISHED mà user này có tham gia trả giá
         List<String[]> finishedItems = ItemDAO.getFinishedAuctionsByUserId(userId);
@@ -162,7 +162,7 @@ public class AuctionResultController {
 
     @FXML
     private void handleLogout(ActionEvent event) {
-        SessionManager.getInstance().logout(); // Đăng xuất thì xóa Session
+        SessionManager.INSTANCE.logout(); // Đăng xuất thì xóa Session
         navigateTo(event, "/fxml/Login.fxml");
     }
 
