@@ -22,8 +22,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-
+import javafx.stage.Stage;
+import com.auction.database.AuctionDAO;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -35,7 +37,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class AdminController {
-
     private static final Logger logger = Logger.getLogger(AdminController.class.getName());
     private static final DecimalFormat MONEY_FMT = new DecimalFormat("#,###");
     private static final DateTimeFormatter DB_FMT  = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -53,13 +54,12 @@ public class AdminController {
     @FXML private Button btnPendingTab;
     @FXML private Button btnMonitorTab;
     @FXML private Button btnUserTab;
-
     // ── State ─────────────────────────────────────────────────────────────────
     private final ProductService productService = new ProductService();
-
-    /** Timeline đếm ngược realtime cho màn hình Giám Sát */
     private Timeline monitoringTimeline;
     private Timeline autoRefreshTimeline;
+    private int lastItemCount = -1; // 👈 thêm dòng này
+
     /** Cặp (label cần cập nhật, thời điểm kết thúc, true = phase đấu giá / false = đăng ký) */
     private final List<Label>         cntLabels     = new ArrayList<>();
     private final List<LocalDateTime> cntEndTimes   = new ArrayList<>();
@@ -78,7 +78,25 @@ public class AdminController {
 
     @FXML
     public void initialize() {
+        stopAllTimelines();
+
         loadPendingView();
+        if (lblAdminName == null) return;
+
+        javafx.application.Platform.runLater(() -> {
+
+            Stage stage =
+                    (Stage) lblAdminName.getScene().getWindow();
+
+            stage.setOnCloseRequest(event -> {
+
+                stopAllTimelines();
+
+                System.out.println(
+                        "🛑 Admin window closed"
+                );
+            });
+        });
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -90,7 +108,7 @@ public class AdminController {
     @FXML private void handleShowUsers()    { switchView(ViewMode.USERS); }
 
     private void switchView(ViewMode mode) {
-        stopMonitoringTimeline();
+        stopAllTimelines();
         currentView = mode;
         updateSidebarStyles();
         switch (mode) {
@@ -187,7 +205,14 @@ public class AdminController {
             }
         }
 
-        boolean started = ItemDAO.startRegistrationPhase(plate, minutes);
+        int itemId = ItemDAO.getItemIdByPlate(plate);
+
+        if (itemId == -1) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không tìm thấy itemId cho biển: " + plate);
+            return;
+        }
+
+        boolean started = ItemDAO.startRegistrationPhase(String.valueOf(itemId), minutes);
         if (started) {
             adminListContainer.getChildren().remove(rowToRemove);
             updateCounter(adminListContainer.getChildren().size(), "yêu cầu");
@@ -220,12 +245,13 @@ public class AdminController {
     // ═════════════════════════════════════════════════════════════════════════
 
     private void loadMonitoringView() {
-        stopMonitoringTimeline();
+        stopAllTimelines();
         lblViewTitle.setText("GIÁM SÁT ĐẤU GIÁ");
-        lblViewSubtitle.setText("Theo dõi realtime các biển số đang trong giai đoạn đăng ký / đấu giá.");
+        lblViewSubtitle.setText("Theo dõi realtime các phiên đấu giá đang mở.");
+
         buildHeader(
-                new String[]{"Biển số", "Loại xe", "Trạng thái", "Giá cao nhất", "Thời gian còn lại", "Người tham gia"},
-                new double[]{130, 100, 130, 175, 185, 120}
+                new String[]{"ID", "Item ID", "Seller", "Winner", "Bắt đầu", "Kết thúc", "Giá cuối", "Trạng thái"},
+                new double[]{80, 100, 100, 100, 170, 170, 120, 120}
         );
 
         adminListContainer.getChildren().clear();
@@ -233,58 +259,59 @@ public class AdminController {
         cntEndTimes.clear();
         cntIsAuction.clear();
 
-        List<String[]> items = ItemDAO.getAuctionsForMonitoring();
+        List<String[]> items = AuctionDAO.getOpenAuctions();
         updateCounter(items.size(), "phiên đang diễn ra");
 
         if (items.isEmpty()) {
-            adminListContainer.getChildren().add(emptyLabel("📭 Hiện không có phiên đấu giá nào đang diễn ra."));
+            adminListContainer.getChildren().add(emptyLabel("📭 Không có phiên đấu giá nào đang mở."));
             return;
         }
 
         for (String[] item : items) {
-            // [0]plate [1]type [2]status [3]price [4]reg_end [5]auc_end [6]participants
-            String plate    = item[0];
-            String type     = item[1] != null ? item[1] : "N/A";
-            String status   = item[2];
-            String price    = formatMoney(item[3]) + " đ";
-            String endStr   = "REGISTRATION".equals(status) ? item[4] : item[5];
-            String parts    = item[6];
 
-            boolean isAuction = "AUCTION".equals(status);
-            String statusLabel = isAuction ? "⚡ Đấu giá" : "📝 Đăng ký";
-            String statusStyle = isAuction
-                    ? "-fx-text-fill: #ef4444; -fx-font-weight: bold; -fx-font-size: 13;"
-                    : "-fx-text-fill: #38bdf8; -fx-font-weight: bold; -fx-font-size: 13;";
+            String auctionId = item[0];
+            String itemId    = item[1];
+            String sellerId  = item[2];
+            String winnerId  = item[3];
+            String startTime = item[4];
+            String endTime   = item[5];
+            String finalPrice = item[6];
+            boolean isOpen   = "1".equals(item[7]);
 
-            Label lblCountdown = new Label("Đang tính...");
-            lblCountdown.setPrefWidth(185);
-            lblCountdown.setStyle("-fx-text-fill: #f59e0b; -fx-font-weight: bold; -fx-font-size: 14;");
+            String statusLabel = isOpen ? "🟢 OPEN" : "🔴 CLOSED";
+            String statusStyle = isOpen
+                    ? "-fx-text-fill: #10b981; -fx-font-weight: bold;"
+                    : "-fx-text-fill: #ef4444; -fx-font-weight: bold;";
 
-            // Lưu để Timeline cập nhật
-            cntLabels.add(lblCountdown);
-            cntIsAuction.add(isAuction);
-            try {
-                String cleaned = endStr != null ? endStr.replace("T", " ") : null;
-                if (cleaned != null && cleaned.contains(".")) cleaned = cleaned.substring(0, cleaned.indexOf("."));
-                cntEndTimes.add(cleaned != null ? LocalDateTime.parse(cleaned, DB_FMT) : LocalDateTime.now());
-            } catch (Exception ex) {
-                cntEndTimes.add(LocalDateTime.now());
-            }
+            Label lbl = new Label(isOpen ? "Đang chạy..." : "Đã đóng");
+            lbl.setPrefWidth(170);
+            lbl.setStyle("-fx-text-fill: #f59e0b; -fx-font-weight: bold;");
 
             HBox row = createBaseRow();
+            row.setUserData(auctionId);
+
             row.getChildren().addAll(
-                    cell(plate,    130, "-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15;"),
-                    cell(type,     100, "-fx-text-fill: #94a3b8; -fx-font-size: 13;"),
-                    cell(statusLabel, 130, statusStyle),
-                    cell(price,    175, "-fx-text-fill: #10b981; -fx-font-weight: bold; -fx-font-size: 14;"),
-                    lblCountdown,
-                    cell(parts + " người", 120, "-fx-text-fill: #cbd5e1; -fx-font-size: 13;")
+                    cell(auctionId, 80, "-fx-text-fill:white;"),
+                    cell(itemId, 100, "-fx-text-fill:#94a3b8;"),
+                    cell(sellerId, 100, "-fx-text-fill:#94a3b8;"),
+                    cell(winnerId, 100, "-fx-text-fill:#94a3b8;"),
+                    cell(startTime, 170, "-fx-text-fill:#94a3b8;"),
+                    cell(endTime, 170, "-fx-text-fill:#94a3b8;"),
+                    cell(finalPrice, 120, "-fx-text-fill:#10b981;"),
+                    cell(statusLabel, 120, statusStyle)
             );
+
             hoverEffect(row);
             adminListContainer.getChildren().add(row);
         }
 
         startMonitoringTimeline();
+
+        if (autoRefreshTimeline != null) {
+            autoRefreshTimeline.stop();
+            autoRefreshTimeline = null;
+        }
+
         startAutoRefresh();
     }
 
@@ -321,18 +348,6 @@ public class AdminController {
         monitoringTimeline.play();
     }
 
-    private void stopMonitoringTimeline() {
-
-        if (monitoringTimeline != null) {
-            monitoringTimeline.stop();
-            monitoringTimeline = null;
-        }
-
-        if (autoRefreshTimeline != null) {
-            autoRefreshTimeline.stop();
-            autoRefreshTimeline = null;
-        }
-    }
 
     // ═════════════════════════════════════════════════════════════════════════
     // VIEW 3 — QUẢN LÝ USER
@@ -507,7 +522,7 @@ public class AdminController {
 
     @FXML
     private void handleLogout(ActionEvent event) {
-        stopMonitoringTimeline();
+        stopAllTimelines();
         try {
             Parent newRoot = FXMLLoader.load(
                     Objects.requireNonNull(getClass().getResource("/fxml/Login.fxml")));
@@ -526,17 +541,62 @@ public class AdminController {
     }
     private void startAutoRefresh() {
 
-        autoRefreshTimeline = new Timeline(
-                new KeyFrame(javafx.util.Duration.seconds(5), e -> {
+        if (autoRefreshTimeline != null) {
+            autoRefreshTimeline.stop();
+        }
 
-                    // reload lại nếu đang ở màn hình monitor
+        autoRefreshTimeline = new Timeline(
+
+                new KeyFrame(javafx.util.Duration.seconds(10), e -> {
+
                     if (currentView == ViewMode.MONITORING) {
-                        loadMonitoringView();
+
+                        refreshMonitoringData();
                     }
                 })
         );
 
         autoRefreshTimeline.setCycleCount(Timeline.INDEFINITE);
+
         autoRefreshTimeline.play();
+    }
+    private void refreshMonitoringData() {
+
+        List<String[]> items = AuctionDAO.getOpenAuctions();
+
+        updateCounter(items.size(), "phiên đang diễn ra");
+
+        // so sánh theo danh sách plate thay vì size
+        List<String> newPlates = items.stream()
+                .map(i -> i[0])
+                .toList();
+
+        List<String> oldPlates = adminListContainer.getChildren().stream()
+                .filter(node -> node instanceof HBox)
+                .map(node -> node.getUserData())
+                .filter(Objects::nonNull)
+                .map(Object::toString)
+                .toList();
+
+        if (newPlates.equals(oldPlates)) {
+            return; // không đổi gì → khỏi reload
+        }
+
+        lastItemCount = items.size();
+        loadMonitoringView();
+    }
+    private void stopAllTimelines() {
+
+        if (monitoringTimeline != null) {
+            monitoringTimeline.stop();
+            monitoringTimeline = null;
+            System.out.println("🛑 Monitoring timeline stopped");
+        }
+
+        if (autoRefreshTimeline != null) {
+            autoRefreshTimeline.stop();
+            autoRefreshTimeline = null;
+            System.out.println("🛑 Auto refresh stopped");
+        }
     }
 }

@@ -430,25 +430,33 @@ public class ItemDAO {
         return 0;
     }
 
-    public static void finishAuction(String plateNumber) {
-        String sql = "UPDATE items SET auction_status = 'FINISHED', status = 'INACTIVE' WHERE plate_number = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+    public static boolean finishAuction(int itemId, double finalPrice) {
+        String sql = """
+        UPDATE items
+        SET auction_status = 'FINISHED',
+            current_price = ?,
+            auction_end_time = NOW()
+        WHERE id = ?
+    """;
 
-            pstmt.setString(1, plateNumber);
-            if (pstmt.executeUpdate() > 0) {
-                System.out.println("✅ Phiên đấu giá kết thúc cho biển '" + plateNumber + "'");
-            }
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setDouble(1, finalPrice);
+            ps.setInt(2, itemId);
+
+            return ps.executeUpdate() > 0;
+
         } catch (SQLException e) {
-            System.out.println("❌ Lỗi finishAuction: " + e.getMessage());
+            e.printStackTrace();
+            return false;
         }
     }
     public static void autoFinishAuction(String plateNumber) {
 
         String sql =
-                "SELECT auction_end_time, auction_status " +
+                "SELECT auction_end_time, auction_status, current_price " +
                         "FROM items WHERE plate_number = ?";
-
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
@@ -457,6 +465,7 @@ public class ItemDAO {
             try (ResultSet rs = pstmt.executeQuery()) {
 
                 if (rs.next()) {
+                    double currentPrice = rs.getDouble("current_price");
 
                     String endTimeStr =
                             rs.getString("auction_end_time");
@@ -476,7 +485,11 @@ public class ItemDAO {
 
                         if (now.isAfter(endTime)) {
 
-                            finishAuction(plateNumber);
+                            int itemId = getItemIdByPlate(plateNumber);
+
+                            if (itemId != -1) {
+                                finishAuction(itemId, currentPrice);
+                            }
 
                             System.out.println(
                                     "✅ AUTO FINISHED: "
@@ -614,5 +627,39 @@ public class ItemDAO {
             System.out.println("❌ Lỗi getAuctionsForMonitoring: " + e.getMessage());
         }
         return result;
+    }
+    public static int getItemIdByPlate(String plate) {
+        String sql = "SELECT id FROM items WHERE plate_number = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, plate);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt("id");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+    public static boolean updateStatus(int itemId, String status) {
+        String sql = "UPDATE items SET status = ? WHERE id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, status);
+            ps.setInt(2, itemId);
+
+            return ps.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }

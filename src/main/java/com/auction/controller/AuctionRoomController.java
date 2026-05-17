@@ -19,6 +19,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
+import javafx.stage.Stage;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
@@ -60,18 +61,40 @@ public class AuctionRoomController {
 
     @FXML
     public void initialize() {
-        // Ép nhãn hiển thị 60:00 ngay khi vừa mở page, tránh bị hiện 05:00 của FXML
+
         lblMinutes.setText("60");
         lblSeconds.setText("00");
 
         updatePricingUI();
         updateParticipantCount();
+
+        // =========================
+        // FIX MEMORY LEAK
+        // =========================
+
+        javafx.application.Platform.runLater(() -> {
+
+            Stage stage = (Stage)
+                    lblMinutes.getScene().getWindow();
+
+            stage.setOnCloseRequest(event -> {
+
+                stopAllTimelines();
+
+                System.out.println(
+                        "🛑 Window closed - timelines cleaned"
+                );
+            });
+        });
     }
 
     // =========================================================================
     // LOGIC ĐỒNG HỒ ĐẾM NGƯỢC
     // =========================================================================
     private void startCountdown() {
+        if (countdownTimeline != null) {
+            countdownTimeline.stop();
+        }
         countdownTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
             if (timeRemainingSeconds > 0) {
                 timeRemainingSeconds--;
@@ -89,7 +112,12 @@ public class AuctionRoomController {
                 btnPlaceBid.setDisable(true);
                 // Cập nhật trạng thái trong database
                 if (currentPlateNumber != null && !currentPlateNumber.isEmpty()) {
-                    ItemDAO.finishAuction(currentPlateNumber);
+
+                    int itemId = ItemDAO.getItemIdByPlate(currentPlateNumber);
+
+                    if (itemId != -1) {
+                        ItemDAO.finishAuction(itemId, currentPrice);
+                    }
                 }
             }
         }));
@@ -179,8 +207,8 @@ public class AuctionRoomController {
             // =========================================================
             // THÊM MỚI (FIX 3 & 4): LƯU LỊCH SỬ VÀO BẢNG BIDS
             // =========================================================
-            if (SessionManager.getInstance().getCurrentUser() != null) {
-                int userId = SessionManager.getInstance().getCurrentUser().getId();
+            if (SessionManager.INSTANCE.getCurrentUser() != null) {
+                int userId = SessionManager.INSTANCE.getCurrentUser().getId();
                 BidDAO.saveBid(currentPlateNumber, userId, newBid);
             }
         }
@@ -300,11 +328,10 @@ public class AuctionRoomController {
             // Nếu có lỗi hoặc chưa bắt đầu, mặc định là 60 phút
             this.timeRemainingSeconds = 60 * 60;
         }
-
+        stopAllTimelines();
         // Cập nhật giao diện giá và số người xem
         updatePricingUI();
         updateParticipantCount();
-
         // ✅ Bắt đầu đếm ngược ngay sau khi lấy được thời gian từ DB
         startCountdown();
 
@@ -312,6 +339,9 @@ public class AuctionRoomController {
         startBidPolling();
     }
     private void startBidPolling() {
+        if (bidPollingTimeline != null) {
+            bidPollingTimeline.stop();
+        }
         lastKnownPrice = currentPrice;
 
         bidPollingTimeline = new Timeline(new KeyFrame(Duration.seconds(5), event -> {
@@ -372,15 +402,13 @@ public class AuctionRoomController {
         }));
 
         bidPollingTimeline.setCycleCount(Timeline.INDEFINITE);
-        bidPollingTimeline.play();
+        bidPollingTimeline.playFromStart();
     }
 
     @FXML
     private void handleBack(ActionEvent event) {
         // ✅ Dừng tất cả đồng hồ và luồng chạy ngầm khi thoát
-        if (countdownTimeline != null) countdownTimeline.stop();
-        if (bidPollingTimeline != null) bidPollingTimeline.stop();
-
+        stopAllTimelines();
         try {
             Parent newRoot = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("/fxml/Dashboard.fxml")));
             Scene currentScene = ((Node) event.getSource()).getScene();
@@ -401,5 +429,25 @@ public class AuctionRoomController {
         alert.setContentText(message);
 
         alert.showAndWait();
+    }
+    private void stopAllTimelines() {
+
+        if (countdownTimeline != null) {
+
+            countdownTimeline.stop();
+
+            System.out.println(
+                    "🛑 Countdown stopped"
+            );
+        }
+
+        if (bidPollingTimeline != null) {
+
+            bidPollingTimeline.stop();
+
+            System.out.println(
+                    "🛑 Bid polling stopped"
+            );
+        }
     }
 }

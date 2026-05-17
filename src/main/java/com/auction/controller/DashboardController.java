@@ -48,7 +48,7 @@ public class DashboardController {
     @FXML
     public void initialize() {
         // Lấy user từ Session hiện tại
-        User user = SessionManager.getInstance().getCurrentUser();
+        User user = SessionManager.INSTANCE.getCurrentUser();
         if (user != null && user.getFullName() != null) {
             lblUserName.setText("Xin chào, " + user.getFullName());
         } else {
@@ -74,7 +74,7 @@ public class DashboardController {
     @FXML private void handleShowResults(ActionEvent event)    { navigateTo(event, "/fxml/AuctionResult.fxml"); }
     @FXML private void handleRegisterToSell(ActionEvent event) { navigateTo(event, "/fxml/RegisterSell.fxml"); }
     @FXML private void handleLogout(ActionEvent event) {
-        SessionManager.getInstance().logout(); // Đăng xuất thì xóa Session
+        SessionManager.INSTANCE.logout(); // Đăng xuất thì xóa Session
         navigateTo(event, "/fxml/Login.fxml");
     }
 

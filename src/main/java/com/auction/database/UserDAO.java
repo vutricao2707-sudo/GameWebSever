@@ -88,35 +88,85 @@ public class UserDAO {
     }
 
     public static User getUserByUsernameAndPassword(String username, String password) {
+
         String hashedPassword = PasswordUtil.hashPassword(password);
-        String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
+
+        String sql =
+                "SELECT * FROM users " +
+                        "WHERE username = ? AND password = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, username.trim().toLowerCase());
-            pstmt.setString(2, hashedPassword);
+            pstmt.setString(
+                    1,
+                    username.trim().toLowerCase()
+            );
+
+            pstmt.setString(
+                    2,
+                    hashedPassword
+            );
 
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
-                String userId   = String.valueOf(rs.getInt("id"));
-                String fullName = rs.getString("full_name");
-                String email    = rs.getString("email");
-                String phone    = rs.getString("phone");
-                String address  = rs.getString("address");
-                String userType = rs.getString("user_type");
 
-                // Cải tiến: Dùng equalsIgnoreCase để tránh lỗi chữ hoa/thường (vd: "seller" hay "Seller" đều nhận)
-                if ("Seller".equalsIgnoreCase(userType) || "Admin".equalsIgnoreCase(userType)) {
-                    return new Seller(userId, username, fullName, hashedPassword, email, phone, address, 5.0);
+                String userId =
+                        String.valueOf(rs.getInt("id"));
+
+                String fullName =
+                        rs.getString("full_name");
+
+                String email =
+                        rs.getString("email");
+
+                String phone =
+                        rs.getString("phone");
+
+                String address =
+                        rs.getString("address");
+
+                String userType =
+                        rs.getString("user_type");
+
+                if ("Seller".equalsIgnoreCase(userType)
+                        || "Admin".equalsIgnoreCase(userType)) {
+
+                    return new Seller(
+                            userId,
+                            username,
+                            fullName,
+                            hashedPassword,
+                            email,
+                            phone,
+                            address,
+                            5.0
+                    );
+
                 } else {
-                    return new Bidder(userId, username, fullName, hashedPassword, email, phone, address, 0.0);
+
+                    return new Bidder(
+                            userId,
+                            username,
+                            fullName,
+                            hashedPassword,
+                            email,
+                            phone,
+                            address,
+                            0.0
+                    );
                 }
             }
+
         } catch (SQLException e) {
-            System.out.println("❌ Lỗi lấy thông tin user: " + e.getMessage());
+
+            System.out.println(
+                    "❌ Lỗi lấy thông tin user: "
+                            + e.getMessage()
+            );
         }
+
         return null;
     }
 
@@ -183,20 +233,42 @@ public class UserDAO {
     }
 
     public static boolean checkLogin(String username, String password) {
-        String hashedPassword = PasswordUtil.hashPassword(password);
-        String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
+
+        String hashedPassword =
+                PasswordUtil.hashPassword(password);
+
+        String sql =
+                "SELECT * FROM users " +
+                        "WHERE username = ? AND password = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, username.trim().toLowerCase());
-            pstmt.setString(2, hashedPassword);
+            pstmt.setString(
+                    1,
+                    username.trim().toLowerCase()
+            );
 
+            pstmt.setString(
+                    2,
+                    hashedPassword
+            );
+            System.out.println("USERNAME: " + username);
+
+            System.out.println(
+                    "HASHED: " + hashedPassword
+            );
             ResultSet rs = pstmt.executeQuery();
+
             return rs.next();
 
         } catch (SQLException e) {
-            System.out.println("❌ Lỗi: " + e.getMessage());
+
+            System.out.println(
+                    "❌ Lỗi checkLogin: "
+                            + e.getMessage()
+            );
+
             return false;
         }
     }
@@ -289,5 +361,42 @@ public class UserDAO {
             System.out.println("❌ Lỗi lấy quyền: " + e.getMessage());
         }
         return "USER"; // Nếu lỗi thì mặc định là user thường
+    }
+    public static void upgradePasswordToSHA256(
+            String username,
+            String rawPassword
+    ) {
+
+        String newSHA256 =
+                PasswordUtil.hashPassword(rawPassword);
+
+        String sql =
+                "UPDATE users SET password = ? " +
+                        "WHERE username = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, newSHA256);
+
+            pstmt.setString(
+                    2,
+                    username.trim().toLowerCase()
+            );
+
+            pstmt.executeUpdate();
+
+            System.out.println(
+                    "✅ Password upgraded to SHA-256 for: "
+                            + username
+            );
+
+        } catch (SQLException e) {
+
+            System.out.println(
+                    "❌ Upgrade password error: "
+                            + e.getMessage()
+            );
+        }
     }
 }
