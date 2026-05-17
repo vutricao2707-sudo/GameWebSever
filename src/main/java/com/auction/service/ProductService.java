@@ -11,7 +11,7 @@ public class ProductService {
     // ==========================================
     // CHO USER: Chỉ lấy những xe "ĐÃ DUYỆT" và "CHƯA KẾT THÚC" từ DATABASE
     // ==========================================
-    public List<String[]> getApprovedProductsByType(String type) {
+    public static List<String[]> getApprovedProductsByType(String type) {
         // Lấy từ database - CHỈ lấy những xe đã duyệt và chưa kết thúc phiên
         List<String[]> allApproved = ItemDAO.getAllApprovedActiveItems();
         List<String[]> result = new ArrayList<>();
@@ -29,7 +29,7 @@ public class ProductService {
     // ==========================================
     // CHO ADMIN: Lấy tất cả xe "CHỜ DUYỆT" từ DATABASE
     // ==========================================
-    public List<String[]> getPendingProducts() {
+    public static List<String[]> getPendingProducts() {
         // Gọi thẳng dữ liệu từ database, không dùng fallback
         return ItemDAO.getPendingItems();
     }
@@ -37,7 +37,7 @@ public class ProductService {
     // ==========================================
     // CHO ADMIN: Logic bấm nút "Duyệt Xe" (✔)
     // ==========================================
-    public boolean approveProduct(String plateToApprove) {
+    public static boolean approveProduct(String plateToApprove) {
         // Chỉ thực hiện trên Database
         return ItemDAO.approveItem(plateToApprove);
     }
