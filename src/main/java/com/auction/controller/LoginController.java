@@ -34,10 +34,6 @@ public class LoginController {
 
         // Kiểm tra thông tin đăng nhập từ database
         if (UserDAO.checkLogin(username, password)) {
-            UserDAO.upgradePasswordToSHA256(
-                    username,
-                    password
-            );
             try {
                 // Lấy thông tin user từ database
                 User loggedInUser = UserDAO.getUserByUsernameAndPassword(username, password);
@@ -45,7 +41,7 @@ public class LoginController {
                 if (loggedInUser != null) {
                     // =========================================================
                     // Lưu thông tin người dùng vừa đăng nhập vào Session
-                    SessionManager.INSTANCE.setCurrentUser(loggedInUser);
+                    SessionManager.getInstance().setCurrentUser(loggedInUser);
                     // =========================================================
 
                     // SỬA DÒNG NÀY: Thay vì check username, ta check quyền user_type

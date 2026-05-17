@@ -43,8 +43,8 @@ public class AuctionHistoryController {
     // HÀM HIỂN THỊ THÔNG TIN NGƯỜI DÙNG
     // =========================================================================
     private void updateUserInfo() {
-        if (lblUserName != null && SessionManager.INSTANCE.getCurrentUser() != null) {
-            String fullName = SessionManager.INSTANCE.getCurrentUser().getFullName();
+        if (lblUserName != null && SessionManager.getCurrentUser() != null) {
+            String fullName = SessionManager.getCurrentUser().getFullName();
             lblUserName.setText("Xin chào, " + fullName);
         }
     }
@@ -58,7 +58,7 @@ public class AuctionHistoryController {
         historyListContainer.getChildren().clear();
 
         // 1. Kiểm tra xem có người dùng nào đang đăng nhập không
-        if (SessionManager.INSTANCE.getCurrentUser() == null) {
+        if (SessionManager.getCurrentUser() == null) {
             Label emptyLabel = new Label("🔒 Vui lòng đăng nhập để xem lịch sử của bạn.");
             emptyLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 16px; -fx-padding: 30;");
             historyListContainer.getChildren().add(emptyLabel);
@@ -66,12 +66,12 @@ public class AuctionHistoryController {
         }
 
         // 2. Lấy ID của tài khoản đang đăng nhập
-        int userId = SessionManager.INSTANCE.getCurrentUser().getId();;
+        int userId = SessionManager.getCurrentUser().getId();
 
         // 3. Lấy dữ liệu cá nhân từ BidDAO (Chỉ lấy của user này)
         List<String[]> bids = BidDAO.getBidsByUserId(userId);
 
-        if (bids == null || bids.isEmpty()) {
+        if (bids.isEmpty()) {
             Label emptyLabel = new Label("📝 Bạn chưa có lịch sử đặt giá nào.");
             emptyLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 16px; -fx-padding: 30;");
             historyListContainer.getChildren().add(emptyLabel);
@@ -171,13 +171,18 @@ public class AuctionHistoryController {
 
     @FXML
     private void handleLogout(ActionEvent event) {
-        SessionManager.INSTANCE.logout(); // Đăng xuất thì xóa Session
+        SessionManager.logout(); // Đăng xuất thì xóa Session
         navigateTo(event, "/fxml/Login.fxml");
     }
 
     private void navigateTo(ActionEvent event, String fxmlPath) {
         try {
-            Parent newRoot = FXMLLoader.load(getClass().getResource(fxmlPath));
+            var resource = getClass().getResource(fxmlPath);
+            if (resource == null) {
+                showInfo("Không thể tìm trang: " + fxmlPath);
+                return;
+            }
+            Parent newRoot = FXMLLoader.load(resource);
             Scene currentScene = ((Node) event.getSource()).getScene();
             currentScene.setRoot(newRoot);
         } catch (IOException e) {

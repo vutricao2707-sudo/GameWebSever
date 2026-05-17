@@ -86,6 +86,10 @@ public class AuctionManager implements IAuctionService {
 
         BidTransaction newBidTransaction = new BidTransaction(bidder, bidAmount);
         auction.getBids().add(newBidTransaction);
+        
+        // ✅ THÊM MỚI: Cập nhật thời gian bid cuối cùng và check auto-extend
+        auction.setLastBidTime(System.currentTimeMillis());
+        auction.checkAndAutoExtend();
     }
 
     @Override

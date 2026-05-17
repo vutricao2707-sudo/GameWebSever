@@ -1,7 +1,9 @@
 package com.auction.controller;
 
+import com.auction.model.User;
 import com.auction.service.ProductService;
 import com.auction.util.NavigationUtil;
+import com.auction.util.SessionManager;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
@@ -25,6 +27,21 @@ public class RegisterSellController {
     @FXML
     public void initialize() {
         cbVehicleType.getItems().addAll("Ô tô", "Xe máy");
+        
+        // Auto-fill thông tin cá nhân từ Session
+        User currentUser = SessionManager.getInstance().getCurrentUser();
+        if (currentUser != null) {
+            txtFullName.setText(currentUser.getFullName());
+            txtPhone.setText(currentUser.getPhone());
+            txtEmail.setText(currentUser.getEmail());
+            txtAddress.setText(currentUser.getAddress());
+            
+            // Vô hiệu hóa các trường không cho chỉnh sửa (tùy chọn)
+            txtFullName.setEditable(true);
+            txtPhone.setEditable(true);
+            txtEmail.setEditable(true);
+            txtAddress.setEditable(true);
+        }
     }
 
     @FXML
@@ -42,6 +59,14 @@ public class RegisterSellController {
         if (fullName.isEmpty() || phone.isEmpty() || email.isEmpty() || address.isEmpty()
                 || type == null || plate.isEmpty() || province.isEmpty() || price.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập đầy đủ các ô có dấu *");
+            return;
+        }
+
+        // ✅ THÊM MỚI: Validate định dạng biển số
+        if (!PlateValidator.isValidPlate(plate)) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi biển số", 
+                    "Định dạng biển số không hợp lệ!\n" +
+                    "Ví dụ hợp lệ: 29A-12345, 30B.54321, etc.");
             return;
         }
 

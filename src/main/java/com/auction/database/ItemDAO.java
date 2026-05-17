@@ -448,7 +448,7 @@ public class ItemDAO {
             return ps.executeUpdate() > 0;
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println("❌ Lỗi finishAuction: " + e.getMessage());
             return false;
         }
     }
@@ -642,7 +642,7 @@ public class ItemDAO {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("❌ Lỗi getItemIdByPlate: " + e.getMessage());
         }
         return -1;
     }
@@ -658,8 +658,11 @@ public class ItemDAO {
             return ps.executeUpdate() > 0;
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println("❌ Lỗi updateStatus: " + e.getMessage());
             return false;
         }
+    }
+
+    public static void finishAuction(String currentPlateNumber) {
     }
 }
