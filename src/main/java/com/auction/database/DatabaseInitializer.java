@@ -3,7 +3,7 @@ package com.auction.database;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.sql.SQLException;
-
+import com.auction.util.PasswordUtil;
 /**
  * Tự động tạo các bảng khi app khởi động
  *
@@ -91,7 +91,6 @@ public class DatabaseInitializer {
                     "  FOREIGN KEY (user_id) REFERENCES users(id)" +
                     ")";
             stmt.execute(createBids);
-            migrateBidsTableIfNeeded(stmt);
             System.out.println("✅ Bảng bids sẵn sàng");
 
             // =====================================================================
@@ -100,11 +99,13 @@ public class DatabaseInitializer {
             // Tài khoản này KHÔNG thể tạo qua giao diện đăng ký thông thường.
             // Thông tin đăng nhập: username=vpa_admin / password=Admin@2024!
             // =====================================================================
+            String hashedAdminPassword =
+                    PasswordUtil.hashPassword("Admin@2024!");
             String seedAdmin =
                     "INSERT IGNORE INTO users " +
                             "(username, password, email, full_name, user_type, phone, address) " +
                             "VALUES " +
-                            "('vpa_admin', 'Admin@2024!', 'admin@vpa.vn', " +
+                            "('vpa_admin', '" + hashedAdminPassword + "', 'admin@vpa.vn', " +
                             "'QUẢN TRỊ VIÊN HỆ THỐNG', 'Admin', '1900636380', 'Hà Nội')";
             stmt.execute(seedAdmin);
             System.out.println("✅ Tài khoản admin sẵn sàng (vpa_admin / Admin@2024!)");
@@ -114,28 +115,5 @@ public class DatabaseInitializer {
         } catch (SQLException e) {
             System.out.println("❌ Lỗi: " + e.getMessage());
         }
-    }
-    private static void migrateBidsTableIfNeeded(Statement stmt) {
-
-        try {
-            stmt.execute(
-                    "ALTER TABLE bids CHANGE COLUMN auction_id item_id INT NOT NULL"
-            );
-            System.out.println("✅ auction_id -> item_id");
-        } catch (SQLException ignored) {}
-
-        try {
-            stmt.execute(
-                    "ALTER TABLE bids CHANGE COLUMN bidder_id user_id INT NOT NULL"
-            );
-            System.out.println("✅ bidder_id -> user_id");
-        } catch (SQLException ignored) {}
-
-        try {
-            stmt.execute(
-                    "ALTER TABLE bids CHANGE COLUMN amount bid_amount DECIMAL(15,2) NOT NULL"
-            );
-            System.out.println("✅ amount -> bid_amount");
-        } catch (SQLException ignored) {}
     }
 }

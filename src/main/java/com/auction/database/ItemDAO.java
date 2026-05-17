@@ -615,4 +615,22 @@ public class ItemDAO {
         }
         return result;
     }
+    public static int getItemIdByPlate(String plate) {
+        String sql = "SELECT id FROM items WHERE plate_number = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, plate);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt("id");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
 }
