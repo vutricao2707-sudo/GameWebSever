@@ -7,6 +7,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import com.auction.service.ProductService;
 import com.auction.database.BidDAO;
+import com.auction.database.ItemDAO;
+import com.auction.database.UserDAO;
+import com.auction.model.User;
 
 /**
  * 🤖 ClientHandler = "Người phục vụ" mỗi client
@@ -161,13 +164,25 @@ public class ClientHandler implements Runnable {
             //  LƯU VÀO DATABASE
             BidDAO.addBid(itemId, userId, amount);
 
+            // Cập nhật giá hiện tại của item
+            ItemDAO.updateCurrentPrice(itemId, amount);
+
+            // ✅ BROADCAST giá mới qua WebSocket tới tất cả clients đang theo dõi
+            AuctionWebSocketServer wsServer = AuctionWebSocketServer.getInstance();
+            User user = UserDAO.getUserById(userId);
+            String bidderName = (user != null) ? user.getFullName() : "Người dùng #" + userId;
+            wsServer.broadcastPriceUpdate(itemId, amount, userId, bidderName);
+
             response.put("status", "success");
             response.put("message", "Đấu giá thành công");
             response.put("new_price", amount);
 
+            System.out.println("✅ PLACE_BID: itemId=" + itemId + ", newPrice=" + amount + " - Broadcast to WebSocket");
+
         } catch (Exception e) {
             response.put("status", "error");
             response.put("message", e.getMessage());
+            System.err.println("❌ Lỗi PLACE_BID: " + e.getMessage());
         }
     }
 

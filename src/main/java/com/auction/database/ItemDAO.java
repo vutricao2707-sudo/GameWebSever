@@ -348,6 +348,24 @@ public class ItemDAO {
         }
     }
 
+    /**
+     * Cập nhật giá theo itemId (overload)
+     */
+    public static void updateCurrentPrice(int itemId, double newPrice) {
+        String sql = "UPDATE items SET current_price = ? WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setDouble(1, newPrice);
+            pstmt.setInt(2, itemId);
+            if (pstmt.executeUpdate() > 0) {
+                System.out.println("✅ Cập nhật giá (itemId=" + itemId + ") thành công");
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi updateCurrentPrice: " + e.getMessage());
+        }
+    }
+
     // =====================================================================
     // 4. QUẢN LÝ THỜI GIAN VÀ NGƯỜI THAM GIA ĐẤU GIÁ
     // =====================================================================
@@ -663,3 +681,4 @@ public class ItemDAO {
         }
     }
 }
+

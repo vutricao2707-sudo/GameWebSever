@@ -1,6 +1,8 @@
 package com.auction.main;
 
 import com.auction.database.DatabaseInitializer;
+import com.auction.server.AuctionServer;
+import com.auction.server.AuctionWebSocketServer;
 import com.auction.util.DatabaseHealthCheck;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -27,6 +29,18 @@ public class App extends Application {
         }
 
         DatabaseInitializer.initDatabase();  // Khởi tạo database tự động
+
+        // ✅ Khởi động WebSocket Server
+        AuctionWebSocketServer wsServer = AuctionWebSocketServer.getInstance();
+        wsServer.start();
+        System.out.println("🚀 WebSocket Server đã khởi động!");
+
+        // ✅ Khởi động Socket Server ở thread riêng
+        Thread socketServerThread = new Thread(() -> AuctionServer.main(new String[]{}), "SocketServer-Thread");
+        socketServerThread.setDaemon(true);
+        socketServerThread.start();
+        System.out.println("🚀 Socket Server đã khởi động!");
+
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/Login.fxml"));
         Parent root = fxmlLoader.load();
 
@@ -36,6 +50,17 @@ public class App extends Application {
         stage.setResizable(false);
         stage.centerOnScreen();
         stage.show();
+
+        // ✅ Dừng servers khi đóng ứng dụng
+        stage.setOnCloseRequest(event -> {
+            System.out.println("Đóng ứng dụng, dừng servers...");
+            try {
+                wsServer.stop();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.err.println("Lỗi khi dừng WebSocket Server: " + e.getMessage());
+            }
+        });
     }
 
     public static void main(String[] args) {

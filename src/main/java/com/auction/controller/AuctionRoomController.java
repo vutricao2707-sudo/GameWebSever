@@ -2,6 +2,7 @@ package com.auction.controller;
 
 import com.auction.database.BidDAO;
 import com.auction.database.ItemDAO;
+import com.auction.ui.AuctionWebSocketClient;
 import com.auction.util.SessionManager;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -29,12 +30,14 @@ import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class AuctionRoomController {
+public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebSocketListener {
 
     private static final Logger logger = Logger.getLogger(AuctionRoomController.class.getName());
-    // --- Biến cho Fix 6 ---
-    private Timeline bidPollingTimeline;
-    private double lastKnownPrice;
+
+    // --- WebSocket Client ---
+    private AuctionWebSocketClient wsClient;
+    private int currentItemId = -1;
+
     // --- Các thành phần FXML ---
     @FXML private Label lblMinutes, lblSeconds;
     @FXML private Label lblPlateTop, lblPlateBottom;
@@ -314,6 +317,7 @@ public class AuctionRoomController {
         }
         this.currentPlateNumber = plate;
         this.currentPrice = startingPrice;
+        this.currentItemId = ItemDAO.getItemIdByPlate(plate);
 
         // Hiển thị biển số lên giao diện
         String[] parts = plate.split("-");
@@ -335,80 +339,27 @@ public class AuctionRoomController {
         // ✅ Bắt đầu đếm ngược ngay sau khi lấy được thời gian từ DB
         startCountdown();
 
-        // ✅ Bắt đầu quét giá tự động (Chuẩn bị cho Fix 6)
-        startBidPolling();
-    }
-    private void startBidPolling() {
-        if (bidPollingTimeline != null) {
-            bidPollingTimeline.stop();
+        // ✅ WebSocket: Subscribe tới cập nhật realtime của item này
+        if (wsClient == null) {
+            wsClient = AuctionWebSocketClient.getInstance();
         }
-        lastKnownPrice = currentPrice;
-
-        bidPollingTimeline = new Timeline(new KeyFrame(Duration.seconds(5), event -> {
-            // Mỗi 5 giây, kiểm tra dữ liệu mới nhất từ DB
-            String[] data = ItemDAO.getItemFullData(currentPlateNumber);
-
-            if (data != null) {
-                String auctionStatus = data[9];
-
-                if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
-
-                    btnPlaceBid.setDisable(true);
-
-                    btnPlaceBid.setText("PHIÊN ĐẤU GIÁ ĐÃ KẾT THÚC");
-
-                    btnPlaceBid.setStyle(
-                            "-fx-background-color: #334155;" +
-                                    "-fx-text-fill: #94a3b8;" +
-                                    "-fx-background-radius: 12;" +
-                                    "-fx-font-size: 16px;" +
-                                    "-fx-font-weight: bold;"
-                    );
-
-                    // Dừng polling
-                    if (bidPollingTimeline != null) {
-                        bidPollingTimeline.stop();
-                    }
-
-                    // Dừng countdown
-                    if (countdownTimeline != null) {
-                        countdownTimeline.stop();
-                    }
-
-                    return;
-                }
-                // Lấy giá hiện tại từ cột số [3] trong DB
-                double dbPrice = Double.parseDouble(data[3]);
-
-                if (dbPrice > lastKnownPrice) {
-                    // ✅ Có người khác đã đặt giá cao hơn!
-                    lastKnownPrice = dbPrice;
-                    currentPrice = dbPrice;
-                    updatePricingUI(); // Cập nhật nút bấm và nhãn giá
-
-                    // Thêm thông báo vào lịch sử đấu giá
-                    addHistoryRow(formatter.format(dbPrice), "Người dùng khác");
-                }
-
-                // Cập nhật số người tham gia (cột số [10])
-                int count = Integer.parseInt(data[10]);
-                if (count != currentParticipants) {
-                    currentParticipants = count;
-                    if (lblParticipants != null) {
-                        lblParticipants.setText("👥 " + currentParticipants + " người tham gia");
-                    }
-                }
-            }
-        }));
-
-        bidPollingTimeline.setCycleCount(Timeline.INDEFINITE);
-        bidPollingTimeline.playFromStart();
+        wsClient.addListener(this);
+        wsClient.subscribe(currentItemId);
+        System.out.println("🔌 Subscribed tới WebSocket item: " + currentItemId);
     }
 
     @FXML
     private void handleBack(ActionEvent event) {
         // ✅ Dừng tất cả đồng hồ và luồng chạy ngầm khi thoát
         stopAllTimelines();
+
+        // ✅ Unsubscribe từ WebSocket khi rời khỏi phòng đấu giá
+        if (wsClient != null && currentItemId != -1) {
+            wsClient.unsubscribe(currentItemId);
+            wsClient.removeListener(this);
+            System.out.println("🔌 Unsubscribed từ WebSocket item: " + currentItemId);
+        }
+
         try {
             Parent newRoot = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("/fxml/Dashboard.fxml")));
             Scene currentScene = ((Node) event.getSource()).getScene();
@@ -440,14 +391,77 @@ public class AuctionRoomController {
                     "🛑 Countdown stopped"
             );
         }
+    }
 
-        if (bidPollingTimeline != null) {
+    // =====================================================================
+    // WEBSOCKET LISTENER IMPLEMENTATIONS
+    // =====================================================================
 
-            bidPollingTimeline.stop();
+    @Override
+    public void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName) {
+        if (itemId != currentItemId) return;
 
-            System.out.println(
-                    "🛑 Bid polling stopped"
-            );
-        }
+        javafx.application.Platform.runLater(() -> {
+            this.currentPrice = currentPrice;
+            updatePricingUI();
+            addHistoryRow(formatter.format(currentPrice), bidderName);
+            System.out.println("💰 Cập nhật giá từ WebSocket: " + currentPrice);
+        });
+    }
+
+    @Override
+    public void onParticipantUpdate(int itemId, int participantCount) {
+        if (itemId != currentItemId) return;
+
+        javafx.application.Platform.runLater(() -> {
+            currentParticipants = participantCount;
+            if (lblParticipants != null) {
+                lblParticipants.setText("👥 " + participantCount + " người tham gia");
+            }
+            System.out.println("👥 Cập nhật số người tham gia: " + participantCount);
+        });
+    }
+
+    @Override
+    public void onAuctionFinished(int itemId, double finalPrice, int winnerId, String winnerName) {
+        if (itemId != currentItemId) return;
+
+        javafx.application.Platform.runLater(() -> {
+            btnPlaceBid.setDisable(true);
+            btnPlaceBid.setText("PHIÊN ĐẤU GIÁ ĐÃ KẾT THÚC");
+            btnPlaceBid.setStyle("-fx-background-color: #334155; -fx-text-fill: #94a3b8; -fx-background-radius: 12; -fx-font-size: 16px; -fx-font-weight: bold;");
+
+            // Dừng countdown
+            if (countdownTimeline != null) {
+                countdownTimeline.stop();
+            }
+
+            String message = "Phiên đấu giá kết thúc!\n\n" +
+                    "Giá cuối cùng: " + formatter.format(finalPrice) + " đ\n" +
+                    "Người thắng: " + winnerName;
+            showAlert("Phiên đấu giá kết thúc", message);
+
+            System.out.println("🏆 Phiên đấu giá kết thúc - Người thắng: " + winnerName);
+        });
+    }
+
+    @Override
+    public void onTimerExtended(int itemId, int newTimeRemaining) {
+        if (itemId != currentItemId) return;
+
+        javafx.application.Platform.runLater(() -> {
+            this.timeRemainingSeconds = newTimeRemaining;
+            System.out.println("⏰ Timer kéo dài - Thời gian còn lại: " + newTimeRemaining + "s");
+        });
+    }
+
+    @Override
+    public void onConnected() {
+        System.out.println("✅ WebSocket UI connected");
+    }
+
+    @Override
+    public void onDisconnected() {
+        System.out.println("❌ WebSocket UI disconnected");
     }
 }
