@@ -1,0 +1,156 @@
+/* ====================================================================
+   AUCTION SYSTEM - LIGHT THEME
+   Light mode alternative to dark theme
+   ==================================================================== */
+
+:root {
+    /* Primary Colors */
+    -fx-primary-bg: #f8fafc;
+    -fx-secondary-bg: #f1f5f9;
+    -fx-accent-color: #0284c7;
+    -fx-success-color: #059669;
+    -fx-danger-color: #dc2626;
+    -fx-warning-color: #d97706;
+
+    /* Text Colors */
+    -fx-text-primary: #1e293b;
+    -fx-text-secondary: #475569;
+    -fx-text-muted: #94a3b8;
+
+    /* Border Colors */
+    -fx-border-dark: #cbd5e1;
+    -fx-border-light: #e2e8f0;
+
+    /* Component Colors */
+    -fx-button-bg: #0284c7;
+    -fx-button-hover: #0369a1;
+    -fx-input-bg: #ffffff;
+    -fx-input-border: #cbd5e1;
+}
+
+/* Apply theme to root */
+.root {
+    -fx-base: #f1f5f9;
+    -fx-control-inner-background: #ffffff;
+    -fx-faint-focus-color: transparent;
+    -fx-focus-color: #0284c7;
+}
+
+/* Text styling */
+.text {
+    -fx-fill: -fx-text-primary;
+}
+
+/* Button styling */
+.button {
+    -fx-text-fill: #ffffff;
+    -fx-background-color: -fx-button-bg;
+    -fx-background-radius: 8;
+    -fx-padding: 8 16;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: -fx-button-hover;
+}
+
+/* Label styling */
+.label {
+    -fx-text-fill: -fx-text-primary;
+}
+
+/* TextField / TextArea styling */
+.text-input {
+    -fx-control-inner-background: -fx-input-bg;
+    -fx-border-color: -fx-input-border;
+    -fx-text-fill: -fx-text-primary;
+    -fx-padding: 8;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+}
+
+.text-input:focused {
+    -fx-border-color: -fx-accent-color;
+    -fx-border-width: 2;
+}
+
+/* ComboBox styling */
+.combo-box {
+    -fx-background-color: transparent;
+    -fx-border-color: -fx-input-border;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -fx-secondary-bg;
+    -fx-control-inner-background: -fx-secondary-bg;
+}
+
+/* ScrollPane styling */
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-control-inner-background: transparent;
+}
+
+.scroll-bar {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: -fx-border-light;
+    -fx-background-radius: 10;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: -fx-accent-color;
+}
+
+/* Table styling */
+.table-view {
+    -fx-background-color: transparent;
+    -fx-control-inner-background: -fx-input-bg;
+}
+
+.table-view .column-header {
+    -fx-background-color: #e2e8f0;
+    -fx-text-fill: -fx-text-secondary;
+}
+
+.table-view .table-cell {
+    -fx-text-fill: -fx-text-primary;
+    -fx-padding: 4;
+}
+
+/* LineChart styling */
+.chart {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.chart-title {
+    -fx-text-fill: -fx-text-primary;
+}
+
+.axis {
+    -fx-text-fill: -fx-text-secondary;
+    -fx-tick-label-fill: -fx-text-secondary;
+}
+
+.axis-label {
+    -fx-text-fill: -fx-text-secondary;
+}
+
+/* Alert styling */
+.dialog-pane {
+    -fx-background-color: -fx-secondary-bg;
+    -fx-text-fill: -fx-text-primary;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: #e2e8f0;
+}
+
+.dialog-pane .label {
+    -fx-text-fill: -fx-text-primary;
+}
+

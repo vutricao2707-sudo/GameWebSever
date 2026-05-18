@@ -4,6 +4,7 @@ import com.auction.dto.ItemDTO;
 import com.auction.model.User;
 import com.auction.service.ProductService;
 import com.auction.util.SessionManager;
+import com.auction.util.ThemeManager;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -34,6 +35,7 @@ import java.util.logging.Logger;
 public class DashboardController {
 
     @FXML private Button btnHome, btnHistory, btnResults, btnCar, btnBike;
+    @FXML private Button btnTheme;  // Nút toggle theme
     @FXML private FlowPane productContainer;
     @FXML private Label lblUserName;
 
@@ -55,6 +57,14 @@ public class DashboardController {
             lblUserName.setText("Xin chào, Người dùng");
         }
 
+        // ✅ Cập nhật icon theme button dựa trên trạng thái hiện tại
+        ThemeManager themeManager = ThemeManager.getInstance();
+        if (themeManager.isDarkMode()) {
+            btnTheme.setText("🌙");
+        } else {
+            btnTheme.setText("☀️");
+        }
+
         // Các logic tải dữ liệu khác
         loadProducts("Ô tô");
         setActiveTab(btnHome);
@@ -73,6 +83,31 @@ public class DashboardController {
     @FXML private void handleShowHistory(ActionEvent event)    { navigateTo(event, "/fxml/AuctionHistory.fxml"); }
     @FXML private void handleShowResults(ActionEvent event)    { navigateTo(event, "/fxml/AuctionResult.fxml"); }
     @FXML private void handleRegisterToSell(ActionEvent event) { navigateTo(event, "/fxml/RegisterSell.fxml"); }
+
+    /**
+     * Toggle giữa Dark Mode và Light Mode
+     */
+    @FXML
+    private void handleToggleTheme(ActionEvent event) {
+        ThemeManager themeManager = ThemeManager.getInstance();
+        themeManager.toggleTheme();
+
+        // Cập nhật icon button
+        if (themeManager.isDarkMode()) {
+            btnTheme.setText("🌙");
+        } else {
+            btnTheme.setText("☀️");
+        }
+
+        // Áp dụng theme cho Scene hiện tại
+        Scene currentScene = btnTheme.getScene();
+        if (currentScene != null) {
+            themeManager.setCurrentScene(currentScene);
+        }
+
+        System.out.println("✅ Theme toggled to: " + themeManager.getCurrentThemeName());
+    }
+
     @FXML private void handleLogout(ActionEvent event) {
         SessionManager.INSTANCE.logout(); // Đăng xuất thì xóa Session
         navigateTo(event, "/fxml/Login.fxml");

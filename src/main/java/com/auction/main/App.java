@@ -4,6 +4,7 @@ import com.auction.database.DatabaseInitializer;
 import com.auction.server.AuctionServer;
 import com.auction.server.AuctionWebSocketServer;
 import com.auction.util.DatabaseHealthCheck;
+import com.auction.util.ThemeManager;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -45,6 +46,11 @@ public class App extends Application {
         Parent root = fxmlLoader.load();
 
         Scene scene = new Scene(root, 1024, 720);
+
+        // ✅ Khởi tạo theme
+        ThemeManager themeManager = ThemeManager.getInstance();
+        themeManager.setCurrentScene(scene);
+
         stage.setTitle("Hệ Thống Đấu Giá Biển Số - VinGroup");
         stage.setScene(scene);
         stage.setResizable(false);

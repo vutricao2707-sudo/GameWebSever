@@ -2,6 +2,7 @@ package com.auction.controller;
 
 import com.auction.database.BidDAO;
 import com.auction.database.ItemDAO;
+import com.auction.database.WatchlistDAO;
 import com.auction.ui.AuctionWebSocketClient;
 import com.auction.util.SessionManager;
 import javafx.animation.KeyFrame;
@@ -12,6 +13,9 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -26,6 +30,7 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -44,7 +49,10 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     @FXML private VBox liveHistoryContainer;
     @FXML private Label lblCurrentPrice, lblStepMultiplier;
     @FXML private Button btnPlaceBid;
-    @FXML private Label lblParticipants;  // Mới: Hiển thị số người tham gia
+    @FXML private Button btnWatchlist;  // Nút theo dõi
+    @FXML private Label lblParticipants;  // Hiển thị số người tham gia
+    @FXML private LineChart<Number, Number> priceHistoryChart;  // Biểu đồ lịch sử giá
+    @FXML private Label lblBidCount;  // Số lần đặt giá
 
     // --- Biến lưu trữ Logic Đấu Giá ---
     private double currentPrice;                   // Giá khởi điểm từ database
@@ -278,6 +286,77 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         liveHistoryContainer.getChildren().add(0, row);
     }
 
+    /**
+     * Xử lý nút "Theo dõi" - Thêm/Xóa item khỏi watchlist
+     */
+    @FXML
+    private void handleWatchlist() {
+        if (SessionManager.INSTANCE.getCurrentUser() == null) {
+            showAlert("Chưa đăng nhập", "Bạn cần đăng nhập để theo dõi biển số");
+            return;
+        }
+
+        if (currentPlateNumber == null || currentPlateNumber.isEmpty()) {
+            showAlert("Lỗi", "Không tìm thấy biển số");
+            return;
+        }
+
+        int userId = SessionManager.INSTANCE.getCurrentUser().getId();
+        int itemId = currentItemId;
+
+        if (itemId == -1) {
+            itemId = ItemDAO.getItemIdByPlate(currentPlateNumber);
+            if (itemId == -1) {
+                showAlert("Lỗi", "Không tìm thấy item trong database");
+                return;
+            }
+        }
+
+        // Kiểm tra xem đã theo dõi chưa
+        boolean isWatched = WatchlistDAO.isInWatchlist(userId, itemId);
+
+        if (isWatched) {
+            // Xóa khỏi watchlist
+            boolean removed = WatchlistDAO.removeFromWatchlist(userId, itemId);
+            if (removed) {
+                btnWatchlist.setStyle("-fx-background-color: rgba(59, 130, 246, 0.3); -fx-border-color: #3b82f6; -fx-background-radius: 20; -fx-border-radius: 20; -fx-cursor: hand; -fx-padding: 6 15; -fx-font-size: 14; -fx-font-weight: bold;");
+                btnWatchlist.setText("⭐ Theo dõi");
+                showAlert("Đã xóa", "Biển số đã được xóa khỏi danh sách theo dõi");
+                System.out.println("✅ Đã xóa từ watchlist: " + currentPlateNumber);
+            }
+        } else {
+            // Thêm vào watchlist
+            boolean added = WatchlistDAO.addToWatchlist(userId, itemId);
+            if (added) {
+                btnWatchlist.setStyle("-fx-background-color: rgba(234, 179, 8, 0.3); -fx-border-color: #eab308; -fx-background-radius: 20; -fx-border-radius: 20; -fx-cursor: hand; -fx-padding: 6 15; -fx-font-size: 14; -fx-font-weight: bold;");
+                btnWatchlist.setText("⭐ Bỏ theo dõi");
+                showAlert("Thành công", "Biển số đã được thêm vào danh sách theo dõi");
+                System.out.println("✅ Đã thêm vào watchlist: " + currentPlateNumber);
+            }
+        }
+    }
+
+    /**
+     * Cập nhật trạng thái button theo dõi khi load trang
+     */
+    private void updateWatchlistButtonState() {
+        if (SessionManager.INSTANCE.getCurrentUser() == null || currentItemId == -1) {
+            btnWatchlist.setDisable(true);
+            return;
+        }
+
+        int userId = SessionManager.INSTANCE.getCurrentUser().getId();
+        boolean isWatched = WatchlistDAO.isInWatchlist(userId, currentItemId);
+
+        if (isWatched) {
+            btnWatchlist.setStyle("-fx-background-color: rgba(234, 179, 8, 0.3); -fx-border-color: #eab308; -fx-background-radius: 20; -fx-border-radius: 20; -fx-cursor: hand; -fx-padding: 6 15; -fx-font-size: 14; -fx-font-weight: bold;");
+            btnWatchlist.setText("⭐ Bỏ theo dõi");
+        } else {
+            btnWatchlist.setStyle("-fx-background-color: rgba(59, 130, 246, 0.3); -fx-border-color: #3b82f6; -fx-background-radius: 20; -fx-border-radius: 20; -fx-cursor: hand; -fx-padding: 6 15; -fx-font-size: 14; -fx-font-weight: bold;");
+            btnWatchlist.setText("⭐ Theo dõi");
+        }
+    }
+
     // =====================================================================
     // PHẦN MỚI: QUẢN LÝ SỐ NGƯỜI THAM GIA
     // =====================================================================
@@ -339,6 +418,9 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         lblPlateTop.setText(parts.length > 0 ? parts[0] : plate);
         lblPlateBottom.setText(parts.length > 1 ? parts[1] : "");
 
+        // ✅ Cập nhật trạng thái watchlist button
+        updateWatchlistButtonState();
+
         // ✅ FIX 5: ĐỌC thời gian còn lại thực tế từ database
         long remaining = ItemDAO.getAuctionTimeRemaining(plate);
         if (remaining > 0) {
@@ -348,9 +430,11 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             this.timeRemainingSeconds = 60 * 60;
         }
         stopAllTimelines();
-        // Cập nhật giao diện giá và số người xem
+        // ✅ Cập nhật giao diện giá và số người xem
         updatePricingUI();
         updateParticipantCount();
+        // ✅ Tải biểu đồ lịch sử giá
+        loadPriceHistoryChart();
         // ✅ Bắt đầu đếm ngược ngay sau khi lấy được thời gian từ DB
         startCountdown();
 
@@ -409,6 +493,83 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     }
 
     // =====================================================================
+    // PRICE HISTORY CHART - Biểu đồ lịch sử giá real-time
+    // =====================================================================
+
+    /**
+     * Load lịch sử giá từ database và vẽ biểu đồ
+     * Called when entering auction room or when new bid is placed via WebSocket
+     */
+    private void loadPriceHistoryChart() {
+        if (currentItemId == -1 || priceHistoryChart == null) {
+            return;
+        }
+
+        // Lấy dữ liệu từ database
+        List<String[]> bidHistory = BidDAO.getBidHistoryForChart(currentItemId);
+        int bidCount = BidDAO.getBidCount(currentItemId);
+
+        // Cập nhật label số lần đặt giá
+        if (lblBidCount != null) {
+            lblBidCount.setText(bidCount + " lần đặt");
+        }
+
+        // Clear chart cũ
+        priceHistoryChart.getData().clear();
+
+        if (bidHistory.isEmpty()) {
+            System.out.println("ℹ️ Chưa có bids nào cho item này");
+            return;
+        }
+
+        // Tạo series dữ liệu
+        XYChart.Series<Number, Number> series = new XYChart.Series<>();
+        series.setName("Mức giá");
+
+        // Thêm dữ liệu vào series
+        for (int i = 0; i < bidHistory.size(); i++) {
+            String[] bidData = bidHistory.get(i);
+            double bidAmount = Double.parseDouble(bidData[1]);
+            String bidderName = bidData[3];
+
+            // X axis: Thứ tự đặt giá (1, 2, 3...)
+            // Y axis: Mức giá
+            XYChart.Data<Number, Number> dataPoint = new XYChart.Data<>(i + 1, bidAmount);
+
+            // Thêm tooltip hiển thị tên người đặt giá khi hover
+            dataPoint.setNode(new javafx.scene.shape.Circle(3) {
+                {
+                    setStyle("-fx-fill: #38bdf8; -fx-cursor: hand;");
+                }
+            });
+
+            // Tooltip
+            javafx.scene.control.Tooltip tooltip = new javafx.scene.control.Tooltip(
+                    bidderName + " - " + String.format("%.0f", bidAmount) + " đ"
+            );
+            javafx.scene.control.Tooltip.install(dataPoint.getNode(), tooltip);
+
+            series.getData().add(dataPoint);
+        }
+
+        // Thêm series vào chart
+        priceHistoryChart.getData().add(series);
+
+        // Styling
+        series.getNode().setStyle("-fx-stroke: #38bdf8; -fx-stroke-width: 2;");
+
+        System.out.println("✅ Đã tải biểu đồ giá với " + bidCount + " bids");
+    }
+
+    /**
+     * Update chart khi có bid mới từ WebSocket
+     * Called từ onPriceUpdate listener
+     */
+    private void updatePriceHistoryChart() {
+        javafx.application.Platform.runLater(this::loadPriceHistoryChart);
+    }
+
+    // =====================================================================
     // WEBSOCKET LISTENER IMPLEMENTATIONS
     // =====================================================================
 
@@ -420,6 +581,8 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             this.currentPrice = currentPrice;
             updatePricingUI();
             addHistoryRow(formatter.format(currentPrice), bidderName);
+            // ✅ Update chart với bid mới
+            updatePriceHistoryChart();
             System.out.println("💰 Cập nhật giá từ WebSocket: " + currentPrice);
         });
     }

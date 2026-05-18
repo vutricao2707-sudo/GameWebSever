@@ -375,4 +375,109 @@ public class BidDAO {
         final long AUTO_EXTEND_THRESHOLD = 120; // 2 phút
         return timeRemaining > 0 && timeRemaining <= AUTO_EXTEND_THRESHOLD;
     }
+
+    // =====================================================================
+    // PRICE HISTORY CHART - Real-time price trend visualization
+    // =====================================================================
+
+    /**
+     * Lấy lịch sử giá của một item để vẽ biểu đồ
+     * Includes bid timestamps and amounts for chart rendering
+     * @param itemId ID của item
+     * @return List<String[]> [ bidId, bidAmount, bidTime (formatted), bidderName ]
+     */
+    public static List<String[]> getBidHistoryForChart(int itemId) {
+        List<String[]> bidHistory = new ArrayList<>();
+
+        String sql = "SELECT b.id, b.bid_amount, b.bid_time, u.full_name " +
+                "FROM bids b " +
+                "JOIN users u ON b.user_id = u.id " +
+                "WHERE b.item_id = ? " +
+                "ORDER BY b.bid_time ASC";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    String formattedTime = rs.getTimestamp("bid_time").toString();
+                    // Trim to just HH:mm:ss for display
+                    if (formattedTime.length() > 8) {
+                        formattedTime = formattedTime.substring(11, 19);
+                    }
+
+                    bidHistory.add(new String[]{
+                            rs.getString("id"),
+                            String.valueOf(rs.getDouble("bid_amount")),
+                            formattedTime,
+                            rs.getString("full_name")
+                    });
+                }
+            }
+
+            System.out.println("✅ Đã tải " + bidHistory.size() + " bids cho biểu đồ giá");
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getBidHistoryForChart: " + e.getMessage());
+        }
+
+        return bidHistory;
+    }
+
+    /**
+     * Lấy giá cao nhất và thấp nhất để scale biểu đồ
+     * @param itemId ID của item
+     * @return double[] [ minPrice, maxPrice ]
+     */
+    public static double[] getPriceRangeForChart(int itemId) {
+        String sql = "SELECT MIN(bid_amount) as min_price, MAX(bid_amount) as max_price " +
+                "FROM bids WHERE item_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    double minPrice = rs.getDouble("min_price");
+                    double maxPrice = rs.getDouble("max_price");
+                    return new double[]{minPrice, maxPrice};
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getPriceRangeForChart: " + e.getMessage());
+        }
+
+        return new double[]{0, 0};
+    }
+
+    /**
+     * Lấy tổng số bids
+     * @param itemId ID của item
+     * @return số bids
+     */
+    public static int getBidCount(int itemId) {
+        String sql = "SELECT COUNT(*) FROM bids WHERE item_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getBidCount: " + e.getMessage());
+        }
+
+        return 0;
+    }
 }

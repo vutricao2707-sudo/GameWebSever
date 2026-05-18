@@ -2,6 +2,7 @@ package com.auction.controller;
 
 import com.auction.service.ProductService;
 import com.auction.util.NavigationUtil;
+import com.auction.util.PlateValidator;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
@@ -45,7 +46,15 @@ public class RegisterSellController {
             return;
         }
 
-        // 2. Validate giá tiền (Chặn nhập chữ và số âm)
+        // 2. Validate biển số theo regex (FORMAT: 2 số + 1 chữ cái + 1 số/chữ + dấu gạch + 4/5 số)
+        if (!PlateValidator.isValidPlate(plate)) {
+            showAlert(Alert.AlertType.ERROR, "Biển số không hợp lệ",
+                    "Biển số phải theo định dạng: 29A-12345 hoặc 29A.12345\n" +
+                    "Ví dụ: 30K-555555, 51A.123456");
+            return;
+        }
+
+        // 3. Validate giá tiền (Chặn nhập chữ và số âm)
         double validPrice = 0;
         try {
             validPrice = Double.parseDouble(price);
@@ -58,7 +67,7 @@ public class RegisterSellController {
             return;
         }
 
-        // 3. Gọi Service để thêm mới và kiểm tra trùng lặp
+        // 4. Gọi Service để thêm mới và kiểm tra trùng lặp
         boolean isSuccess = productService.addNewProduct(type, plate, province, price, fullName, phone, email, address);
 
         // Nếu isSuccess là false (tức là bị trùng biển số)
