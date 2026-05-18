@@ -200,27 +200,42 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
         // 1. Tính toán giá mới
         double newBid = currentPrice + (stepValue * stepMultiplier);
-        currentPrice = newBid;
 
         // Cập nhật vào database
         if (currentPlateNumber != null && !currentPlateNumber.isEmpty()) {
-            // Cập nhật giá mới trên bảng items
-            ItemDAO.updateCurrentPrice(currentPlateNumber, newBid);
-
             // =========================================================
-            // THÊM MỚI (FIX 3 & 4): LƯU LỊCH SỬ VÀO BẢNG BIDS
+            // ✅ SERVER-SIDE COOLDOWN VALIDATION
             // =========================================================
             if (SessionManager.INSTANCE.getCurrentUser() != null) {
                 int userId = SessionManager.INSTANCE.getCurrentUser().getId();
-                BidDAO.saveBid(currentPlateNumber, userId, newBid);
+                boolean bidSaved = BidDAO.saveBid(currentPlateNumber, userId, newBid);
+
+                if (!bidSaved) {
+                    // Server từ chối do cooldown
+                    long dbLastBidTime = BidDAO.getLastBidTime(currentPlateNumber, userId);
+                    long remainingTime = (dbLastBidTime + 60) - (System.currentTimeMillis() / 1000);
+                    Alert alert = new Alert(Alert.AlertType.WARNING);
+                    alert.setTitle("Chờ một chút");
+                    alert.setHeaderText(null);
+                    alert.setContentText("⏳ Server nhập chặn: Bạn phải chờ " + Math.max(1, remainingTime) + " giây nữa.\n" +
+                            "(Điều này ngăn việc bypass bằng cách mở 2 cửa sổ)");
+                    alert.showAndWait();
+                    return; // Dừng lại
+                }
             }
+
+            // Chỉ cập nhật nếu bid được lưu thành công
+            currentPrice = newBid;
+
+            // Cập nhật giá mới trên bảng items
+            ItemDAO.updateCurrentPrice(currentPlateNumber, newBid);
         }
 
         // 2. Reset hệ số về 1
         stepMultiplier = 1;
         updatePricingUI();
 
-        // 3. Ghi lại thời gian đặt giá
+        // 3. Ghi lại thời gian đặt giá (cho client-side feedback)
         lastBidTime = currentTime;
 
         // 4. Thêm vào đầu danh sách lịch sử (LIFO) trên giao diện hiện tại
@@ -445,13 +460,26 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         });
     }
 
-    @Override
+     @Override
     public void onTimerExtended(int itemId, int newTimeRemaining) {
         if (itemId != currentItemId) return;
 
         javafx.application.Platform.runLater(() -> {
             this.timeRemainingSeconds = newTimeRemaining;
-            System.out.println("⏰ Timer kéo dài - Thời gian còn lại: " + newTimeRemaining + "s");
+
+            // Display user-friendly message
+            long minutes = newTimeRemaining / 60;
+            long seconds = newTimeRemaining % 60;
+            String newTimeStr = String.format("%02d:%02d", minutes, seconds);
+
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("⏱️ Timer Kéo Dài!");
+            alert.setHeaderText(null);
+            alert.setContentText("🎯 Có bid trong 2 phút cuối!\n\n✨ Timer được tự động kéo dài thêm 2 phút.\n\n" +
+                    "Thời gian còn lại: " + newTimeStr);
+            alert.showAndWait();
+
+            System.out.println("⏰ Timer kéo dài - Thời gian còn lại: " + newTimeRemaining + "s (" + newTimeStr + ")");
         });
     }
 

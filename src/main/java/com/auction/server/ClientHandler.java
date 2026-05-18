@@ -161,7 +161,7 @@ public class ClientHandler implements Runnable {
             int userId = request.getInt("userId");  // Lấy user ID từ client
             double amount = request.getDouble("amount");
 
-            //  LƯU VÀO DATABASE
+            //  LƯU VÀO DATABASE (sử dụng saveBid cho validation + auto-extend)
             BidDAO.addBid(itemId, userId, amount);
 
             // Cập nhật giá hiện tại của item
@@ -172,6 +172,16 @@ public class ClientHandler implements Runnable {
             User user = UserDAO.getUserById(userId);
             String bidderName = (user != null) ? user.getFullName() : "Người dùng #" + userId;
             wsServer.broadcastPriceUpdate(itemId, amount, userId, bidderName);
+
+            // ===================================================
+            // ⏱️ AUTO-EXTEND TIMER (nếu bid trong 2 phút cuối)
+            // ===================================================
+            if (BidDAO.shouldExtendAuction(itemId)) {
+                ItemDAO.extendAuctionTime(itemId, 2); // Extend 2 phút
+                long newTimeRemaining = ItemDAO.getAuctionTimeRemainingSeconds(itemId);
+                wsServer.broadcastTimerExtended(itemId, (int) newTimeRemaining);
+                System.out.println("⏱️ AUTO-EXTENDED: Timer được kéo dài 2 phút → Broadcast TIMER_EXTENDED");
+            }
 
             response.put("status", "success");
             response.put("message", "Đấu giá thành công");

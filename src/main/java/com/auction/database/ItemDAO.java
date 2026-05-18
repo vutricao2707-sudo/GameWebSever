@@ -680,5 +680,55 @@ public class ItemDAO {
             return false;
         }
     }
+
+    // =====================================================================
+    // AUTO-EXTEND TIMER FEATURE
+    // =====================================================================
+
+    /**
+     * Kéo dài thời gian đấu giá thêm @minutes phút
+     * @return true nếu extend thành công
+     */
+    public static boolean extendAuctionTime(int itemId, int minutes) {
+        String sql = "UPDATE items SET auction_end_time = DATE_ADD(auction_end_time, INTERVAL ? MINUTE) " +
+                "WHERE id = ? AND auction_status = 'AUCTION'";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, minutes);
+            pstmt.setInt(2, itemId);
+
+            int result = pstmt.executeUpdate();
+            if (result > 0) {
+                System.out.println("⏱️ AUTO-EXTEND: Phiên item " + itemId + " được kéo dài " + minutes + " phút");
+                return true;
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi extendAuctionTime: " + e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * Lấy thời gian còn lại (chỉ tính để check xem có nên extend không)
+     * @return thời gian còn lại tính bằng seconds
+     */
+    public static long getAuctionTimeRemainingSeconds(int itemId) {
+        String sql = "SELECT UNIX_TIMESTAMP(auction_end_time) - UNIX_TIMESTAMP(NOW()) AS remaining " +
+                "FROM items WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return Math.max(rs.getLong("remaining"), 0);
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getAuctionTimeRemainingSeconds: " + e.getMessage());
+        }
+        return 0;
+    }
 }
 
