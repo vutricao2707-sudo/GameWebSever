@@ -22,11 +22,11 @@ public enum SessionManager {
         this.currentUser = user;
     }
 
-    public User getCurrentUser() {
+    public static User getCurrentUser() {
         return currentUser;
     }
 
-    public void logout() {
+    public static void logout() {
         this.currentUser = null;
     }
 }
