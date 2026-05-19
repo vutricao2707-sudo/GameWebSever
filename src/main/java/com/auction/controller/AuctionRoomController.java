@@ -121,9 +121,13 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 btnPlaceBid.setText("PHIÊN ĐẤU GIÁ KẾT THÚC");
                 btnPlaceBid.setStyle("-fx-background-color: #334155; -fx-text-fill: #94a3b8; -fx-background-radius: 12; -fx-font-size: 16px; -fx-font-weight: bold;");
                 btnPlaceBid.setDisable(true);
-                // Cập nhật trạng thái trong database
+
+                // ĐÃ SỬA: Lấy ID từ biển số và truyền đúng 2 tham số (int, double) lên database
                 if (currentPlateNumber != null && !currentPlateNumber.isEmpty()) {
-                    ItemDAO.finishAuction(currentPlateNumber);
+                    int itemId = ItemDAO.getItemIdByPlate(currentPlateNumber);
+                    if (itemId != -1) {
+                        ItemDAO.finishAuction(itemId, currentPrice);
+                    }
                 }
             }
         }));

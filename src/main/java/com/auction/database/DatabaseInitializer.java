@@ -125,7 +125,9 @@ public class DatabaseInitializer {
             // Tài khoản này KHÔNG thể tạo qua giao diện đăng ký thông thường.
             // Thông tin đăng nhập: username=vpa_admin / password=Admin@2024!
             // =====================================================================
-                    PasswordUtil.hashPassword("Admin@2024!");
+            // ĐÃ SỬA: Khai báo thêm kiểu dữ liệu String để hứng mật khẩu đã mã hóa
+            String hashedAdminPassword = PasswordUtil.hashPassword("Admin@2024!");
+
             String seedAdmin =
                     "INSERT IGNORE INTO users " +
                             "(username, password, email, full_name, user_type, phone, address) " +

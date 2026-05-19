@@ -171,7 +171,7 @@ public class AuctionHistoryController {
 
     @FXML
     private void handleLogout(ActionEvent event) {
-        SessionManager.logout(); // Đăng xuất thì xóa Session
+        SessionManager.getInstance().logout(); // Đăng xuất thì xóa Session
         navigateTo(event, "/fxml/Login.fxml");
     }
 
