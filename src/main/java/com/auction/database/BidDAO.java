@@ -221,8 +221,33 @@ public class BidDAO {
     // =====================================================================
     // HÀM LƯU LỊCH SỬ KHI BẤM "ĐẶT GIÁ" (Hỗ trợ cả 2 phiên bản Database)
     // =====================================================================
-    // 8. Lưu bid khi bấm nút đặt giá - FIX CHUẨN
-    public static void saveBid(String plateNumber, int userId, double bidAmount) {
+    private static final long BID_COOLDOWN_SECONDS = 60; // 1 phút - cần match với client
+
+    /**
+     * Kiểm tra xem user có thể đặt giá không (validate cooldown ở server)
+     * @return true nếu có thể đặt, false nếu còn trong cooldown
+     */
+    public static boolean canUserBid(String plateNumber, int userId) {
+        long lastBidTime = getLastBidTime(plateNumber, userId);
+        if (lastBidTime == 0) return true; // Chưa đặt giá lần nào
+
+        long currentTime = System.currentTimeMillis() / 1000; // Thời gian hiện tại (seconds)
+        long timeSinceLastBid = currentTime - lastBidTime;
+
+        return timeSinceLastBid >= BID_COOLDOWN_SECONDS;
+    }
+
+    // 8. Lưu bid khi bấm nút đặt giá - FIX CHUẨN (với server-side cooldown validation)
+    public static boolean saveBid(String plateNumber, int userId, double bidAmount) {
+
+        // ✅ SERVER-SIDE COOLDOWN VALIDATION
+        if (!canUserBid(plateNumber, userId)) {
+            long lastBidTime = getLastBidTime(plateNumber, userId);
+            long currentTime = System.currentTimeMillis() / 1000;
+            long remainingTime = BID_COOLDOWN_SECONDS - (currentTime - lastBidTime);
+            System.out.println("⏳ Cooldown: User phải chờ " + remainingTime + " giây nữa");
+            return false;
+        }
 
         String sql = "INSERT INTO bids (item_id, user_id, bid_amount) " +
                 "VALUES ((SELECT id FROM items WHERE plate_number = ?), ?, ?)";
@@ -238,12 +263,26 @@ public class BidDAO {
 
             if (rowsInserted > 0) {
                 System.out.println("✅ Đã lưu lịch sử đặt giá cho biển: " + plateNumber);
+
+                // ===================================================
+                // AUTO-EXTEND TIMER - Nếu bid trong 2 phút cuối
+                // ===================================================
+                int itemId = ItemDAO.getItemIdByPlate(plateNumber);
+                if (itemId != -1 && shouldExtendAuction(itemId)) {
+                    ItemDAO.extendAuctionTime(itemId, 2); // Extend 2 phút
+                    System.out.println("⏱️ AUTO-EXTEND: Timer được kéo dài 2 phút!");
+                    // 💡 WebSocket server sẽ broadcast TIMER_EXTENDED event (xem step 4)
+                }
+
+                return true;
             } else {
                 System.out.println("❌ Không thể lưu lịch sử đặt giá");
+                return false;
             }
 
         } catch (SQLException e) {
             System.out.println("❌ Lỗi saveBid: " + e.getMessage());
+            return false;
         }
     }
     // =====================================================================
@@ -317,6 +356,126 @@ public class BidDAO {
 
         } catch (SQLException e) {
             System.out.println("❌ Lỗi getLastBidTime: " + e.getMessage());
+        }
+
+        return 0;
+    }
+
+    // =====================================================================
+    // AUTO-EXTEND TIMER FEATURE
+    // =====================================================================
+
+    /**
+     * Kiểm tra xem phiên có cần auto-extend không
+     * Điều kiện: Nếu có bid trong 2 phút cuối (time remaining <= 120s) -> extend 2 phút
+     * @return true nếu cần extend, false nếu không
+     */
+    public static boolean shouldExtendAuction(int itemId) {
+        long timeRemaining = ItemDAO.getAuctionTimeRemainingSeconds(itemId);
+        final long AUTO_EXTEND_THRESHOLD = 120; // 2 phút
+        return timeRemaining > 0 && timeRemaining <= AUTO_EXTEND_THRESHOLD;
+    }
+
+    // =====================================================================
+    // PRICE HISTORY CHART - Real-time price trend visualization
+    // =====================================================================
+
+    /**
+     * Lấy lịch sử giá của một item để vẽ biểu đồ
+     * Includes bid timestamps and amounts for chart rendering
+     * @param itemId ID của item
+     * @return List<String[]> [ bidId, bidAmount, bidTime (formatted), bidderName ]
+     */
+    public static List<String[]> getBidHistoryForChart(int itemId) {
+        List<String[]> bidHistory = new ArrayList<>();
+
+        String sql = "SELECT b.id, b.bid_amount, b.bid_time, u.full_name " +
+                "FROM bids b " +
+                "JOIN users u ON b.user_id = u.id " +
+                "WHERE b.item_id = ? " +
+                "ORDER BY b.bid_time ASC";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    String formattedTime = rs.getTimestamp("bid_time").toString();
+                    // Trim to just HH:mm:ss for display
+                    if (formattedTime.length() > 8) {
+                        formattedTime = formattedTime.substring(11, 19);
+                    }
+
+                    bidHistory.add(new String[]{
+                            rs.getString("id"),
+                            String.valueOf(rs.getDouble("bid_amount")),
+                            formattedTime,
+                            rs.getString("full_name")
+                    });
+                }
+            }
+
+            System.out.println("✅ Đã tải " + bidHistory.size() + " bids cho biểu đồ giá");
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getBidHistoryForChart: " + e.getMessage());
+        }
+
+        return bidHistory;
+    }
+
+    /**
+     * Lấy giá cao nhất và thấp nhất để scale biểu đồ
+     * @param itemId ID của item
+     * @return double[] [ minPrice, maxPrice ]
+     */
+    public static double[] getPriceRangeForChart(int itemId) {
+        String sql = "SELECT MIN(bid_amount) as min_price, MAX(bid_amount) as max_price " +
+                "FROM bids WHERE item_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    double minPrice = rs.getDouble("min_price");
+                    double maxPrice = rs.getDouble("max_price");
+                    return new double[]{minPrice, maxPrice};
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getPriceRangeForChart: " + e.getMessage());
+        }
+
+        return new double[]{0, 0};
+    }
+
+    /**
+     * Lấy tổng số bids
+     * @param itemId ID của item
+     * @return số bids
+     */
+    public static int getBidCount(int itemId) {
+        String sql = "SELECT COUNT(*) FROM bids WHERE item_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getBidCount: " + e.getMessage());
         }
 
         return 0;

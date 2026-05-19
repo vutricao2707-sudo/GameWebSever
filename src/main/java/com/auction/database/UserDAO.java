@@ -399,4 +399,55 @@ public class UserDAO {
             );
         }
     }
+
+    /**
+     * Lấy User theo ID
+     */
+    public static User getUserById(int userId) {
+        String sql = "SELECT * FROM users WHERE id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                String username = rs.getString("username");
+                String fullName = rs.getString("full_name");
+                String password = rs.getString("password");
+                String email = rs.getString("email");
+                String phone = rs.getString("phone");
+                String address = rs.getString("address");
+                String userType = rs.getString("user_type");
+
+                if ("Seller".equalsIgnoreCase(userType) || "Admin".equalsIgnoreCase(userType)) {
+                    return new Seller(
+                            String.valueOf(userId),
+                            username,
+                            fullName,
+                            password,
+                            email,
+                            phone,
+                            address,
+                            5.0
+                    );
+                } else {
+                    return new Bidder(
+                            String.valueOf(userId),
+                            username,
+                            fullName,
+                            password,
+                            email,
+                            phone,
+                            address,
+                            0.0
+                    );
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getUserById: " + e.getMessage());
+        }
+        return null;
+    }
 }

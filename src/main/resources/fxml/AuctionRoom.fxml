@@ -11,6 +11,8 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.NumberAxis?>
 
 <StackPane prefHeight="720.0" prefWidth="1024.0"
            xmlns="http://javafx.com/javafx/25"
@@ -33,6 +35,11 @@
 
             <Label fx:id="lblParticipants" text="👥 0 người tham gia" textFill="#38bdf8" style="-fx-padding: 6 15; -fx-font-size: 14; -fx-font-weight: bold;">
             </Label>
+
+            <Region prefWidth="20.0"/>
+
+            <Button fx:id="btnWatchlist" onAction="#handleWatchlist" text="⭐ Theo dõi" textFill="WHITE" style="-fx-background-color: rgba(59, 130, 246, 0.3); -fx-border-color: #3b82f6; -fx-background-radius: 20; -fx-border-radius: 20; -fx-cursor: hand; -fx-padding: 6 15; -fx-font-size: 14; -fx-font-weight: bold;">
+            </Button>
 
             <Region prefWidth="20.0"/>
 
@@ -69,9 +76,27 @@
 
             <VBox spacing="25.0" prefWidth="450.0">
 
+                <!-- PRICE HISTORY CHART -->
                 <VBox style="-fx-background-color: rgba(15, 23, 42, 0.6); -fx-background-radius: 12; -fx-border-color: #334155; -fx-border-radius: 12;" VBox.vgrow="ALWAYS">
                     <HBox alignment="CENTER_LEFT" style="-fx-background-color: rgba(255,255,255,0.05); -fx-padding: 12 20; -fx-background-radius: 12 12 0 0; -fx-border-color: #334155; -fx-border-width: 0 0 1 0;">
-                        <Label text="Diễn biến cuộc đấu giá" textFill="#94a3b8"><font><Font name="System Bold" size="14.0"/></font></Label>
+                        <Label text="📊 Biểu đồ lịch sử giá" textFill="#94a3b8"><font><Font name="System Bold" size="14.0"/></font></Label>
+                        <Region HBox.hgrow="ALWAYS"/>
+                        <Label fx:id="lblBidCount" text="0 lần đặt" textFill="#38bdf8"><font><Font size="12.0"/></font></Label>
+                    </HBox>
+                    <LineChart fx:id="priceHistoryChart" createSymbols="true" style="-fx-background-color: transparent; -fx-text-fill: #94a3b8;" VBox.vgrow="ALWAYS">
+                        <xAxis>
+                            <NumberAxis label="Thứ tự đặt giá" side="BOTTOM" textFill="#94a3b8" tickLabelFill="#94a3b8"/>
+                        </xAxis>
+                        <yAxis>
+                            <NumberAxis label="Giá (đ)" side="LEFT" textFill="#94a3b8" tickLabelFill="#94a3b8"/>
+                        </yAxis>
+                    </LineChart>
+                </VBox>
+
+                <!-- LIVE HISTORY TEXT LOG -->
+                <VBox style="-fx-background-color: rgba(15, 23, 42, 0.6); -fx-background-radius: 12; -fx-border-color: #334155; -fx-border-radius: 12;" VBox.vgrow="ALWAYS">
+                    <HBox alignment="CENTER_LEFT" style="-fx-background-color: rgba(255,255,255,0.05); -fx-padding: 12 20; -fx-background-radius: 12 12 0 0; -fx-border-color: #334155; -fx-border-width: 0 0 1 0;">
+                        <Label text="📝 Diễn biến cuộc đấu giá" textFill="#94a3b8"><font><Font name="System Bold" size="14.0"/></font></Label>
                     </HBox>
                     <ScrollPane fitToWidth="true" style="-fx-background: transparent; -fx-background-color: transparent;" VBox.vgrow="ALWAYS">
                         <VBox fx:id="liveHistoryContainer" spacing="0"/>

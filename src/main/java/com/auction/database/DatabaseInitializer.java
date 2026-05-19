@@ -93,13 +93,38 @@ public class DatabaseInitializer {
             stmt.execute(createBids);
             System.out.println("✅ Bảng bids sẵn sàng");
 
+            // === BẢNG 5: WATCHLIST - Lưu danh sách theo dõi của người dùng ===
+            String createWatchlist = "CREATE TABLE IF NOT EXISTS watchlist (" +
+                    "  id INT PRIMARY KEY AUTO_INCREMENT," +
+                    "  user_id INT NOT NULL," +
+                    "  item_id INT NOT NULL," +
+                    "  plate_number VARCHAR(20)," +
+                    "  added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
+                    "  notification_sent BOOLEAN DEFAULT FALSE," +
+                    "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE," +
+                    "  FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE," +
+                    "  UNIQUE KEY unique_watchlist (user_id, item_id)" +
+                    ")";
+            stmt.execute(createWatchlist);
+            System.out.println("✅ Bảng watchlist sẵn sàng");
+
+            // Create indexes for watchlist
+            String createWatchlistIndexes = "CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlist(user_id);" +
+                    "CREATE INDEX IF NOT EXISTS idx_watchlist_item ON watchlist(item_id);" +
+                    "CREATE INDEX IF NOT EXISTS idx_watchlist_notification ON watchlist(notification_sent)";
+            try {
+                stmt.execute(createWatchlistIndexes);
+                System.out.println("✅ Indexes cho watchlist đã tạo");
+            } catch (SQLException ignored) {
+                // Some indexes might already exist, that's okay
+            }
+
             // =====================================================================
             // SEED TÀI KHOẢN ADMIN - Chỉ chạy một lần duy nhất khi DB còn trống.
             // INSERT IGNORE bỏ qua nếu username đã tồn tại (UNIQUE constraint).
             // Tài khoản này KHÔNG thể tạo qua giao diện đăng ký thông thường.
             // Thông tin đăng nhập: username=vpa_admin / password=Admin@2024!
             // =====================================================================
-            String hashedAdminPassword =
                     PasswordUtil.hashPassword("Admin@2024!");
             String seedAdmin =
                     "INSERT IGNORE INTO users " +

@@ -1,210 +1,274 @@
 package com.auction.database;
 
-import com.auction.model.Watchlist;
 import java.sql.*;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
- * WatchlistDAO - Quản lý watchlist trong database
- * Cung cấp các phương thức CRUD cho bảng watchlist
+ * WatchlistDAO - Quản lý danh sách theo dõi của người dùng
+ * Users có thể theo dõi các biển số chưa mở đấu giá
+ * Sẽ nhận thông báo tự động khi biển số vào giai đoạn đăng ký
  */
 public class WatchlistDAO {
-    private static final Logger logger = Logger.getLogger(WatchlistDAO.class.getName());
 
     /**
-     * Thêm biển số vào watchlist
+     * Thêm một item vào watchlist của user
+     * @param userId ID của user
+     * @param itemId ID của item (license plate)
+     * @return true nếu thêm thành công, false nếu đã tồn tại hoặc lỗi
      */
-    public static boolean addToWatchlist(int userId, String plateNumber) {
-        String sql = "INSERT INTO watchlist (user_id, plate_number, added_date, notified) VALUES (?, ?, ?, ?)";
+    public static boolean addToWatchlist(int userId, int itemId) {
+        String sql = "INSERT INTO watchlist (user_id, item_id, plate_number) " +
+                "SELECT ?, ?, plate_number FROM items WHERE id = ? " +
+                "ON DUPLICATE KEY UPDATE added_at = CURRENT_TIMESTAMP";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
+
             pstmt.setInt(1, userId);
-            pstmt.setString(2, plateNumber);
-            pstmt.setTimestamp(3, Timestamp.valueOf(LocalDateTime.now()));
-            pstmt.setBoolean(4, false);
-            
-            int rows = pstmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("✅ Thêm vào watchlist: userId=" + userId + ", plate=" + plateNumber);
+            pstmt.setInt(2, itemId);
+            pstmt.setInt(3, itemId);
+
+            int rowsInserted = pstmt.executeUpdate();
+            if (rowsInserted > 0) {
+                System.out.println("✅ Đã thêm item vào watchlist của user " + userId);
+                return true;
             }
-            return rows > 0;
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "❌ Lỗi thêm vào watchlist", e);
-            return false;
+            System.out.println("❌ Lỗi addToWatchlist: " + e.getMessage());
         }
+        return false;
     }
 
     /**
-     * Xóa biển số khỏi watchlist
+     * Xóa một item từ watchlist của user
+     * @param userId ID của user
+     * @param itemId ID của item
+     * @return true nếu xóa thành công
      */
-    public static boolean removeFromWatchlist(int userId, String plateNumber) {
-        String sql = "DELETE FROM watchlist WHERE user_id = ? AND plate_number = ?";
+    public static boolean removeFromWatchlist(int userId, int itemId) {
+        String sql = "DELETE FROM watchlist WHERE user_id = ? AND item_id = ?";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
+
             pstmt.setInt(1, userId);
-            pstmt.setString(2, plateNumber);
-            
-            int rows = pstmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("✅ Xóa khỏi watchlist: userId=" + userId + ", plate=" + plateNumber);
+            pstmt.setInt(2, itemId);
+
+            int rowsDeleted = pstmt.executeUpdate();
+            if (rowsDeleted > 0) {
+                System.out.println("✅ Đã xóa item khỏi watchlist của user " + userId);
+                return true;
             }
-            return rows > 0;
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "❌ Lỗi xóa khỏi watchlist", e);
-            return false;
+            System.out.println("❌ Lỗi removeFromWatchlist: " + e.getMessage());
         }
+        return false;
     }
 
     /**
-     * Lấy danh sách watchlist của một người dùng
+     * Kiểm tra xem user có theo dõi item này không
+     * @param userId ID của user
+     * @param itemId ID của item
+     * @return true nếu đang theo dõi
      */
-    public static List<Watchlist> getUserWatchlist(int userId) {
-        List<Watchlist> watchlist = new ArrayList<>();
-        String sql = "SELECT id, user_id, plate_number, added_date, notified FROM watchlist WHERE user_id = ? ORDER BY added_date DESC";
-        
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
-            pstmt.setInt(1, userId);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    Watchlist w = new Watchlist(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getString("plate_number"),
-                        rs.getTimestamp("added_date").toLocalDateTime(),
-                        rs.getBoolean("notified")
-                    );
-                    watchlist.add(w);
-                }
-                logger.info("✅ Lấy watchlist cho userId=" + userId + " (" + watchlist.size() + " items)");
-            }
-        } catch (SQLException e) {
-            logger.log(Level.SEVERE, "❌ Lỗi lấy watchlist", e);
-        }
-        
-        return watchlist;
-    }
+    public static boolean isInWatchlist(int userId, int itemId) {
+        String sql = "SELECT COUNT(*) FROM watchlist WHERE user_id = ? AND item_id = ?";
 
-    /**
-     * Kiểm tra xem biển số đã trong watchlist không
-     */
-    public static boolean isInWatchlist(int userId, String plateNumber) {
-        String sql = "SELECT COUNT(*) FROM watchlist WHERE user_id = ? AND plate_number = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
+
             pstmt.setInt(1, userId);
-            pstmt.setString(2, plateNumber);
-            
+            pstmt.setInt(2, itemId);
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1) > 0;
                 }
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "❌ Lỗi kiểm tra watchlist", e);
+            System.out.println("❌ Lỗi isInWatchlist: " + e.getMessage());
         }
-        
         return false;
     }
 
     /**
-     * Đánh dấu watchlist đã gửi thông báo
+     * Lấy danh sách tất cả watchlist items của một user
+     * @param userId ID của user
+     * @return List các item trong watchlist ([ id, plate_number, status, auction_status, added_at ])
      */
-    public static boolean markAsNotified(int watchlistId) {
-        String sql = "UPDATE watchlist SET notified = true WHERE id = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
-            pstmt.setInt(1, watchlistId);
-            int rows = pstmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("✅ Đánh dấu watchlist đã thông báo: id=" + watchlistId);
-            }
-            return rows > 0;
-        } catch (SQLException e) {
-            logger.log(Level.SEVERE, "❌ Lỗi cập nhật watchlist", e);
-            return false;
-        }
-    }
+    public static List<String[]> getUserWatchlist(int userId) {
+        List<String[]> watchlist = new ArrayList<>();
 
-    /**
-     * Lấy tất cả watchlist chưa gửi thông báo cho một biển số
-     * Dùng để gửi email khi biển số được duyệt
-     */
-    public static List<Watchlist> getUnnotifiedWatchlistForPlate(String plateNumber) {
-        List<Watchlist> watchlist = new ArrayList<>();
-        String sql = "SELECT id, user_id, plate_number, added_date, notified FROM watchlist WHERE plate_number = ? AND notified = false";
-        
+        String sql = "SELECT w.id, w.item_id, i.plate_number, i.status, i.auction_status, " +
+                "i.current_price, i.start_price, w.added_at, w.notification_sent " +
+                "FROM watchlist w " +
+                "JOIN items i ON w.item_id = i.id " +
+                "WHERE w.user_id = ? " +
+                "ORDER BY w.added_at DESC";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
-            pstmt.setString(1, plateNumber);
+
+            pstmt.setInt(1, userId);
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    Watchlist w = new Watchlist(
-                        rs.getInt("id"),
-                        rs.getInt("user_id"),
-                        rs.getString("plate_number"),
-                        rs.getTimestamp("added_date").toLocalDateTime(),
-                        rs.getBoolean("notified")
-                    );
-                    watchlist.add(w);
+                    watchlist.add(new String[]{
+                            rs.getString("id"),              // [0] watchlist id
+                            rs.getString("item_id"),         // [1] item id
+                            rs.getString("plate_number"),    // [2] biển số
+                            rs.getString("status"),          // [3] status (PENDING, APPROVED, etc)
+                            rs.getString("auction_status"),  // [4] auction status (WAITING, REGISTRATION, AUCTION, CLOSED)
+                            rs.getString("current_price"),   // [5] giá hiện tại
+                            rs.getString("start_price"),     // [6] giá khởi điểm
+                            rs.getTimestamp("added_at").toString(), // [7] ngày thêm vào
+                            rs.getString("notification_sent") // [8] đã gửi thông báo chưa
+                    });
                 }
-                logger.info("✅ Lấy watchlist chưa thông báo cho plate=" + plateNumber + " (" + watchlist.size() + " items)");
             }
+
+            System.out.println("✅ Đã tải " + watchlist.size() + " watchlist items cho user " + userId);
+
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "❌ Lỗi lấy watchlist chưa thông báo", e);
+            System.out.println("❌ Lỗi getUserWatchlist: " + e.getMessage());
         }
-        
+
         return watchlist;
     }
 
     /**
-     * Xóa watchlist khi biển số đã kết thúc
+     * Lấy danh sách items trong watchlist đang ở trạng thái REGISTRATION
+     * chưa được gửi thông báo
+     * @param userId ID của user
+     * @return List các item cần thông báo
      */
-    public static boolean clearWatchlistForPlate(String plateNumber) {
-        String sql = "DELETE FROM watchlist WHERE plate_number = ?";
+    public static List<String[]> getPendingNotifications(int userId) {
+        List<String[]> pending = new ArrayList<>();
+
+        String sql = "SELECT w.id, w.item_id, i.plate_number, i.vehicle_type, i.seller_name " +
+                "FROM watchlist w " +
+                "JOIN items i ON w.item_id = i.id " +
+                "WHERE w.user_id = ? " +
+                "AND w.notification_sent = FALSE " +
+                "AND i.auction_status = 'REGISTRATION'";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
-            pstmt.setString(1, plateNumber);
-            int rows = pstmt.executeUpdate();
-            if (rows > 0) {
-                logger.info("✅ Xóa watchlist cho plate=" + plateNumber + " (" + rows + " rows)");
+
+            pstmt.setInt(1, userId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    pending.add(new String[]{
+                            rs.getString("id"),          // [0] watchlist id
+                            rs.getString("item_id"),     // [1] item id
+                            rs.getString("plate_number"), // [2] biển số
+                            rs.getString("vehicle_type"), // [3] loại xe
+                            rs.getString("seller_name")  // [4] tên người bán
+                    });
+                }
             }
-            return rows > 0;
+
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "❌ Lỗi xóa watchlist cho plate", e);
-            return false;
+            System.out.println("❌ Lỗi getPendingNotifications: " + e.getMessage());
+        }
+
+        return pending;
+    }
+
+    /**
+     * Đánh dấu một thông báo là đã gửi
+     * @param watchlistId ID của watchlist entry
+     */
+    public static void markNotificationAsSent(int watchlistId) {
+        String sql = "UPDATE watchlist SET notification_sent = TRUE WHERE id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, watchlistId);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi markNotificationAsSent: " + e.getMessage());
         }
     }
 
     /**
-     * Lấy số lượng watchlist của người dùng
+     * Xóa watchlist items khi item bị xóa từ hệ thống
+     * @param itemId ID của item
+     */
+    public static void deleteWatchlistByItemId(int itemId) {
+        String sql = "DELETE FROM watchlist WHERE item_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+            int rowsDeleted = pstmt.executeUpdate();
+
+            if (rowsDeleted > 0) {
+                System.out.println("✅ Đã xóa " + rowsDeleted + " watchlist entries cho item " + itemId);
+            }
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi deleteWatchlistByItemId: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Lấy số lượng items trong watchlist
+     * @param userId ID của user
+     * @return số lượng items
      */
     public static int getWatchlistCount(int userId) {
         String sql = "SELECT COUNT(*) FROM watchlist WHERE user_id = ?";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            
+
             pstmt.setInt(1, userId);
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1);
                 }
             }
+
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "❌ Lỗi đếm watchlist", e);
+            System.out.println("❌ Lỗi getWatchlistCount: " + e.getMessage());
         }
+
         return 0;
+    }
+
+    /**
+     * Lấy danh sách users có theo dõi một item cụ thể
+     * @param itemId ID của item
+     * @return List các user IDs
+     */
+    public static List<Integer> getUsersWatchingItem(int itemId) {
+        List<Integer> userIds = new ArrayList<>();
+
+        String sql = "SELECT DISTINCT user_id FROM watchlist WHERE item_id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    userIds.add(rs.getInt("user_id"));
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getUsersWatchingItem: " + e.getMessage());
+        }
+
+        return userIds;
     }
 }
 

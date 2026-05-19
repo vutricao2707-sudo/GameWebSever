@@ -348,6 +348,24 @@ public class ItemDAO {
         }
     }
 
+    /**
+     * Cập nhật giá theo itemId (overload)
+     */
+    public static void updateCurrentPrice(int itemId, double newPrice) {
+        String sql = "UPDATE items SET current_price = ? WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setDouble(1, newPrice);
+            pstmt.setInt(2, itemId);
+            if (pstmt.executeUpdate() > 0) {
+                System.out.println("✅ Cập nhật giá (itemId=" + itemId + ") thành công");
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi updateCurrentPrice: " + e.getMessage());
+        }
+    }
+
     // =====================================================================
     // 4. QUẢN LÝ THỜI GIAN VÀ NGƯỜI THAM GIA ĐẤU GIÁ
     // =====================================================================
@@ -448,7 +466,7 @@ public class ItemDAO {
             return ps.executeUpdate() > 0;
 
         } catch (SQLException e) {
-            System.out.println("❌ Lỗi finishAuction: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
@@ -642,7 +660,7 @@ public class ItemDAO {
             }
 
         } catch (Exception e) {
-            System.out.println("❌ Lỗi getItemIdByPlate: " + e.getMessage());
+            e.printStackTrace();
         }
         return -1;
     }
@@ -658,11 +676,59 @@ public class ItemDAO {
             return ps.executeUpdate() > 0;
 
         } catch (SQLException e) {
-            System.out.println("❌ Lỗi updateStatus: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
 
-    public static void finishAuction(String currentPlateNumber) {
+    // =====================================================================
+    // AUTO-EXTEND TIMER FEATURE
+    // =====================================================================
+
+    /**
+     * Kéo dài thời gian đấu giá thêm @minutes phút
+     * @return true nếu extend thành công
+     */
+    public static boolean extendAuctionTime(int itemId, int minutes) {
+        String sql = "UPDATE items SET auction_end_time = DATE_ADD(auction_end_time, INTERVAL ? MINUTE) " +
+                "WHERE id = ? AND auction_status = 'AUCTION'";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, minutes);
+            pstmt.setInt(2, itemId);
+
+            int result = pstmt.executeUpdate();
+            if (result > 0) {
+                System.out.println("⏱️ AUTO-EXTEND: Phiên item " + itemId + " được kéo dài " + minutes + " phút");
+                return true;
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi extendAuctionTime: " + e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * Lấy thời gian còn lại (chỉ tính để check xem có nên extend không)
+     * @return thời gian còn lại tính bằng seconds
+     */
+    public static long getAuctionTimeRemainingSeconds(int itemId) {
+        String sql = "SELECT UNIX_TIMESTAMP(auction_end_time) - UNIX_TIMESTAMP(NOW()) AS remaining " +
+                "FROM items WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return Math.max(rs.getLong("remaining"), 0);
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getAuctionTimeRemainingSeconds: " + e.getMessage());
+        }
+        return 0;
     }
 }
+
