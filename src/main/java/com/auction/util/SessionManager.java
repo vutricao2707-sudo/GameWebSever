@@ -9,7 +9,7 @@ import com.auction.model.User;
 public enum SessionManager {
     INSTANCE;
 
-    private User currentUser;
+    private static User currentUser;
 
     /**
      * Getter singleton - để tương thích với Singleton pattern gọi
@@ -26,7 +26,7 @@ public enum SessionManager {
         return currentUser;
     }
 
-    public static void logout() {
+    public void logout() {
         this.currentUser = null;
     }
 }
