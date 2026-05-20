@@ -535,9 +535,9 @@ public class DashboardController {
         }
     }
 
-    // =========================================================================
+    // ========================================================================
     // DIALOG CHI TIẾT SẢN PHẨM
-    // =========================================================================
+    // ========================================================================
 
     private void showProductDetails(String plate, String fullName, String address,
                                     String phone, String email, String price) {

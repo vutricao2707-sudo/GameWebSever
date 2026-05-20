@@ -519,7 +519,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     }
 
     /**
-     * Cập nhật trạng thái button theo dõi khi load trang
+      Cập nhật trạng thái button theo dõi khi load trang
      */
     private void updateWatchlistButtonState() {
         logger.info("📍 [AuctionRoom] updateWatchlistButtonState() called");
