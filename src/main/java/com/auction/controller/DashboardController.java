@@ -419,20 +419,106 @@ public class DashboardController {
     // =========================================================================
 
     private void enterAuctionRoom(ActionEvent event, String plate, String stringPrice) {
+        logger.info("📍 [Dashboard] Bắt đầu enter auction room - Plate: " + plate);
+        
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AuctionRoom.fxml"));
-            Parent root = loader.load();
+            // Validate input
+            if (plate == null || plate.trim().isEmpty()) {
+                logger.log(Level.WARNING, "Biển số không hợp lệ");
+                showInfo("Lỗi", "Biển số không hợp lệ");
+                return;
+            }
+            
+            if (stringPrice == null || stringPrice.trim().isEmpty()) {
+                logger.log(Level.WARNING, "Giá không hợp lệ");
+                showInfo("Lỗi", "Giá không hợp lệ");
+                return;
+            }
 
+            // Parse price
             double startingPrice = parsePrice(stringPrice);
+            logger.info("✅ [Dashboard] Giá khởi điểm: " + startingPrice);
 
+            // Load FXML
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AuctionRoom.fxml"));
+            if (loader.getLocation() == null) {
+                logger.log(Level.SEVERE, "Không tìm thấy file AuctionRoom.fxml");
+                showInfo("Lỗi", "Không tìm thấy giao diện phòng đấu giá");
+                return;
+            }
+
+             Parent root;
+            try {
+                root = loader.load();
+                logger.info("✅ [Dashboard] FXML loaded thành công");
+            } catch (IOException eLoad) {
+                // Log chi tiết exception
+                logger.log(Level.SEVERE, "❌ Lỗi load FXML AuctionRoom", eLoad);
+                logger.log(Level.SEVERE, "Exception type: " + eLoad.getClass().getName());
+                logger.log(Level.SEVERE, "Exception message: " + eLoad.getMessage());
+                
+                // Log cause nếu có
+                Throwable cause = eLoad.getCause();
+                if (cause != null) {
+                    logger.log(Level.SEVERE, "Caused by: " + cause.getClass().getName() + " - " + cause.getMessage());
+                }
+                
+                // Show Alert
+                String errorMsg = eLoad.getMessage();
+                if (errorMsg == null) {
+                    errorMsg = eLoad.getClass().getSimpleName();
+                }
+                showInfo("Lỗi tải giao diện", "Không thể tải phòng đấu giá:\n" + errorMsg);
+                return;
+            }
+
+            // Get controller
             AuctionRoomController roomController = loader.getController();
-            roomController.setAuctionRoomData(plate, startingPrice);
+            if (roomController == null) {
+                logger.log(Level.SEVERE, "AuctionRoomController là null");
+                showInfo("Lỗi", "Không thể khởi tạo controller");
+                return;
+            }
+            logger.info("✅ [Dashboard] Controller initialized");
 
-            ((Node) event.getSource()).getScene().setRoot(root);
+            // Get scene and set root
+            Node sourceNode = (Node) event.getSource();
+            if (sourceNode == null) {
+                logger.log(Level.SEVERE, "Source node là null");
+                showInfo("Lỗi", "Không thể xác định nguồn event");
+                return;
+            }
 
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, "Lỗi khi mở phòng đấu giá", e);
-            showInfo("Lỗi hệ thống", "Không thể tải phòng đấu giá.");
+            Scene currentScene = sourceNode.getScene();
+            if (currentScene == null) {
+                logger.log(Level.SEVERE, "Current scene là null");
+                showInfo("Lỗi", "Không thể xác định scene hiện tại");
+                return;
+            }
+
+            // Set room data and navigate
+            try {
+                roomController.setAuctionRoomData(plate, startingPrice);
+                logger.info("✅ [Dashboard] setAuctionRoomData() thành công");
+            } catch (Exception eSetData) {
+                logger.log(Level.SEVERE, "Lỗi setAuctionRoomData", eSetData);
+                showInfo("Lỗi dữ liệu", "Không thể tải dữ liệu phòng: " + eSetData.getMessage());
+                return;
+            }
+
+            // Navigate to room
+            try {
+                currentScene.setRoot(root);
+                logger.info("✅ [Dashboard] Điều hướng tới phòng đấu giá thành công");
+            } catch (Exception eSetRoot) {
+                logger.log(Level.SEVERE, "Lỗi setRoot", eSetRoot);
+                showInfo("Lỗi hiển thị", "Không thể hiển thị phòng đấu giá");
+                return;
+            }
+
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Lỗi không mong đợi khi mở phòng đấu giá", e);
+            showInfo("Lỗi hệ thống", "Có lỗi xảy ra: " + e.getMessage());
         }
     }
 
