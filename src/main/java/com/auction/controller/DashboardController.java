@@ -525,9 +525,12 @@ public class DashboardController {
     private double parsePrice(String rawPrice) {
         try {
             String clean = rawPrice.replaceAll("[^\\d]", "");
-            return clean.isEmpty() ? 0.0 : Double.parseDouble(clean);
+            double price = clean.isEmpty() ? 0.0 : Double.parseDouble(clean);
+            System.out.println("🔍 DEBUG parsePrice: rawPrice='" + rawPrice + "' -> clean='" + clean + "' -> price=" + price);
+            return price;
         } catch (NumberFormatException e) {
             logger.log(Level.WARNING, "Không thể đọc giá trị: " + rawPrice, e);
+            System.out.println("❌ DEBUG parsePrice failed: " + rawPrice);
             return 0.0;
         }
     }

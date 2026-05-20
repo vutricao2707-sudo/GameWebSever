@@ -597,11 +597,14 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     // Hàm này sẽ được gọi từ Dashboard truyền sang tất cả thông tin từ database
     public void setAuctionRoomData(String plate, double startingPrice) {
         logger.info("📍 [AuctionRoom] setAuctionRoomData() - Plate: " + plate + ", Start price: " + startingPrice);
+        System.out.println("🔍 DEBUG: Received plate = '" + plate + "'");
+        System.out.println("🔍 DEBUG: Received startingPrice = " + startingPrice);
         
         try {
             // ====================== Validate Input ======================
             if (plate == null || plate.trim().isEmpty()) {
                 logger.log(Level.SEVERE, "Plate number là null hoặc rỗng");
+                System.out.println("❌ Plate is null or empty!");
                 showAlert("Lỗi", "Biển số không hợp lệ");
                 return;
             }
@@ -636,6 +639,50 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
             String auctionStatus = itemData[9];
             logger.info("ℹ️  [AuctionRoom] Auction status: " + auctionStatus);
+
+            // ====================== Display Plate Number (TRƯỚC khi check status) ======================
+            try {
+                if (lblPlateTop == null) {
+                    logger.log(Level.SEVERE, "lblPlateTop là null");
+                    showAlert("Lỗi UI", "Các thành phần giao diện chưa được khởi tạo");
+                    return;
+                }
+                if (lblPlateBottom == null) {
+                    logger.log(Level.SEVERE, "lblPlateBottom là null");
+                    showAlert("Lỗi UI", "Các thành phần giao diện chưa được khởi tạo");
+                    return;
+                }
+
+                String plateTop = "";
+                String plateBottom = "";
+
+                if (plate.contains("-")) {
+                    // Biển số có dấu "-" như "36-C1"
+                    String[] parts = plate.split("-");
+                    plateTop = (parts.length > 0) ? parts[0].trim() : "";
+                    plateBottom = (parts.length > 1) ? parts[1].trim() : "";
+                } else {
+                    // Biển số không có dấu "-" như "36C1"
+                    // Lấy 2 ký tự đầu làm phần trên, phần còn lại làm phần dưới
+                    if (plate.length() >= 2) {
+                        plateTop = plate.substring(0, 2);
+                        plateBottom = plate.substring(2);
+                    } else {
+                        plateTop = plate;
+                        plateBottom = "";
+                    }
+                }
+                
+                System.out.println("🔍 DEBUG: plateTop = '" + plateTop + "', plateBottom = '" + plateBottom + "'");
+                lblPlateTop.setText(plateTop);
+                lblPlateBottom.setText(plateBottom);
+                System.out.println("✅ DEBUG: Labels updated successfully");
+                logger.info("✅ [AuctionRoom] Biển số displayed: " + plateTop + " - " + plateBottom);
+            } catch (Exception ePlate) {
+                logger.log(Level.SEVERE, "Lỗi display plate", ePlate);
+                showAlert("Lỗi", "Không thể hiển thị biển số");
+                return;
+            }
 
             // ====================== Check Auction Status ======================
             if ("REGISTRATION".equalsIgnoreCase(auctionStatus)) {
@@ -686,32 +733,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             if (currentItemId == -1) {
                 logger.log(Level.WARNING, "Không tìm được item ID cho plate: " + plate);
                 showAlert("Lỗi", "Không thể xác định item ID");
-                return;
-            }
-
-            // ====================== Display Plate Number ======================
-            try {
-                if (lblPlateTop == null) {
-                    logger.log(Level.SEVERE, "lblPlateTop là null");
-                    showAlert("Lỗi UI", "Các thành phần giao diện chưa được khởi tạo");
-                    return;
-                }
-                if (lblPlateBottom == null) {
-                    logger.log(Level.SEVERE, "lblPlateBottom là null");
-                    showAlert("Lỗi UI", "Các thành phần giao diện chưa được khởi tạo");
-                    return;
-                }
-
-                String[] parts = plate.split("-");
-                String plateTop = (parts.length > 0) ? parts[0] : plate;
-                String plateBottom = (parts.length > 1) ? parts[1] : "";
-                
-                lblPlateTop.setText(plateTop);
-                lblPlateBottom.setText(plateBottom);
-                logger.info("✅ [AuctionRoom] Biển số displayed: " + plateTop + " - " + plateBottom);
-            } catch (Exception ePlate) {
-                logger.log(Level.SEVERE, "Lỗi display plate", ePlate);
-                showAlert("Lỗi", "Không thể hiển thị biển số");
                 return;
             }
 
