@@ -499,4 +499,35 @@ public class BidDAO {
 
         return 0;
     }
+    /**
+     * Kiểm tra lần đặt giá cuối cùng của user cho một item
+     * @param itemId ID của item
+     * @param userId ID của user
+     * @return Unix timestamp của lần đặt giá cuối, hoặc 0 nếu không có
+     */
+    public static long getLastBidTimeForUser(int itemId, int userId) {
+        String sql = "SELECT UNIX_TIMESTAMP(bid_time) " +
+                "FROM bids " +
+                "WHERE item_id = ? " +
+                "AND user_id = ? " +
+                "ORDER BY bid_time DESC LIMIT 1";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, itemId);
+            pstmt.setInt(2, userId);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+            }
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getLastBidTimeForUser: " + e.getMessage());
+        }
+
+        return 0;
+    }
 }

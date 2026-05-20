@@ -160,6 +160,14 @@ public class ClientHandler implements Runnable {
             int itemId = request.getInt("itemId");
             int userId = request.getInt("userId");  // Lấy user ID từ client
             double amount = request.getDouble("amount");
+            long lastBid = BidDAO.getLastBidTimeForUser(itemId, userId);
+            long now = System.currentTimeMillis() / 1000;
+
+            if (now - lastBid < 60) {
+                response.put("status", "error");
+                response.put("message", "Phải chờ 60 giây giữa các lần đặt giá");
+                return;
+            }
 
             //  LƯU VÀO DATABASE (sử dụng saveBid cho validation + auto-extend)
             BidDAO.addBid(itemId, userId, amount);
