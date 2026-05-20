@@ -195,20 +195,21 @@ public class BidDAO {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            ResultSet rs = pstmt.executeQuery();
+            try (ResultSet rs = pstmt.executeQuery()) {
+                int stt = 1;
+                while (rs.next()) {
+                    bids.add(new String[]{
+                            String.valueOf(stt++),
+                            rs.getString("plate_number"),
 
-            int stt = 1;
-            while (rs.next()) {
-                bids.add(new String[]{
-                        String.valueOf(stt++),
-                        rs.getString("plate_number"),
+                            // 2. Lấy dữ liệu từ cột bid_amount thay vì amount
+                            String.valueOf(rs.getDouble("bid_amount")),
 
-                        // 2. Lấy dữ liệu từ cột bid_amount thay vì amount
-                        String.valueOf(rs.getDouble("bid_amount")),
-
-                        rs.getTimestamp("bid_time").toString()
-                });
+                            rs.getTimestamp("bid_time").toString()
+                    });
+                }
             }
+
 
         } catch (SQLException e) {
             // In ra lỗi chi tiết nếu có để dễ debug
@@ -305,25 +306,43 @@ public class BidDAO {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setInt(1, userId);
-            ResultSet rs = pstmt.executeQuery();
 
-            int stt = 1;
-            while (rs.next()) {
-                // Định dạng lại thời gian cho đẹp (bỏ phần .0 ở cuối nếu có)
-                String rawTime = rs.getTimestamp("bid_time").toString();
-                String formattedTime = rawTime.substring(0, Math.min(19, rawTime.length()));
+            try (ResultSet rs = pstmt.executeQuery()) {
 
-                bids.add(new String[]{
-                        String.valueOf(stt++),                  // [0] STT hiển thị
-                        rs.getString("plate_number"),           // [1] Biển số
-                        String.valueOf(rs.getDouble("bid_amount")), // [2] Giá tiền
-                        formattedTime                           // [3] Thời gian đã format
-                });
+                int stt = 1;
+
+                while (rs.next()) {
+
+                    bids.add(new String[]{
+
+                            String.valueOf(stt++),
+
+                            rs.getString("plate_number"),
+
+                            String.valueOf(rs.getDouble("bid_amount")),
+
+                            rs.getTimestamp("bid_time").toString()
+                    });
+                }
+
+                if (stt > 1) {
+
+                    System.out.println(
+                            "✅ Đã tải " + (stt - 1)
+                                    + " dòng lịch sử cho User ID: "
+                                    + userId
+                    );
+
+                } else {
+
+                    System.out.println(
+                            "ℹ️ User ID "
+                                    + userId
+                                    + " chưa có lịch sử đặt giá nào."
+                    );
+                }
             }
 
-            if (stt > 1) {
-                System.out.println("✅ Đã tải " + (stt-1) + " dòng lịch sử cho User ID: " + userId);
-            }
 
         } catch (SQLException e) {
             System.out.println("❌ Lỗi lấy lịch sử cá nhân: " + e.getMessage());

@@ -647,21 +647,29 @@ public class ItemDAO {
         return result;
     }
     public static int getItemIdByPlate(String plate) {
+
         String sql = "SELECT id FROM items WHERE plate_number = ?";
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (
+                Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)
+        ) {
 
             ps.setString(1, plate);
-            ResultSet rs = ps.executeQuery();
 
-            if (rs.next()) {
-                return rs.getInt("id");
+            try (ResultSet rs = ps.executeQuery()) {
+
+                if (rs.next()) {
+
+                    return rs.getInt("id");
+                }
             }
 
         } catch (Exception e) {
+
             e.printStackTrace();
         }
+
         return -1;
     }
     public static boolean updateStatus(int itemId, String status) {
@@ -728,6 +736,59 @@ public class ItemDAO {
         } catch (SQLException e) {
             System.out.println("❌ Lỗi getAuctionTimeRemainingSeconds: " + e.getMessage());
         }
+        return 0;
+    }
+    public static boolean updateCurrentPriceIfHigher(
+            String plateNumber,
+            double oldPrice,
+            double newPrice
+    ) {
+
+        String sql =
+                "UPDATE items " +
+                        "SET current_price = ? " +
+                        "WHERE plate_number = ? " +
+                        "AND current_price = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setDouble(1, newPrice);
+            ps.setString(2, plateNumber);
+            ps.setDouble(3, oldPrice);
+
+            int rows = ps.executeUpdate();
+
+            return rows > 0;
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    public static double getCurrentPrice(String plateNumber) {
+
+        String sql =
+                "SELECT current_price " +
+                        "FROM items " +
+                        "WHERE plate_number = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, plateNumber);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getDouble("current_price");
+                }
+            }
+
+        } catch (SQLException e) {
+
+            e.printStackTrace();
+        }
+
         return 0;
     }
 }

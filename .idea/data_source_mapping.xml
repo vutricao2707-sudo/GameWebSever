@@ -2,6 +2,6 @@
 <project version="4">
   <component name="DataSourcePerFileMappings">
     <file url="file://$PROJECT_DIR$/MIGRATION_TIMING_SYSTEM.sql" value="da6c6729-ebd7-43ae-a2a5-b783f3fa40ae" />
-    <file url="file://$PROJECT_DIR$/src/main/java/com/auction/database/BidDAO.java" value="da6c6729-ebd7-43ae-a2a5-b783f3fa40ae" />
+    <file url="file://$PROJECT_DIR$/src/main/java/com/auction/database/BidDAO.java" value="15ce9a25-50d1-4d13-ab1e-ace68479d099" />
   </component>
 </project>

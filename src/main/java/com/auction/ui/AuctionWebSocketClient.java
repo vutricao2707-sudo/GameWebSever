@@ -17,7 +17,7 @@ public class AuctionWebSocketClient extends WebSocketClient {
     private static AuctionWebSocketClient instance;
     private final List<AuctionWebSocketListener> listeners = new CopyOnWriteArrayList<>();
     private boolean isConnected = false;
-
+    private boolean isReconnecting = false;
     public interface AuctionWebSocketListener {
         void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName);
         void onParticipantUpdate(int itemId, int participantCount);
@@ -35,24 +35,86 @@ public class AuctionWebSocketClient extends WebSocketClient {
      * Singleton - lấy hoặc tạo instance
      */
     public static synchronized AuctionWebSocketClient getInstance() {
-        if (instance == null || !instance.isConnected) {
-            try {
-                instance = new AuctionWebSocketClient("ws://localhost:8081");
+
+        try {
+
+            // =========================================
+            // CHƯA CÓ INSTANCE
+            // =========================================
+
+            if (instance == null) {
+
+                instance =
+                        new AuctionWebSocketClient(
+                                "ws://localhost:8081"
+                        );
+
                 instance.connect();
-            } catch (URISyntaxException e) {
-                e.printStackTrace();
+
+                System.out.println(
+                        "✅ WebSocket instance created"
+                );
             }
+
+            // =========================================
+            // MẤT KẾT NỐI → RECONNECT
+            // =========================================
+
+            else if (!instance.isConnected
+                    && !instance.isReconnecting) {
+
+                instance.isReconnecting = true;
+
+                System.out.println(
+                        "♻️ WebSocket reconnecting..."
+                );
+
+                instance.reconnect();
+            }
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
         }
+
         return instance;
     }
 
     @Override
-    public void onOpen(ServerHandshake handshakedata) {
-        System.out.println("✅ WebSocket UI Client kết nối thành công");
-        isConnected = true;
-        listeners.forEach(AuctionWebSocketListener::onConnected);
-    }
+    public void onClose(
+            int code,
+            String reason,
+            boolean remote
+    ) {
 
+        isConnected = false;
+
+        isReconnecting = false;
+
+        System.out.println(
+                "❌ WebSocket disconnected: " + reason
+        );
+
+        for (AuctionWebSocketListener listener : listeners) {
+            listener.onDisconnected();
+        }
+    }
+    @Override
+    public void onOpen(ServerHandshake handshake) {
+
+        isConnected = true;
+
+        isReconnecting = false;
+
+        System.out.println(
+                "✅ WebSocket connected"
+        );
+
+        for (AuctionWebSocketListener listener : listeners) {
+
+            listener.onConnected();
+        }
+    }
     /**
      * Nhận message từ server
      */
@@ -99,13 +161,6 @@ public class AuctionWebSocketClient extends WebSocketClient {
     }
 
     @Override
-    public void onClose(int code, String reason, boolean remote) {
-        System.out.println("❌ WebSocket UI Client mất kết nối");
-        isConnected = false;
-        listeners.forEach(AuctionWebSocketListener::onDisconnected);
-    }
-
-    @Override
     public void onError(Exception ex) {
         System.err.println("⚠️ WebSocket Client error: " + ex.getMessage());
         ex.printStackTrace();
@@ -143,9 +198,16 @@ public class AuctionWebSocketClient extends WebSocketClient {
      * Đăng ký listener để nhận updates
      */
     public void addListener(AuctionWebSocketListener listener) {
-        listeners.add(listener);
-    }
 
+        if (!listeners.contains(listener)) {
+
+            listeners.add(listener);
+
+            System.out.println(
+                    "✅ Listener added"
+            );
+        }
+    }
     /**
      * Bỏ đăng ký listener
      */

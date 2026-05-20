@@ -38,9 +38,10 @@ public class UserDAO {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, username.trim().toLowerCase()); // Cải tiến: Tránh lỗi dư dấu cách
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
             }
         } catch (SQLException e) {
             System.out.println("❌ Lỗi kiểm tra username: " + e.getMessage());
@@ -107,55 +108,54 @@ public class UserDAO {
                     2,
                     hashedPassword
             );
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
 
-            ResultSet rs = pstmt.executeQuery();
+                    String userId =
+                            String.valueOf(rs.getInt("id"));
 
-            if (rs.next()) {
+                    String fullName =
+                            rs.getString("full_name");
 
-                String userId =
-                        String.valueOf(rs.getInt("id"));
+                    String email =
+                            rs.getString("email");
 
-                String fullName =
-                        rs.getString("full_name");
+                    String phone =
+                            rs.getString("phone");
 
-                String email =
-                        rs.getString("email");
+                    String address =
+                            rs.getString("address");
 
-                String phone =
-                        rs.getString("phone");
+                    String userType =
+                            rs.getString("user_type");
 
-                String address =
-                        rs.getString("address");
+                    if ("Seller".equalsIgnoreCase(userType)
+                            || "Admin".equalsIgnoreCase(userType)) {
 
-                String userType =
-                        rs.getString("user_type");
+                        return new Seller(
+                                userId,
+                                username,
+                                fullName,
+                                hashedPassword,
+                                email,
+                                phone,
+                                address,
+                                5.0
+                        );
 
-                if ("Seller".equalsIgnoreCase(userType)
-                        || "Admin".equalsIgnoreCase(userType)) {
+                    } else {
 
-                    return new Seller(
-                            userId,
-                            username,
-                            fullName,
-                            hashedPassword,
-                            email,
-                            phone,
-                            address,
-                            5.0
-                    );
-
-                } else {
-
-                    return new Bidder(
-                            userId,
-                            username,
-                            fullName,
-                            hashedPassword,
-                            email,
-                            phone,
-                            address,
-                            0.0
-                    );
+                        return new Bidder(
+                                userId,
+                                username,
+                                fullName,
+                                hashedPassword,
+                                email,
+                                phone,
+                                address,
+                                0.0
+                        );
+                    }
                 }
             }
 
@@ -176,18 +176,18 @@ public class UserDAO {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username.trim().toLowerCase());
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                System.out.println("\n📌 Thông tin user:");
-                System.out.println("  ID: "       + rs.getInt("id"));
-                System.out.println("  Username: " + rs.getString("username"));
-                System.out.println("  Email: "    + rs.getString("email"));
-                System.out.println("  Tên: "      + rs.getString("full_name"));
-                System.out.println("  Loại: "     + rs.getString("user_type"));
-                System.out.println("  SĐT: "      + rs.getString("phone") + "\n");
-            } else {
-                System.out.println("❌ Không tìm thấy user '" + username + "'");
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    System.out.println("\n📌 Thông tin user:");
+                    System.out.println("  ID: "       + rs.getInt("id"));
+                    System.out.println("  Username: " + rs.getString("username"));
+                    System.out.println("  Email: "    + rs.getString("email"));
+                    System.out.println("  Tên: "      + rs.getString("full_name"));
+                    System.out.println("  Loại: "     + rs.getString("user_type"));
+                    System.out.println("  SĐT: "      + rs.getString("phone") + "\n");
+                } else {
+                    System.out.println("❌ Không tìm thấy user '" + username + "'");
+                }
             }
 
         } catch (SQLException e) {
@@ -258,10 +258,9 @@ public class UserDAO {
             System.out.println(
                     "HASHED: " + hashedPassword
             );
-            ResultSet rs = pstmt.executeQuery();
-
-            return rs.next();
-
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
         } catch (SQLException e) {
 
             System.out.println(
@@ -352,10 +351,10 @@ public class UserDAO {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, username.trim().toLowerCase());
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return rs.getString("user_type"); // Sẽ trả về "ADMIN" hoặc "USER"
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("user_type"); // Sẽ trả về "ADMIN" hoặc "USER"
+                }
             }
         } catch (SQLException e) {
             System.out.println("❌ Lỗi lấy quyền: " + e.getMessage());
