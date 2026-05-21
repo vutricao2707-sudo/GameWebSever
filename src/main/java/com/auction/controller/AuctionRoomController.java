@@ -2,7 +2,6 @@ package com.auction.controller;
 
 import com.auction.database.BidDAO;
 import com.auction.database.ItemDAO;
-import com.auction.database.WatchlistDAO;
 import com.auction.ui.AuctionWebSocketClient;
 import com.auction.util.SessionManager;
 import javafx.animation.KeyFrame;
@@ -45,7 +44,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     @FXML private VBox liveHistoryContainer;
     @FXML private Label lblCurrentPrice, lblStepMultiplier;
     @FXML private Button btnPlaceBid;
-    @FXML private Button btnWatchlist;  // Nút theo dõi
     @FXML private Label lblParticipants;  // Hiển thị số người tham gia
     @FXML private LineChart<Number, Number> priceHistoryChart;  // Biểu đồ lịch sử giá
     @FXML private Label lblBidCount;  // Số lần đặt giá
