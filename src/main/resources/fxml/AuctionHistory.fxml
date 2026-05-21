@@ -12,17 +12,17 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<StackPane prefHeight="720.0" prefWidth="1024.0"
+<StackPane alignment="CENTER" prefHeight="720.0" prefWidth="1024.0"
            xmlns="http://javafx.com/javafx/25"
            xmlns:fx="http://javafx.com/fxml/1"
            fx:controller="com.auction.controller.AuctionHistoryController">
 
-    <ImageView fitHeight="800.0" fitWidth="1200.0" pickOnBounds="true">
+    <ImageView fitHeight="720.0" fitWidth="1024.0" pickOnBounds="true">
         <Image url="@../image/background4.png"/>
     </ImageView>
     <Region style="-fx-background-color: rgba(0, 0, 0, 0.6);"/>
 
-    <VBox>
+    <VBox alignment="TOP_CENTER">
         <HBox alignment="CENTER_LEFT" minHeight="65.0" prefHeight="65.0" style="-fx-background-color: rgba(0, 0, 0, 0.8); -fx-padding: 0 25;">
             <ImageView fitHeight="40.0" pickOnBounds="true" preserveRatio="true">
                 <Image url="@../image/logo3.png"/>
@@ -77,7 +77,7 @@
                 </HBox>
 
                 <ScrollPane fitToWidth="true" prefHeight="450.0" style="-fx-background: transparent; -fx-background-color: transparent;" VBox.vgrow="ALWAYS">
-                    <VBox fx:id="historyListContainer" style="-fx-padding: 5;"/>
+                    <VBox fx:id="historyListContainer" alignment="TOP_CENTER" style="-fx-padding: 5;"/>
                 </ScrollPane>
 
             </VBox>
