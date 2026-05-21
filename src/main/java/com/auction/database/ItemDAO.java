@@ -215,12 +215,11 @@ public class ItemDAO {
 
     public static List<String[]> getAllApprovedActiveItems() {
         List<String[]> result = new ArrayList<>();
-        String sql =
-                "SELECT id, plate_number, start_price, current_price, description, vehicle_type, " +
-                        "status, seller_name, seller_phone, seller_email, seller_address, " +
-                        "registration_end_time, auction_start_time, auction_end_time, auction_status " +
-                        "FROM items " +
-                        "WHERE approval_status = 'APPROVED'";
+        String sql = "SELECT id, plate_number, start_price, current_price, description, vehicle_type, " +
+                "status, seller_name, seller_phone, seller_email, seller_address, " +
+                "registration_end_time, auction_start_time, auction_status, auction_end_time " +
+                "FROM items " +
+                "WHERE approval_status = 'APPROVED' AND status = 'ACTIVE'";
 
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
@@ -366,16 +365,42 @@ public class ItemDAO {
         }
     }
 
+    // Lựa chọn ẩn đi những phiên đấu giá.
+    public static boolean hideSelectedItems(List<String> plates) {
+        if (plates == null || plates.isEmpty()) return false;
+
+        // Câu lệnh SQL chuyển trạng thái các biển được chọn thành INACTIVE
+        String sql = "UPDATE items SET status = 'INACTIVE' WHERE plate_number = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            // Chạy vòng lặp duyệt qua từng biển số được tích chọn
+            for (String plate : plates) {
+                pstmt.setString(1, plate);
+                pstmt.addBatch(); // Cho vào hàng đợi (Batch) để xử lý một thể cho nhanh
+            }
+
+            int[] results = pstmt.executeBatch(); // Kích hoạt chạy hàng đợi
+            return results.length > 0;
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi ẩn các biển số đã chọn: " + e.getMessage());
+            return false;
+        }
+    }
+
     // =====================================================================
     // 4. QUẢN LÝ THỜI GIAN VÀ NGƯỜI THAM GIA ĐẤU GIÁ
     // =====================================================================
 
-    public static boolean startRegistrationPhase(String plateNumber, int durationMinutes) {
+    public static boolean startRegistrationPhase(String plateNumber, int regMinutes, int aucMinutes) {
+        // Cập nhật thời gian linh hoạt dựa trên input của Admin
         String sql = "UPDATE items SET " +
                 "registration_start_time = NOW(), " +
                 "registration_end_time = DATE_ADD(NOW(), INTERVAL ? MINUTE), " +
                 "auction_start_time = DATE_ADD(NOW(), INTERVAL ? MINUTE), " +
-                "auction_end_time = DATE_ADD(DATE_ADD(NOW(), INTERVAL ? MINUTE), INTERVAL 60 MINUTE), " +
+                "auction_end_time = DATE_ADD(DATE_ADD(NOW(), INTERVAL ? MINUTE), INTERVAL ? MINUTE), " +
                 "registration_duration = ?, " +
                 "auction_status = 'REGISTRATION' " +
                 "WHERE plate_number = ? AND approval_status = 'APPROVED'";
@@ -383,14 +408,15 @@ public class ItemDAO {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, durationMinutes);
-            pstmt.setInt(2, durationMinutes);
-            pstmt.setInt(3, durationMinutes);
-            pstmt.setInt(4, durationMinutes);
-            pstmt.setString(5, plateNumber);
+            pstmt.setInt(1, regMinutes); // Đăng ký kết thúc sau regMinutes
+            pstmt.setInt(2, regMinutes); // Đấu giá bắt đầu sau regMinutes
+            pstmt.setInt(3, regMinutes); // Tính thời gian kết thúc đấu giá (Bắt đầu + aucMinutes)
+            pstmt.setInt(4, aucMinutes);
+            pstmt.setInt(5, regMinutes);
+            pstmt.setString(6, plateNumber); // Dùng biển số xe để tìm
 
             if (pstmt.executeUpdate() > 0) {
-                System.out.println("✅ Bắt đầu giai đoạn đăng ký cho biển '" + plateNumber + "'");
+                System.out.println("✅ Đã setup thời gian cho biển '" + plateNumber + "'");
                 return true;
             }
         } catch (SQLException e) {
@@ -398,7 +424,6 @@ public class ItemDAO {
         }
         return false;
     }
-
     public static void incrementParticipantCount(String plateNumber) {
         String sql = "UPDATE items SET participant_count = participant_count + 1 WHERE plate_number = ?";
         try (Connection conn = DatabaseConnection.getConnection();

@@ -23,7 +23,6 @@ import javafx.util.Duration;
 
 import java.time.LocalDateTime;
 import java.sql.Timestamp;
-import java.time.format.DateTimeFormatter;
 
 import java.io.IOException;
 import java.util.List;
@@ -142,14 +141,23 @@ public class DashboardController {
         // BUTTON ĐẤU GIÁ
         // =========================
 
-        Button btnBid = new Button("Đăng ký đấu giá");
+        Button btnBid = new Button();
+        btnBid.setMaxWidth(Double.MAX_VALUE);
 
-        btnBid.setStyle(
-                "-fx-background-color: #00b894; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-font-weight: bold; " +
-                        "-fx-background-radius: 20;"
-        );
+        String auctionStatus = item.getAuctionStatus();
+
+        if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
+            btnBid.setText("ĐÃ KẾT THÚC");
+            btnBid.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20;");
+            btnBid.setDisable(true);
+        } else if ("AUCTION".equalsIgnoreCase(auctionStatus)) {
+            btnBid.setText("VÀO ĐẤU GIÁ NGAY");
+            btnBid.setStyle("-fx-background-color: #eab308; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand;");
+        } else {
+            // Trường hợp REGISTRATION hoặc WAITING
+            btnBid.setText("ĐĂNG KÝ ĐẤU GIÁ");
+            btnBid.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand;");
+        }
 
         btnBid.setMaxWidth(Double.MAX_VALUE);
 
@@ -230,16 +238,7 @@ public class DashboardController {
 
         card.setPrefWidth(280);
 
-        HBox buttonBox =
-                buildCardButtons(
-                        btnBid,
-                        plate,
-                        price,
-                        fullName,
-                        address,
-                        phone,
-                        email
-                );
+        HBox buttonBox = buildCardButtons(btnBid, item);
 
         card.getChildren().addAll(
                 buildPlateSection(plate, type),
@@ -321,62 +320,30 @@ public class DashboardController {
         row.setStyle("-fx-padding: 0;");
         return row;
     }
-    private HBox buildCardButtons(
-            Button btnBid,
-            String plate,
-            String price,
-            String fullName,
-            String address,
-            String phone,
-            String email
-    ) {
+    private HBox buildCardButtons(Button btnBid, ItemDTO item) {
 
         btnBid.setStyle(
-                "-fx-background-color: #00b894; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-font-weight: bold; " +
-                        "-fx-background-radius: 20; " +
-                        "-fx-cursor: hand; " +
-                        "-fx-padding: 8 0;"
+                "-fx-background-color: #00b894; -fx-text-fill: white; " +
+                        "-fx-font-weight: bold; -fx-background-radius: 20; " +
+                        "-fx-cursor: hand; -fx-padding: 8 0;"
         );
-
         btnBid.setMaxWidth(Double.MAX_VALUE);
-
         HBox.setHgrow(btnBid, Priority.ALWAYS);
 
         Button btnDetail = new Button("Xem chi tiết");
-
         btnDetail.setStyle(
-                "-fx-background-color: transparent; " +
-                        "-fx-border-color: #00b894; " +
-                        "-fx-border-radius: 20; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-cursor: hand; " +
-                        "-fx-padding: 8 0;"
+                "-fx-background-color: transparent; -fx-border-color: #00b894; " +
+                        "-fx-border-radius: 20; -fx-text-fill: white; " +
+                        "-fx-cursor: hand; -fx-padding: 8 0;"
         );
-
         btnDetail.setMaxWidth(Double.MAX_VALUE);
-
         HBox.setHgrow(btnDetail, Priority.ALWAYS);
 
-        btnDetail.setOnAction(e ->
-                showProductDetails(
-                        plate,
-                        fullName,
-                        address,
-                        phone,
-                        email,
-                        price
-                )
-        );
+        // ✅ TRUYỀN THẲNG ĐỐI TƯỢNG ITEM VÀO HÀM SHOW DETAILS
+        btnDetail.setOnAction(e -> showProductDetails(item));
 
         HBox box = new HBox(10);
-
-        box.getChildren().addAll(
-                btnBid,
-                btnDetail
-        );
-
+        box.getChildren().addAll(btnBid, btnDetail);
         return box;
     }
 
@@ -506,8 +473,7 @@ public class DashboardController {
     // DIALOG CHI TIẾT SẢN PHẨM
     // ========================================================================
 
-    private void showProductDetails(String plate, String fullName, String address,
-                                    String phone, String email, String price) {
+    private void showProductDetails(ItemDTO item) {
         StackPane overlay = new StackPane();
         overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.8);");
 
@@ -518,7 +484,7 @@ public class DashboardController {
                 "-fx-border-width: 1; -fx-padding: 35;");
         dialog.setAlignment(Pos.CENTER_LEFT);
 
-        Label lblTitle = new Label("THÔNG TIN BIỂN: " + plate);
+        Label lblTitle = new Label("THÔNG TIN BIỂN: " + item.getPlateNumber());
         lblTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 20px;");
         VBox.setMargin(lblTitle, new Insets(0, 0, 10, 0));
 
@@ -530,13 +496,30 @@ public class DashboardController {
                 ((StackPane) btnHome.getScene().getRoot()).getChildren().remove(overlay)
         );
 
+        // ==========================================
+        // XỬ LÝ LOGIC HIỂN THỊ GIÁ THÔNG MINH
+        // ==========================================
+        String priceLabel = "GIÁ KHỞI ĐIỂM";
+        String priceValue = String.format("%,.0f VNĐ", item.getStartPrice());
+        String priceColor = "#00b894";
+
+        if ("FINISHED".equalsIgnoreCase(item.getAuctionStatus())) {
+            priceLabel = "GIÁ CUỐI CÙNG (ĐÃ KẾT THÚC)";
+            priceValue = item.getFormattedPrice() + " VNĐ";
+            priceColor = "#f59e0b";
+        } else if ("AUCTION".equalsIgnoreCase(item.getAuctionStatus())) {
+            priceLabel = "GIÁ HIỆN TẠI (ĐANG ĐẤU GIÁ)";
+            priceValue = item.getFormattedPrice() + " VNĐ";
+            priceColor = "#38bdf8";
+        }
+
         dialog.getChildren().addAll(
                 lblTitle,
-                makeInfoBox("GIÁ KHỞI ĐIỂM",          price + " VNĐ", "#00b894", true),
-                makeInfoBox("HỌ VÀ TÊN NGƯỜI BÁN",    fullName,        "#0ea5e9", false),
-                makeInfoBox("ĐỊA CHỈ LIÊN HỆ",        address,         "#0ea5e9", false),
-                makeInfoBox("SỐ ĐIỆN THOẠI LIÊN HỆ",  phone,           "#0ea5e9", false),
-                makeInfoBox("EMAIL LIÊN HỆ",           email,           "#0ea5e9", false),
+                makeInfoBox(priceLabel, priceValue, priceColor, true),
+                makeInfoBox("HỌ VÀ TÊN NGƯỜI BÁN", item.getSellerName(), "#0ea5e9", false),
+                makeInfoBox("ĐỊA CHỈ LIÊN HỆ", item.getSellerAddress(), "#0ea5e9", false),
+                makeInfoBox("SỐ ĐIỆN THOẠI LIÊN HỆ", item.getSellerPhone(), "#0ea5e9", false),
+                makeInfoBox("EMAIL LIÊN HỆ", item.getSellerEmail(), "#0ea5e9", false),
                 btnClose
         );
 

@@ -12,12 +12,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -186,42 +181,63 @@ public class AdminController {
     }
 
     private void handleApprove(String plate, HBox rowToRemove) {
+        // 1. Duyệt trạng thái thành APPROVED trước
         boolean ok = productService.approveProduct(plate);
-        if (!ok) { showAlert(Alert.AlertType.ERROR, "Thất bại", "Không tìm thấy biển số " + plate); return; }
-
-        TextInputDialog dlg = new TextInputDialog("60");
-        dlg.setTitle("Cấu hình thời gian đăng ký");
-        dlg.setHeaderText("Biển số " + plate + " đã được duyệt!");
-        dlg.setContentText("Nhập thời gian đăng ký tham gia (phút):");
-        Optional<String> res = dlg.showAndWait();
-
-        int minutes = 60;
-        if (res.isPresent()) {
-            try {
-                minutes = Integer.parseInt(res.get().trim());
-                if (minutes <= 0) throw new NumberFormatException();
-            } catch (NumberFormatException ex) {
-                showAlert(Alert.AlertType.WARNING, "Lỗi", "Vui lòng nhập số dương hợp lệ!"); return;
-            }
-        }
-
-        int itemId = ItemDAO.getItemIdByPlate(plate);
-
-        if (itemId == -1) {
-            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không tìm thấy itemId cho biển: " + plate);
+        if (!ok) {
+            showAlert(Alert.AlertType.ERROR, "Thất bại", "Không tìm thấy biển số " + plate);
             return;
         }
 
-        boolean started = ItemDAO.startRegistrationPhase(String.valueOf(itemId), minutes);
-        if (started) {
-            adminListContainer.getChildren().remove(rowToRemove);
-            updateCounter(adminListContainer.getChildren().size(), "yêu cầu");
-            showAlert(Alert.AlertType.INFORMATION, "Duyệt thành công",
-                    "Biển số " + plate + " đã lên sàn!\n" +
-                            "Giai đoạn đăng ký: " + minutes + " phút\n" +
-                            "Giai đoạn đấu giá: 60 phút (sau khi đăng ký kết thúc)");
-        } else {
-            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể bắt đầu giai đoạn đăng ký.");
+        // 2. Tạo một Hộp thoại tùy chỉnh (Custom Dialog)
+        javafx.scene.control.Dialog<ButtonType> dialog = new javafx.scene.control.Dialog<>();
+        dialog.setTitle("Cài đặt thời gian đấu giá");
+        dialog.setHeaderText("Cấu hình cho biển số: " + plate);
+
+        // Nút OK và Cancel
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        // Tạo 2 ô nhập liệu
+        TextField txtRegMinutes = new TextField("60"); // Mặc định chờ 60p
+        TextField txtAucMinutes = new TextField("60"); // Mặc định đấu giá 60p
+
+        // Đưa 2 ô nhập vào một VBox (Layout dọc)
+        VBox vbox = new VBox(10); // Khoảng cách giữa các phần tử là 10px
+        vbox.getChildren().addAll(
+                new Label("Thời gian chờ trước khi mở phiên (Phút):"), txtRegMinutes,
+                new Label("Thời lượng diễn ra đấu giá (Phút):"), txtAucMinutes
+        );
+        dialog.getDialogPane().setContent(vbox);
+
+        // Hiện Dialog và chờ Admin bấm nút
+        Optional<ButtonType> res = dialog.showAndWait();
+
+        // Nếu Admin bấm OK
+        if (res.isPresent() && res.get() == ButtonType.OK) {
+            try {
+                int regMinutes = Integer.parseInt(txtRegMinutes.getText().trim());
+                int aucMinutes = Integer.parseInt(txtAucMinutes.getText().trim());
+
+                if (regMinutes <= 0 || aucMinutes <= 0) {
+                    throw new NumberFormatException();
+                }
+
+                // GỌI HÀM DATABASE VỪA SỬA (Truyền đúng plate thay vì itemId)
+                boolean started = ItemDAO.startRegistrationPhase(plate, regMinutes, aucMinutes);
+
+                if (started) {
+                    adminListContainer.getChildren().remove(rowToRemove);
+                    updateCounter(adminListContainer.getChildren().size(), "yêu cầu");
+
+                    showAlert(Alert.AlertType.INFORMATION, "Duyệt thành công",
+                            "Biển số " + plate + " đã lên sàn!\n" +
+                                    "Sẽ mở phiên sau: " + regMinutes + " phút.\n" +
+                                    "Thời lượng đấu giá: " + aucMinutes + " phút.");
+                } else {
+                    showAlert(Alert.AlertType.ERROR, "Lỗi Database", "Không thể cập nhật thời gian.");
+                }
+            } catch (NumberFormatException ex) {
+                showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Vui lòng nhập số nguyên dương!");
+            }
         }
     }
 
@@ -237,6 +253,89 @@ public class AdminController {
             showAlert(Alert.AlertType.INFORMATION, "Đã từ chối", "Biển số " + plate + " bị từ chối.");
         } else {
             showAlert(Alert.AlertType.ERROR, "Thất bại", "Không tìm thấy biển số " + plate);
+        }
+    }
+    @FXML
+    private void handleClearFinished() {
+        // 1. Lấy toàn bộ danh sách xe đang hiển thị trên Dashboard (kể cả chưa mở đấu giá)
+        List<String[]> activeItems = ItemDAO.getAllApprovedActiveItems();
+
+        if (activeItems.isEmpty()) {
+            showAlert(Alert.AlertType.INFORMATION, "Thông báo", "Hiện tại không có biển số nào trên Dashboard.");
+            return;
+        }
+
+        // 2. Khởi tạo một Hộp thoại tùy chỉnh
+        javafx.scene.control.Dialog<ButtonType> dialog = new javafx.scene.control.Dialog<>();
+        dialog.setTitle("Quản lý danh sách Dashboard");
+        dialog.setHeaderText("Tích chọn những biển số bạn muốn XÓA/ẨN khỏi Dashboard:");
+
+        // Thêm nút xác nhận OK và nút Hủy
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        // Tạo một VBox để chứa danh sách các ô tích chọn CheckBox
+        VBox checklistContainer = new VBox(12);
+        checklistContainer.setStyle("-fx-padding: 15;");
+
+        // Danh sách phụ để tí nữa chúng ta duyệt qua xem ô nào được tích
+        List<CheckBox> listCheckBoxes = new ArrayList<>();
+
+        // Vòng lặp tự động tạo ô CheckBox cho từng biển số
+        for (String[] item : activeItems) {
+            String plate = item[1];       // Lấy Biển số xe
+            String status = item[13];     // Lấy Trạng thái đấu giá (WAITING, REGISTRATION, AUCTION)
+
+            // Định dạng chuỗi hiển thị cho dễ đọc
+            String displayInfo = String.format("%-15s [%s]", plate, status);
+
+            CheckBox cb = new CheckBox(displayInfo);
+            cb.setUserData(plate); //Giấu mã biển số xe vào userData của CheckBox để tí lấy ra
+            cb.setStyle("-fx-text-fill: #1e293b; -fx-font-family: 'Courier New'; -fx-font-weight: bold; -fx-font-size: 14px;");
+
+            checklistContainer.getChildren().add(cb); // Thêm ô CheckBox vào giao diện hộp thoại
+            listCheckBoxes.add(cb);                  // Lưu vào danh sách quản lý
+        }
+
+        // Bọc VBox vào một ScrollPane đề phòng trường hợp có quá nhiều biển số gây tràn màn hình
+        ScrollPane scrollPane = new ScrollPane(checklistContainer);
+        scrollPane.setPrefSize(380, 320);
+        scrollPane.setFitToWidth(true);
+        dialog.getDialogPane().setContent(scrollPane);
+
+        // 3. Hiển thị hộp thoại và chờ Admin bấm nút
+        Optional<ButtonType> clickedButton = dialog.showAndWait();
+
+        // Nếu Admin bấm nút OK
+        if (clickedButton.isPresent() && clickedButton.get() == ButtonType.OK) {
+            List<String> selectedPlates = new ArrayList<>();
+
+            // Duyệt qua danh sách CheckBox xem cái nào đã được tích chọn v
+            for (CheckBox cb : listCheckBoxes) {
+                if (cb.isSelected()) {
+                    selectedPlates.add(cb.getUserData().toString()); // Lấy lại biển số xe đã giấu lúc nãy
+                }
+            }
+
+            // Nếu Admin bấm OK nhưng không tích chọn cái nào cả
+            if (selectedPlates.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Thông báo", "Bạn chưa tích chọn biển số nào cả!");
+                return;
+            }
+
+            // 4. Gửi danh sách các biển đã chọn xuống Database để ẩn hàng loạt
+            boolean success = ItemDAO.hideSelectedItems(selectedPlates);
+
+            if (success) {
+                showAlert(Alert.AlertType.INFORMATION, "Thành công",
+                        "Đã xóa ẩn thành công " + selectedPlates.size() + " biển số khỏi Dashboard người dùng!");
+
+                // Nếu Admin đang đứng ở tab Giám sát thì nạp lại bảng cho đồng bộ dữ liệu ngay lập tức
+                if (currentView == ViewMode.MONITORING) {
+                    loadMonitoringView();
+                }
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể cập nhật dữ liệu. Vui lòng thử lại.");
+            }
         }
     }
 

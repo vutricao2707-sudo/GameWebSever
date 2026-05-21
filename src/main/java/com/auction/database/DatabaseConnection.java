@@ -69,6 +69,11 @@ public class DatabaseConnection {
         // MYSQL OPTIMIZATION
         // =========================
 
+        config.setConnectionInitSql("SET time_zone = '+07:00'");
+
+        config.addDataSourceProperty("cachePrepStmts", "true");
+        config.addDataSourceProperty("prepStmtCacheSize", "250");
+
         config.addDataSourceProperty(
                 "cachePrepStmts",
                 "true"

@@ -99,7 +99,15 @@
                         <font><Font size="13.0"/></font>
                     </Label>
                 </VBox>
+
                 <Region HBox.hgrow="ALWAYS"/>
+
+                <Button text="🧹 Ẩn biển đã kết thúc khỏi Dashboard" onAction="#handleClearFinished"
+                        style="-fx-background-color: rgba(239,68,68,0.2); -fx-text-fill: #ef4444;
+                               -fx-background-radius: 8; -fx-cursor: hand; -fx-font-weight: bold; -fx-padding: 8 15;">
+                    <HBox.margin><Insets right="15.0"/></HBox.margin>
+                </Button>
+
                 <Label fx:id="lblTotalRequests" text="Tổng cộng: 0 yêu cầu" textFill="#38bdf8">
                     <font><Font name="System Bold" size="13.0"/></font>
                 </Label>
