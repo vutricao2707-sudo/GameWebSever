@@ -161,65 +161,32 @@ public class DashboardController {
 
         btnBid.setMaxWidth(Double.MAX_VALUE);
 
-        String endTime = item.getRegistrationEndTime();
-
         btnBid.setOnAction(e -> {
 
-            try {
+            String status = item.getAuctionStatus();
 
-                if (endTime != null && !endTime.isEmpty()) {
-
-                    String fixedEndTime =
-                            endTime.replace("T", " ");
-
-                    if (fixedEndTime.contains(".")) {
-
-                        fixedEndTime =
-                                fixedEndTime.substring(
-                                        0,
-                                        fixedEndTime.indexOf(".")
-                                );
-                    }
-
-                    Timestamp timestamp =
-                            Timestamp.valueOf(fixedEndTime);
-
-                    LocalDateTime targetTime =
-                            timestamp.toLocalDateTime();
-
-                    LocalDateTime now =
-                            LocalDateTime.now();
-
-                    // =====================================
-                    // CHƯA HẾT THỜI GIAN ĐĂNG KÝ
-                    // =====================================
-
-                    if (now.isBefore(targetTime)) {
-
-                        showInfo(
-                                "Chưa mở đấu giá",
-                                "Hiện vẫn đang trong thời gian đăng ký tham gia đấu giá."
-                        );
-
-                        return;
-                    }
-                }
-
-                // =====================================
-                // ĐÃ HẾT ĐĂNG KÝ
-                // =====================================
-
-                enterAuctionRoom(e, plate, price);
-
-            } catch (Exception ex) {
-
-                ex.printStackTrace();
+            if ("WAITING".equalsIgnoreCase(status)
+                    || "REGISTRATION".equalsIgnoreCase(status)) {
 
                 showInfo(
-                        "Lỗi thời gian",
-                        "Không thể kiểm tra thời gian đấu giá."
+                        "Chưa mở đấu giá",
+                        "Hiện đang trong thời gian đăng ký, vui lòng quay lại khi thời gian này kết thúc."
                 );
+
+                return;
             }
+
+            if ("FINISHED".equalsIgnoreCase(status)) {
+
+                showInfo(
+                        "Phiên đã kết thúc",
+                        "Phiên đấu giá này đã kết thúc."
+                );
+
+                return;
+            }
+
+            enterAuctionRoom(e, plate, price);
         });
         // =========================
         // CARD
@@ -322,11 +289,6 @@ public class DashboardController {
     }
     private HBox buildCardButtons(Button btnBid, ItemDTO item) {
 
-        btnBid.setStyle(
-                "-fx-background-color: #00b894; -fx-text-fill: white; " +
-                        "-fx-font-weight: bold; -fx-background-radius: 20; " +
-                        "-fx-cursor: hand; -fx-padding: 8 0;"
-        );
         btnBid.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(btnBid, Priority.ALWAYS);
 
@@ -722,27 +684,43 @@ public class DashboardController {
                                                             targetTime
                                                     );
 
-                                            long days =
-                                                    d.toDays();
+                                            long totalMinutes = d.toMinutes();
 
-                                            long hours =
-                                                    d.toHoursPart();
+                                            if (totalMinutes < 60) {
 
-                                            long minutes =
-                                                    d.toMinutesPart();
+                                                lblTimeValue.setText(
+                                                        "Còn " + totalMinutes + " phút"
+                                                );
 
-                                            long seconds =
-                                                    d.toSecondsPart();
+                                            } else if (totalMinutes < 1440) {
 
-                                            lblTimeValue.setText(
-                                                    String.format(
-                                                            "%d ngày %02d:%02d:%02d",
-                                                            days,
-                                                            hours,
-                                                            minutes,
-                                                            seconds
-                                                    )
-                                            );
+                                                long h = totalMinutes / 60;
+
+                                                long m = totalMinutes % 60;
+
+                                                lblTimeValue.setText(
+                                                        String.format(
+                                                                "Còn %dh %02dp",
+                                                                h,
+                                                                m
+                                                        )
+                                                );
+
+                                            } else {
+
+                                                long dayCount = totalMinutes / 1440;
+
+                                                long hourCount =
+                                                        (totalMinutes % 1440) / 60;
+
+                                                lblTimeValue.setText(
+                                                        String.format(
+                                                                "Còn %d ngày %dh",
+                                                                dayCount,
+                                                                hourCount
+                                                        )
+                                                );
+                                            }
 
                                         } else {
 

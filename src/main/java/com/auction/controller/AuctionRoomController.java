@@ -586,7 +586,22 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
             // ====================== Set New Data ======================
             this.currentPlateNumber = plate;
-            this.currentPrice = startingPrice;
+
+            // Ưu tiên lấy giá hiện tại từ DB, chỉ fallback về startingPrice nếu lỗi
+            try {
+                double dbPrice = ItemDAO.getCurrentPrice(plate);
+                this.currentPrice = dbPrice > 0 ? dbPrice : startingPrice;
+
+                logger.info("✅ [AuctionRoom] Giá hiện tại từ DB: " + this.currentPrice);
+            } catch (Exception ePriceLoad) {
+                this.currentPrice = startingPrice;
+
+                logger.log(
+                        Level.WARNING,
+                        "Không load được giá từ DB, dùng startingPrice",
+                        ePriceLoad
+                );
+            }
             
             try {
                 this.currentItemId = ItemDAO.getItemIdByPlate(plate);
@@ -641,6 +656,13 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 logger.info("✅ [AuctionRoom] Price history chart loaded");
             } catch (Exception eChart) {
                 logger.log(Level.WARNING, "Error loading price chart", eChart);
+            }
+            // Load lịch sử đặt giá vào danh sách text
+            try {
+                loadInitialBidHistory();
+                logger.info("✅ [AuctionRoom] Initial bid history loaded");
+            } catch (Exception eHistory) {
+                logger.log(Level.WARNING, "Error loading initial bid history", eHistory);
             }
 
             // ====================== Start Countdown ======================
@@ -858,7 +880,70 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             logger.log(Level.SEVERE, "Lỗi trong loadPriceHistoryChart", e);
         }
     }
+    /**
+     * Nạp toàn bộ lịch sử đặt giá hiện có vào liveHistoryContainer.
+     * Được gọi một lần duy nhất khi vào phòng để đồng bộ trạng thái.
+     */
+    private void loadInitialBidHistory() {
+        logger.info("📍 [AuctionRoom] loadInitialBidHistory() called");
 
+        if (currentItemId == -1 || liveHistoryContainer == null) {
+            logger.log(Level.WARNING,
+                    "Không thể load history: itemId=" + currentItemId);
+            return;
+        }
+
+        try {
+            liveHistoryContainer.getChildren().clear();
+
+            List<String[]> bidHistory =
+                    BidDAO.getBidHistoryForChart(currentItemId);
+
+            if (bidHistory.isEmpty()) {
+                logger.info("ℹ️  [AuctionRoom] Chưa có bid nào cho item này");
+                return;
+            }
+
+            // Thêm từ cuối ngược lên đầu để bid mới nhất hiển thị trên cùng
+            for (int i = bidHistory.size() - 1; i >= 0; i--) {
+
+                String[] bid = bidHistory.get(i);
+
+                try {
+                    double amount = Double.parseDouble(bid[1]);
+
+                    String bidderName =
+                            bid[3] != null ? bid[3] : "Người dùng";
+
+                    addHistoryRow(
+                            formatter.format(amount),
+                            bidderName
+                    );
+
+                } catch (NumberFormatException ex) {
+
+                    logger.log(
+                            Level.WARNING,
+                            "Lỗi parse bid amount tại index " + i
+                    );
+                }
+            }
+
+            logger.info(
+                    "✅ [AuctionRoom] Đã load "
+                            + bidHistory.size()
+                            + " bids vào history"
+            );
+
+        } catch (Exception e) {
+
+            logger.log(
+                    Level.SEVERE,
+                    "Lỗi trong loadInitialBidHistory",
+                    e
+            );
+        }
+    }
     /**
      * Update chart khi có bid mới từ WebSocket
      * Called từ onPriceUpdate listener
