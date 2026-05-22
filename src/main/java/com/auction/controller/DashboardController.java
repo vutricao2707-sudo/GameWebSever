@@ -2,8 +2,11 @@ package com.auction.controller;
 
 import com.auction.dto.ItemDTO;
 import com.auction.model.User;
+import com.auction.service.AuctionFinishService;
 import com.auction.service.ProductService;
 import com.auction.util.SessionManager;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -17,20 +20,18 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.util.Duration;
 
-import java.time.LocalDateTime;
-import java.sql.Timestamp;
-
 import java.io.IOException;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @SuppressWarnings("ALL")
-public class DashboardController {
+public class DashboardController implements AuctionFinishService.AuctionResultListener {
 
     @FXML private Button btnHome, btnHistory, btnResults, btnCar, btnBike;
     @FXML private FlowPane productContainer;
@@ -39,69 +40,83 @@ public class DashboardController {
     private static final Logger logger = Logger.getLogger(DashboardController.class.getName());
     private final ProductService productService = new ProductService();
     private User currentUser;
-
-    // =========================================================================
-    // KHỞI TẠO
-    // =========================================================================
+    private final List<VBox> activeCards = new ArrayList<>();
 
     @FXML
     public void initialize() {
-        // Lấy user từ Session hiện tại
         User user = SessionManager.INSTANCE.getCurrentUser();
-        if (user != null && user.getFullName() != null) {
-            lblUserName.setText("Xin chào, " + user.getFullName());
-        } else {
-            lblUserName.setText("Xin chào, Người dùng");
-        }
+        lblUserName.setText(user != null && user.getFullName() != null
+                ? "Xin chào, " + user.getFullName() : "Xin chào, Người dùng");
 
-        // Các logic tải dữ liệu khác
         loadProducts("Ô tô");
         setActiveTab(btnHome);
+        AuctionFinishService.getInstance().addListener(this);
     }
 
-    // Giữ lại hàm này để LoginController gọi không bị báo lỗi đỏ
-    public void setUserInfo(User user) {
-        this.currentUser = user;
+    public void setUserInfo(User user) { this.currentUser = user; }
+
+    @Override
+    public void onAuctionFinished(String plateNumber, double finalPrice, int winnerId, String winnerName) {
+        activeCards.stream()
+                .filter(card -> plateNumber.equals(card.getUserData()))
+                .findFirst()
+                .ifPresent(card -> handleCardFinished(card, plateNumber));
     }
 
-    // =========================================================================
-    // ĐIỀU HƯỚNG — Tất cả đều dùng navigateTo() dùng chung
-    // =========================================================================
+    private void handleCardFinished(VBox card, String plateNumber) {
+        card.getChildren().forEach(node -> {
+            if (node instanceof HBox timeRow && timeRow.getChildren().size() >= 2) {
+                try {
+                    VBox texts = (VBox) timeRow.getChildren().get(1);
+                    if (texts.getChildren().size() >= 2) {
+                        Label lblValue = (Label) texts.getChildren().get(1);
+                        lblValue.setText("🏁 Phiên đấu giá đã kết thúc");
+                        lblValue.setStyle("-fx-text-fill: #ef4444; -fx-font-size: 13px; -fx-font-weight: bold;");
+                    }
+                } catch (Exception ignored) {}
+            }
+        });
+
+        card.getChildren().forEach(node -> {
+            if (node instanceof HBox buttonBox) {
+                buttonBox.getChildren().forEach(btn -> {
+                    if (btn instanceof Button b && b.getText().contains("ĐẤU GIÁ")) {
+                        b.setText("ĐÃ KẾT THÚC");
+                        b.setDisable(true);
+                        b.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20;");
+                    }
+                });
+            }
+        });
+
+        // Ẩn biển số sau khi kết thúc 3 giây để user kịp nhìn
+        Timeline hideTimer = new Timeline(new KeyFrame(Duration.seconds(3), e -> {
+            if (productContainer != null) {
+                productContainer.getChildren().remove(card);
+                activeCards.remove(card);
+            }
+        }));
+        hideTimer.setCycleCount(1);
+        hideTimer.play();
+    }
 
     @FXML private void handleHome(ActionEvent event)           { setActiveTab(btnHome); loadProducts("Ô tô"); }
     @FXML private void handleShowHistory(ActionEvent event)    { navigateTo(event, "/fxml/AuctionHistory.fxml"); }
     @FXML private void handleShowResults(ActionEvent event)    { navigateTo(event, "/fxml/AuctionResult.fxml"); }
     @FXML private void handleRegisterToSell(ActionEvent event) { navigateTo(event, "/fxml/RegisterSell.fxml"); }
-
-
     @FXML private void handleLogout(ActionEvent event) {
-        SessionManager.INSTANCE.logout(); // Đăng xuất thì xóa Session
+        AuctionFinishService.getInstance().removeListener(this);
+        SessionManager.INSTANCE.logout();
         navigateTo(event, "/fxml/Login.fxml");
     }
 
-    // =========================================================================
-    // BỘ LỌC LOẠI XE
-    // =========================================================================
-
-    @FXML
-    private void handleToggleCar(ActionEvent event) {
-        setActiveFilterTab(btnCar, btnBike);
-        loadProducts("Ô tô");
-    }
-
-    @FXML
-    private void handleToggleBike(ActionEvent event) {
-        setActiveFilterTab(btnBike, btnCar);
-        loadProducts("Xe máy");
-    }
-
-    // =========================================================================
-    // TẢI VÀ HIỂN THỊ SẢN PHẨM
-    // =========================================================================
+    @FXML private void handleToggleCar(ActionEvent event)  { setActiveFilterTab(btnCar, btnBike); loadProducts("Ô tô"); }
+    @FXML private void handleToggleBike(ActionEvent event) { setActiveFilterTab(btnBike, btnCar); loadProducts("Xe máy"); }
 
     private void loadProducts(String type) {
         if (productContainer == null) return;
         productContainer.getChildren().clear();
+        activeCards.clear();
 
         List<String[]> products = productService.getApprovedProductsByType(type);
         if (products.isEmpty()) {
@@ -110,8 +125,11 @@ public class DashboardController {
         }
         for (int i = 0; i < products.size(); i++) {
             ItemDTO item = ItemDTO.fromApprovedArray(products.get(i));
-            if (item != null) {
-                productContainer.getChildren().add(createProductCard(item, i + 1));
+            if (item != null && !"FINISHED".equalsIgnoreCase(item.getAuctionStatus())) {
+                VBox card = createProductCard(item, i + 1);
+                card.setUserData(item.getPlateNumber());
+                activeCards.add(card);
+                productContainer.getChildren().add(card);
             }
         }
     }
@@ -122,105 +140,50 @@ public class DashboardController {
         productContainer.getChildren().add(lbl);
     }
 
-    // =========================================================================
-    // XÂY DỰNG THẺ SẢN PHẨM
-    // =========================================================================
-
     private VBox createProductCard(ItemDTO item, int sessionIndex) {
-
         String type     = item.getVehicleType();
         String plate    = item.getPlateNumber();
         String province = item.getProvince();
-        String price    = item.getFormattedPrice();
-        String fullName = item.getSellerName();
-        String phone    = item.getSellerPhone();
-        String email    = item.getSellerEmail();
-        String address  = item.getSellerAddress();
-
-        // =========================
-        // BUTTON ĐẤU GIÁ
-        // =========================
+        String auctionStatus = item.getAuctionStatus();
 
         Button btnBid = new Button();
         btnBid.setMaxWidth(Double.MAX_VALUE);
 
-        String auctionStatus = item.getAuctionStatus();
-
-        if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
-            btnBid.setText("ĐÃ KẾT THÚC");
-            btnBid.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20;");
-            btnBid.setDisable(true);
-        } else if ("AUCTION".equalsIgnoreCase(auctionStatus)) {
+        if ("AUCTION".equalsIgnoreCase(auctionStatus)) {
             btnBid.setText("VÀO ĐẤU GIÁ NGAY");
             btnBid.setStyle("-fx-background-color: #eab308; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand;");
         } else {
-            // Trường hợp REGISTRATION hoặc WAITING
             btnBid.setText("ĐĂNG KÝ ĐẤU GIÁ");
             btnBid.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand;");
         }
 
-        btnBid.setMaxWidth(Double.MAX_VALUE);
-
         btnBid.setOnAction(e -> {
-
             String status = item.getAuctionStatus();
-
-            if ("WAITING".equalsIgnoreCase(status)
-                    || "REGISTRATION".equalsIgnoreCase(status)) {
-
-                showInfo(
-                        "Chưa mở đấu giá",
-                        "Hiện đang trong thời gian đăng ký, vui lòng quay lại khi thời gian này kết thúc."
-                );
-
+            if ("WAITING".equalsIgnoreCase(status) || "REGISTRATION".equalsIgnoreCase(status)) {
+                showInfo("Chưa mở đấu giá", "Hiện đang trong thời gian đăng ký, vui lòng quay lại khi thời gian này kết thúc.");
                 return;
             }
-
             if ("FINISHED".equalsIgnoreCase(status)) {
-
-                showInfo(
-                        "Phiên đã kết thúc",
-                        "Phiên đấu giá này đã kết thúc."
-                );
-
+                showInfo("Phiên đã kết thúc", "Phiên đấu giá biển số này đã kết thúc! Quý khách vui lòng tham gia đấu giá biển số khác.");
                 return;
             }
-
-            enterAuctionRoom(e, plate, price);
+            enterAuctionRoom(e, plate, item.getFormattedPrice(), item.getAuctionEndTime());
         });
-        // =========================
-        // CARD
-        // =========================
 
         VBox card = new VBox(12);
-
-        card.setStyle(
-                "-fx-background-color: #1a2230; " +
-                        "-fx-background-radius: 12; " +
-                        "-fx-border-color: #2a364a; " +
-                        "-fx-border-radius: 12; " +
-                        "-fx-border-width: 1; " +
-                        "-fx-padding: 15;"
-        );
-
+        card.setStyle("-fx-background-color: #1a2230; -fx-background-radius: 12; -fx-border-color: #2a364a; -fx-border-radius: 12; -fx-border-width: 1; -fx-padding: 15;");
         card.setPrefWidth(280);
-
-        HBox buttonBox = buildCardButtons(btnBid, item);
+        card.setUserData(plate);
 
         card.getChildren().addAll(
                 buildPlateSection(plate, type),
                 buildLocationRow(province, sessionIndex),
                 buildUsersRow(),
-                buildTimeRow(item),
-                buttonBox
+                buildTimeRow(item, btnBid, card),
+                buildCardButtons(btnBid, item)
         );
-
         return card;
     }
-
-    // =========================================================================
-    // 5 HÀM BUILD* — Mỗi hàm chịu trách nhiệm DUY NHẤT 1 khu vực của card
-    // =========================================================================
 
     private StackPane buildPlateSection(String plate, String type) {
         VBox plateBox = new VBox();
@@ -235,73 +198,39 @@ public class DashboardController {
         plateBox.getChildren().addAll(lblTop, lblBottom);
 
         Label badge = new Label(type.contains("máy") ? "🏍️" : "🚗");
-        badge.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; " +
-                "-fx-background-radius: 20; -fx-padding: 8; -fx-font-size: 14px;");
+        badge.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; -fx-background-radius: 20; -fx-padding: 8; -fx-font-size: 14px;");
         StackPane.setAlignment(badge, Pos.TOP_RIGHT);
         StackPane.setMargin(badge, new Insets(-10, -10, 0, 0));
-
         return new StackPane(plateBox, badge);
     }
 
     private HBox buildLocationRow(String province, int sessionIndex) {
-
-        Label lblProv = new Label("• " + province);
-
-        lblProv.setStyle(
-                "-fx-text-fill: #94a3b8; -fx-font-size: 13px;"
-        );
-
-        Region spacer = new Region();
-
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Label lblSession =
-                new Label("Phiên " + sessionIndex);
-
-        lblSession.setStyle(
-                "-fx-background-color: #475569; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-background-radius: 12; " +
-                        "-fx-padding: 3 10; " +
-                        "-fx-font-size: 12px;"
-        );
-
+        Label lblProv = new Label("• " + (province != null && !province.isEmpty() ? province : "—"));
+        lblProv.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 13px;");
+        Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+        Label lblSession = new Label("Phiên " + sessionIndex);
+        lblSession.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-background-radius: 12; -fx-padding: 3 10; -fx-font-size: 12px;");
         HBox row = new HBox();
-
         row.setAlignment(Pos.CENTER_LEFT);
-
-        row.getChildren().addAll(
-                lblProv,
-                spacer,
-                lblSession
-        );
-
+        row.getChildren().addAll(lblProv, spacer, lblSession);
         return row;
     }
 
     private HBox buildUsersRow() {
-        // Tạo một hàng trống, không chứa hình người hay số 9 nữa
         HBox row = new HBox();
         row.setAlignment(Pos.CENTER_LEFT);
-        // Có thể set padding nhỏ lại để thẻ xe không bị trống quá
         row.setStyle("-fx-padding: 0;");
         return row;
     }
-    private HBox buildCardButtons(Button btnBid, ItemDTO item) {
 
+    private HBox buildCardButtons(Button btnBid, ItemDTO item) {
         btnBid.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(btnBid, Priority.ALWAYS);
 
         Button btnDetail = new Button("Xem chi tiết");
-        btnDetail.setStyle(
-                "-fx-background-color: transparent; -fx-border-color: #00b894; " +
-                        "-fx-border-radius: 20; -fx-text-fill: white; " +
-                        "-fx-cursor: hand; -fx-padding: 8 0;"
-        );
+        btnDetail.setStyle("-fx-background-color: transparent; -fx-border-color: #00b894; -fx-border-radius: 20; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 8 0;");
         btnDetail.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(btnDetail, Priority.ALWAYS);
-
-        // ✅ TRUYỀN THẲNG ĐỐI TƯỢNG ITEM VÀO HÀM SHOW DETAILS
         btnDetail.setOnAction(e -> showProductDetails(item));
 
         HBox box = new HBox(10);
@@ -309,170 +238,159 @@ public class DashboardController {
         return box;
     }
 
-
-    // =========================================================================
-    // CHUYỂN VÀO PHÒNG ĐẤU GIÁ
-    // =========================================================================
-
-    private void enterAuctionRoom(ActionEvent event, String plate, String stringPrice) {
-        logger.info("📍 [Dashboard] Bắt đầu enter auction room - Plate: " + plate);
-        
+    // ================== LOGIC THỜI GIAN ĐÃ ĐƯỢC FIX ==================
+    private LocalDateTime parseTime(String raw) {
+        if (raw == null || raw.isEmpty()) return null;
         try {
-            // Validate input
-            if (plate == null || plate.trim().isEmpty()) {
-                logger.log(Level.WARNING, "Biển số không hợp lệ");
-                showInfo("Lỗi", "Biển số không hợp lệ");
-                return;
-            }
-            
-            if (stringPrice == null || stringPrice.trim().isEmpty()) {
-                logger.log(Level.WARNING, "Giá không hợp lệ");
-                showInfo("Lỗi", "Giá không hợp lệ");
-                return;
-            }
-
-            // Parse price
-            double startingPrice = parsePrice(stringPrice);
-            logger.info("✅ [Dashboard] Giá khởi điểm: " + startingPrice);
-
-            // Load FXML
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AuctionRoom.fxml"));
-            if (loader.getLocation() == null) {
-                logger.log(Level.SEVERE, "Không tìm thấy file AuctionRoom.fxml");
-                showInfo("Lỗi", "Không tìm thấy giao diện phòng đấu giá");
-                return;
-            }
-
-             Parent root;
-            try {
-                root = loader.load();
-                logger.info("✅ [Dashboard] FXML loaded thành công");
-            } catch (IOException eLoad) {
-                // Log chi tiết exception
-                logger.log(Level.SEVERE, "❌ Lỗi load FXML AuctionRoom", eLoad);
-                logger.log(Level.SEVERE, "Exception type: " + eLoad.getClass().getName());
-                logger.log(Level.SEVERE, "Exception message: " + eLoad.getMessage());
-                
-                // Log cause nếu có
-                Throwable cause = eLoad.getCause();
-                if (cause != null) {
-                    logger.log(Level.SEVERE, "Caused by: " + cause.getClass().getName() + " - " + cause.getMessage());
-                }
-                
-                // Show Alert
-                String errorMsg = eLoad.getMessage();
-                if (errorMsg == null) {
-                    errorMsg = eLoad.getClass().getSimpleName();
-                }
-                showInfo("Lỗi tải giao diện", "Không thể tải phòng đấu giá:\n" + errorMsg);
-                return;
-            }
-
-            // Get controller
-            AuctionRoomController roomController = loader.getController();
-            if (roomController == null) {
-                logger.log(Level.SEVERE, "AuctionRoomController là null");
-                showInfo("Lỗi", "Không thể khởi tạo controller");
-                return;
-            }
-            logger.info("✅ [Dashboard] Controller initialized");
-
-            // Get scene and set root
-            Node sourceNode = (Node) event.getSource();
-            if (sourceNode == null) {
-                logger.log(Level.SEVERE, "Source node là null");
-                showInfo("Lỗi", "Không thể xác định nguồn event");
-                return;
-            }
-
-            Scene currentScene = sourceNode.getScene();
-            if (currentScene == null) {
-                logger.log(Level.SEVERE, "Current scene là null");
-                showInfo("Lỗi", "Không thể xác định scene hiện tại");
-                return;
-            }
-
-            // Set room data and navigate
-            try {
-                roomController.setAuctionRoomData(plate, startingPrice);
-                logger.info("✅ [Dashboard] setAuctionRoomData() thành công");
-            } catch (Exception eSetData) {
-                logger.log(Level.SEVERE, "Lỗi setAuctionRoomData", eSetData);
-                showInfo("Lỗi dữ liệu", "Không thể tải dữ liệu phòng: " + eSetData.getMessage());
-                return;
-            }
-
-            // Navigate to room
-            try {
-                currentScene.setRoot(root);
-                logger.info("✅ [Dashboard] Điều hướng tới phòng đấu giá thành công");
-            } catch (Exception eSetRoot) {
-                logger.log(Level.SEVERE, "Lỗi setRoot", eSetRoot);
-                showInfo("Lỗi hiển thị", "Không thể hiển thị phòng đấu giá");
-                return;
-            }
-
+            String cleaned = raw.replace("T", " ");
+            if (cleaned.contains(".")) cleaned = cleaned.substring(0, cleaned.indexOf("."));
+            return Timestamp.valueOf(cleaned).toLocalDateTime();
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Lỗi không mong đợi khi mở phòng đấu giá", e);
-            showInfo("Lỗi hệ thống", "Có lỗi xảy ra: " + e.getMessage());
+            return null;
         }
     }
 
-    private double parsePrice(String rawPrice) {
+    private String formatDuration(java.time.Duration d) {
+        long totalMin = d.toMinutes();
+        if (totalMin < 60) {
+            return String.format("Còn %dp %02ds", totalMin, d.toSecondsPart());
+        } else if (totalMin < 1440) {
+            return String.format("Còn %dh %02dp", totalMin / 60, totalMin % 60);
+        } else {
+            return String.format("Còn %d ngày %dh", totalMin / 1440, (totalMin % 1440) / 60);
+        }
+    }
+
+    private HBox buildTimeRow(ItemDTO item, Button btnBid, VBox card) {
+        Label clockIcon = new Label("🕒");
+        clockIcon.setStyle("-fx-text-fill: white; -fx-font-size: 20px;");
+
+        Label lblTimeLabel = new Label();
+        lblTimeLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
+
+        Label lblTimeValue = new Label();
+        lblTimeValue.setStyle("-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;");
+
+        VBox texts = new VBox(lblTimeLabel, lblTimeValue);
+        HBox row = new HBox(10, clockIcon, texts);
+        row.setAlignment(Pos.CENTER_LEFT);
+
+        String status = item.getAuctionStatus();
+
+        if ("WAITING".equalsIgnoreCase(status) || "PENDING".equalsIgnoreCase(status)) {
+            lblTimeLabel.setText("Trạng thái"); lblTimeValue.setText("⏳ Chờ khai mạc"); return row;
+        }
+        if ("FINISHED".equalsIgnoreCase(status)) {
+            lblTimeLabel.setText("Trạng thái"); lblTimeValue.setText("🏁 Đã kết thúc"); return row;
+        }
+
+        LocalDateTime regEnd = parseTime(item.getRegistrationEndTime());
+        LocalDateTime aucEnd = parseTime(item.getAuctionEndTime());
+
+        Timeline tl = new Timeline();
+        tl.getKeyFrames().add(new KeyFrame(Duration.seconds(1), e -> {
+            LocalDateTime now = LocalDateTime.now();
+            String currentStatus = item.getAuctionStatus();
+
+            // Nếu đang trong thời gian đăng ký
+            if ("REGISTRATION".equalsIgnoreCase(currentStatus)) {
+                if (regEnd != null) {
+                    java.time.Duration d = java.time.Duration.between(now, regEnd);
+                    if (d.isNegative() || d.isZero()) {
+                        // Hết giờ đăng ký -> KHÔNG DỪNG TIMELINE, tự động chuyển sang trạng thái Đấu giá
+                        item.setAuctionStatus("AUCTION");
+                        lblTimeLabel.setText("Đấu giá còn lại");
+                        btnBid.setText("VÀO ĐẤU GIÁ NGAY");
+                        btnBid.setStyle("-fx-background-color: #eab308; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand;");
+                    } else {
+                        lblTimeLabel.setText("Đăng ký còn lại");
+                        lblTimeValue.setText(formatDuration(d));
+                        lblTimeValue.setStyle("-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;");
+                    }
+                } else {
+                    lblTimeValue.setText("Không xác định");
+                }
+            }
+
+            // Nếu đã chuyển sang trạng thái đấu giá (hoặc vốn dĩ đang đấu giá)
+            if ("AUCTION".equalsIgnoreCase(item.getAuctionStatus())) {
+                if (aucEnd != null) {
+                    java.time.Duration d = java.time.Duration.between(now, aucEnd);
+                    if (d.isNegative() || d.isZero()) {
+                        // Hết giờ đấu giá -> Mới dừng timeline và ẩn thẻ
+                        tl.stop();
+                        item.setAuctionStatus("FINISHED");
+                        handleCardFinished(card, item.getPlateNumber());
+                    } else {
+                        lblTimeLabel.setText("Đấu giá còn lại");
+                        lblTimeValue.setText(formatDuration(d));
+                        lblTimeValue.setStyle("-fx-text-fill: #eab308; -fx-font-size: 15px; -fx-font-weight: bold;");
+                    }
+                } else {
+                    lblTimeValue.setText("Không xác định");
+                }
+            }
+        }));
+        tl.setCycleCount(Timeline.INDEFINITE);
+        tl.play();
+
+        return row;
+    }
+    // =================================================================
+
+    private void enterAuctionRoom(ActionEvent event, String plate, String stringPrice, String endTimeRaw) {
         try {
-            String clean = rawPrice.replaceAll("[^\\d]", "");
-            double price = clean.isEmpty() ? 0.0 : Double.parseDouble(clean);
-            System.out.println("🔍 DEBUG parsePrice: rawPrice='" + rawPrice + "' -> clean='" + clean + "' -> price=" + price);
-            return price;
-        } catch (NumberFormatException e) {
-            logger.log(Level.WARNING, "Không thể đọc giá trị: " + rawPrice, e);
-            System.out.println("❌ DEBUG parsePrice failed: " + rawPrice);
-            return 0.0;
+            double startingPrice = parsePrice(stringPrice);
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AuctionRoom.fxml"));
+            Parent root = loader.load();
+
+            AuctionRoomController roomController = loader.getController();
+            if (roomController == null) { showInfo("Lỗi", "Không khởi tạo được controller"); return; }
+
+            roomController.setAuctionRoomData(plate, startingPrice, endTimeRaw);
+
+            Scene scene = ((Node) event.getSource()).getScene();
+            scene.setRoot(root);
+
+        } catch (IOException eLoad) {
+            String msg = eLoad.getCause() != null ? eLoad.getCause().getMessage() : eLoad.getMessage();
+            showInfo("Lỗi tải giao diện", "Không thể tải phòng đấu giá:\n" + msg);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Lỗi enterAuctionRoom", e);
+            showInfo("Lỗi hệ thống", e.getMessage());
         }
     }
 
-    // ========================================================================
-    // DIALOG CHI TIẾT SẢN PHẨM
-    // ========================================================================
+    private double parsePrice(String raw) {
+        try {
+            String clean = raw.replaceAll("[^\\d]", "");
+            return clean.isEmpty() ? 0.0 : Double.parseDouble(clean);
+        } catch (NumberFormatException e) { return 0.0; }
+    }
 
     private void showProductDetails(ItemDTO item) {
         StackPane overlay = new StackPane();
-        overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.8);");
+        overlay.setStyle("-fx-background-color: rgba(0,0,0,0.8);");
 
         VBox dialog = new VBox(25);
-        dialog.setMaxSize(450, 520);
-        dialog.setStyle("-fx-background-color: #1a2230; -fx-background-radius: 15; " +
-                "-fx-border-color: #334155; -fx-border-radius: 15; " +
-                "-fx-border-width: 1; -fx-padding: 35;");
+        dialog.setMaxSize(450, 540);
+        dialog.setStyle("-fx-background-color: #1a2230; -fx-background-radius: 15; -fx-border-color: #334155; -fx-border-radius: 15; -fx-border-width: 1; -fx-padding: 35;");
         dialog.setAlignment(Pos.CENTER_LEFT);
 
         Label lblTitle = new Label("THÔNG TIN BIỂN: " + item.getPlateNumber());
         lblTitle.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 20px;");
-        VBox.setMargin(lblTitle, new Insets(0, 0, 10, 0));
 
         Button btnClose = new Button("Quay lại");
-        btnClose.setStyle("-fx-background-color: transparent; -fx-border-color: white; " +
-                "-fx-border-radius: 20; -fx-text-fill: white; -fx-cursor: hand; " +
-                "-fx-padding: 8 30; -fx-font-weight: bold;");
-        btnClose.setOnAction(e ->
-                ((StackPane) btnHome.getScene().getRoot()).getChildren().remove(overlay)
-        );
+        btnClose.setStyle("-fx-background-color: transparent; -fx-border-color: white; -fx-border-radius: 20; -fx-text-fill: white; -fx-cursor: hand; -fx-padding: 8 30; -fx-font-weight: bold;");
+        btnClose.setOnAction(e -> ((StackPane) btnHome.getScene().getRoot()).getChildren().remove(overlay));
 
-        // ==========================================
-        // XỬ LÝ LOGIC HIỂN THỊ GIÁ THÔNG MINH
-        // ==========================================
         String priceLabel = "GIÁ KHỞI ĐIỂM";
         String priceValue = String.format("%,.0f VNĐ", item.getStartPrice());
         String priceColor = "#00b894";
-
-        if ("FINISHED".equalsIgnoreCase(item.getAuctionStatus())) {
-            priceLabel = "GIÁ CUỐI CÙNG (ĐÃ KẾT THÚC)";
-            priceValue = item.getFormattedPrice() + " VNĐ";
-            priceColor = "#f59e0b";
-        } else if ("AUCTION".equalsIgnoreCase(item.getAuctionStatus())) {
-            priceLabel = "GIÁ HIỆN TẠI (ĐANG ĐẤU GIÁ)";
-            priceValue = item.getFormattedPrice() + " VNĐ";
-            priceColor = "#38bdf8";
+        if ("AUCTION".equalsIgnoreCase(item.getAuctionStatus())) {
+            priceLabel = "GIÁ HIỆN TẠI"; priceValue = item.getFormattedPrice() + " VNĐ"; priceColor = "#38bdf8";
+        } else if ("FINISHED".equalsIgnoreCase(item.getAuctionStatus())) {
+            priceLabel = "GIÁ CUỐI CÙNG"; priceValue = item.getFormattedPrice() + " VNĐ"; priceColor = "#f59e0b";
         }
 
         dialog.getChildren().addAll(
@@ -489,34 +407,20 @@ public class DashboardController {
         ((StackPane) btnHome.getScene().getRoot()).getChildren().add(overlay);
     }
 
-    private VBox makeInfoBox(String titleText, String valueText, String titleColor, boolean isBold) {
-        Label lblTitle = new Label(titleText);
-        lblTitle.setStyle("-fx-text-fill: " + titleColor + "; -fx-font-weight: bold; -fx-font-size: 15px;");
-
-        Label lblValue = new Label("• " + valueText);
-        lblValue.setStyle(isBold
-                ? "-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;"
-                : "-fx-text-fill: white; -fx-font-size: 14px;");
-
-        VBox box = new VBox(5);
-        box.getChildren().addAll(lblTitle, lblValue);
-        return box;
+    private VBox makeInfoBox(String title, String value, String color, boolean bold) {
+        Label t = new Label(title);
+        t.setStyle("-fx-text-fill: " + color + "; -fx-font-weight: bold; -fx-font-size: 14px;");
+        Label v = new Label("• " + (value != null ? value : "N/A"));
+        v.setStyle(bold ? "-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;" : "-fx-text-fill: white; -fx-font-size: 13px;");
+        return new VBox(4, t, v);
     }
 
-    // =========================================================================
-    // HÀM TIỆN ÍCH DÙNG CHUNG
-    // =========================================================================
-
-    private void navigateTo(ActionEvent event, String fxmlPath) {
+    private void navigateTo(ActionEvent event, String path) {
         try {
-            Parent newRoot = FXMLLoader.load(getClass().getResource(fxmlPath));
-            // Thống nhất dùng setRoot() thay vì tạo Scene mới
-            Scene currentScene = ((Node) event.getSource()).getScene();
-            currentScene.setRoot(newRoot);
-        } catch (IOException e) {
-            e.printStackTrace();
-            // Có thể thêm Alert thông báo lỗi ở đây
-        }
+            AuctionFinishService.getInstance().removeListener(this);
+            Parent root = FXMLLoader.load(getClass().getResource(path));
+            ((Node) event.getSource()).getScene().setRoot(root);
+        } catch (IOException e) { e.printStackTrace(); }
     }
 
     private void setActiveFilterTab(Button active, Button inactive) {
@@ -527,12 +431,10 @@ public class DashboardController {
     }
 
     private void setActiveTab(Button activeButton) {
-        Button[] tabs = {btnHome, btnHistory, btnResults};
-        for (Button tab : tabs) {
+        for (Button tab : new Button[]{btnHome, btnHistory, btnResults}) {
             if (tab == null) continue;
             if (tab == activeButton) {
-                tab.setStyle("-fx-background-color: transparent; " +
-                        "-fx-border-color: #00b894; -fx-border-width: 0 0 2 0;");
+                tab.setStyle("-fx-background-color: transparent; -fx-border-color: #00b894; -fx-border-width: 0 0 2 0;");
                 tab.setTextFill(Color.web("#00b894"));
             } else {
                 tab.setStyle("-fx-background-color: transparent;");
@@ -541,214 +443,8 @@ public class DashboardController {
         }
     }
 
-    private void showInfo(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-    private HBox buildTimeRow(ItemDTO item) {
-
-        Label clockIcon = new Label("🕒");
-
-        clockIcon.setStyle(
-                "-fx-text-fill: white; " +
-                        "-fx-font-size: 20px;"
-        );
-
-        Label lblTimeLabel = new Label();
-
-        lblTimeLabel.setStyle(
-                "-fx-text-fill: #94a3b8; " +
-                        "-fx-font-size: 11px;"
-        );
-
-        Label lblTimeValue = new Label();
-
-        lblTimeValue.setStyle(
-                "-fx-text-fill: white; " +
-                        "-fx-font-size: 15px; " +
-                        "-fx-font-weight: bold;"
-        );
-
-        VBox timeTexts = new VBox();
-        timeTexts.getChildren().addAll(
-                lblTimeLabel,
-                lblTimeValue
-        );
-
-        HBox row = new HBox(10);
-
-        row.setAlignment(Pos.CENTER_LEFT);
-
-        row.getChildren().addAll(
-                clockIcon,
-                timeTexts
-        );
-
-        String auctionStatus =
-                item.getAuctionStatus();
-
-        // =====================================
-        // WAITING
-        // =====================================
-
-        if ("WAITING".equalsIgnoreCase(auctionStatus)
-                || "PENDING".equalsIgnoreCase(auctionStatus)) {
-
-            lblTimeLabel.setText("Trạng thái");
-
-            lblTimeValue.setText("⏳ Chờ khai mạc");
-
-            return row;
-        }
-
-        // =====================================
-        // FINISHED
-        // =====================================
-
-        if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
-
-            lblTimeLabel.setText("Trạng thái");
-
-            lblTimeValue.setText("🏁 Đã kết thúc");
-
-            return row;
-        }
-
-        // =====================================
-        // REGISTRATION / AUCTION
-        // =====================================
-
-        try {
-
-            String targetRaw;
-
-            boolean isRegistration =
-                    "REGISTRATION".equalsIgnoreCase(
-                            auctionStatus
-                    );
-
-            if (isRegistration) {
-
-                lblTimeLabel.setText(
-                        "Đăng ký còn lại"
-                );
-
-                targetRaw =
-                        item.getRegistrationEndTime();
-
-            } else {
-
-                lblTimeLabel.setText(
-                        "Đấu giá còn lại"
-                );
-
-                targetRaw =
-                        item.getAuctionEndTime();
-            }
-
-            targetRaw =
-                    targetRaw.replace("T", " ");
-
-            if (targetRaw.contains(".")) {
-
-                targetRaw =
-                        targetRaw.substring(
-                                0,
-                                targetRaw.indexOf(".")
-                        );
-            }
-
-            Timestamp timestamp =
-                    Timestamp.valueOf(targetRaw);
-
-            LocalDateTime targetTime =
-                    timestamp.toLocalDateTime();
-
-            Timeline timeline =
-                    new Timeline(
-                            new KeyFrame(
-                                    Duration.seconds(1),
-                                    event -> {
-
-                                        LocalDateTime now =
-                                                LocalDateTime.now();
-
-                                        if (now.isBefore(targetTime)) {
-
-                                            java.time.Duration d =
-                                                    java.time.Duration.between(
-                                                            now,
-                                                            targetTime
-                                                    );
-
-                                            long totalMinutes = d.toMinutes();
-
-                                            if (totalMinutes < 60) {
-
-                                                lblTimeValue.setText(
-                                                        "Còn " + totalMinutes + " phút"
-                                                );
-
-                                            } else if (totalMinutes < 1440) {
-
-                                                long h = totalMinutes / 60;
-
-                                                long m = totalMinutes % 60;
-
-                                                lblTimeValue.setText(
-                                                        String.format(
-                                                                "Còn %dh %02dp",
-                                                                h,
-                                                                m
-                                                        )
-                                                );
-
-                                            } else {
-
-                                                long dayCount = totalMinutes / 1440;
-
-                                                long hourCount =
-                                                        (totalMinutes % 1440) / 60;
-
-                                                lblTimeValue.setText(
-                                                        String.format(
-                                                                "Còn %d ngày %dh",
-                                                                dayCount,
-                                                                hourCount
-                                                        )
-                                                );
-                                            }
-
-                                        } else {
-
-                                            lblTimeValue.setText(
-                                                    isRegistration
-                                                            ? "⚡ Đang đấu giá"
-                                                            : "🏁 Đã kết thúc"
-                                            );
-                                        }
-                                    }
-                            )
-                    );
-
-            timeline.setCycleCount(
-                    Timeline.INDEFINITE
-            );
-
-            timeline.play();
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-
-            lblTimeValue.setText(
-                    "Không xác định"
-            );
-        }
-
-        return row;
+    private void showInfo(String title, String msg) {
+        Alert a = new Alert(Alert.AlertType.INFORMATION);
+        a.setTitle(title); a.setHeaderText(null); a.setContentText(msg); a.showAndWait();
     }
 }

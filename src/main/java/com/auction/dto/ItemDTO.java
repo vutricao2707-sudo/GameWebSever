@@ -180,4 +180,7 @@ public class ItemDTO {
     public String getAuctionEndTime() {
         return auctionEndTime;
     }
+    public void setAuctionStatus(String auctionStatus) {
+        this.auctionStatus = auctionStatus;
+    }
 }
