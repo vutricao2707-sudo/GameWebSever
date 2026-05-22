@@ -44,7 +44,7 @@ public class App extends Application {
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/Login.fxml"));
         Parent root = fxmlLoader.load();
 
-        Scene scene = new Scene(root, 1024, 720);
+        Scene scene = new Scene(root, 1280, 800);
 
         stage.setTitle("Hệ Thống Đấu Giá Biển Số - VinGroup");
         stage.setScene(scene);
