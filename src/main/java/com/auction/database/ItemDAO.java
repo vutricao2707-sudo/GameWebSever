@@ -6,8 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * ItemDAO - Quản lý biển số xe (items)
- * Đã chuẩn hóa: Căn lề code, xóa các dòng trống và chú thích thừa.
+ * ItemDAO — Quản lý biển số xe (items)
+ * Đã bổ sung: getFullMonitoringData() cho Admin giám sát realtime
  */
 public class ItemDAO {
 
@@ -25,11 +25,10 @@ public class ItemDAO {
 
             pstmt.setString(1, plateNumber);
             pstmt.setDouble(2, startPrice);
-            pstmt.setDouble(3, startPrice); // current_price = start_price lúc đầu
+            pstmt.setDouble(3, startPrice);
             pstmt.setString(4, description);
             pstmt.setString(5, vehicleType);
             pstmt.setString(6, status);
-
             pstmt.executeUpdate();
             System.out.println("✅ Thêm item biển '" + plateNumber + "' thành công");
 
@@ -60,7 +59,6 @@ public class ItemDAO {
             pstmt.setString(9, sellerPhone);
             pstmt.setString(10, sellerEmail);
             pstmt.setString(11, sellerAddress);
-
             pstmt.executeUpdate();
             System.out.println("✅ Thêm item (chờ duyệt) thành công");
         }
@@ -97,59 +95,41 @@ public class ItemDAO {
     }
 
     public static String[] getItemFullData(String plateNumber) {
-
-        String sql =
-                "SELECT * FROM items WHERE plate_number = ?";
+        String sql = "SELECT * FROM items WHERE plate_number = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, plateNumber);
-
             try (ResultSet rs = pstmt.executeQuery()) {
-
                 if (rs.next()) {
+                    Timestamp registrationEndTs = rs.getTimestamp("registration_end_time");
+                    String auctionStatus = rs.getString("auction_status");
 
-                    // =====================================
-                    // TỰ CHUYỂN SANG AUCTION
-                    // =====================================
+                    // Tự động chuyển REGISTRATION → AUCTION nếu đã hết giờ đăng ký
+                    if (registrationEndTs != null && "REGISTRATION".equalsIgnoreCase(auctionStatus)) {
 
-                    String registrationEnd =
-                            rs.getString("registration_end_time");
-
-                    String auctionStatus =
-                            rs.getString("auction_status");
-
-                    if (registrationEnd != null &&
-                            "REGISTRATION".equalsIgnoreCase(auctionStatus)) {
-
-                        LocalDateTime now =
-                                LocalDateTime.now();
-
-                        LocalDateTime endTime =
-                                Timestamp.valueOf(registrationEnd)
-                                        .toLocalDateTime();
+                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime endTime = registrationEndTs.toLocalDateTime();
 
                         if (now.isAfter(endTime)) {
 
                             String updateSql =
                                     "UPDATE items " +
                                             "SET auction_status = 'AUCTION' " +
-                                            "WHERE plate_number = ?";
+                                            "WHERE plate_number = ? " +
+                                            "AND auction_status = 'REGISTRATION'";
 
-                            try (PreparedStatement updateStmt =
-                                         conn.prepareStatement(updateSql)) {
+                            try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
 
                                 updateStmt.setString(1, plateNumber);
 
-                                updateStmt.executeUpdate();
+                                int updated = updateStmt.executeUpdate();
 
-                                auctionStatus = "AUCTION";
-
-                                System.out.println(
-                                        "✅ Đã chuyển sang AUCTION: "
-                                                + plateNumber
-                                );
+                                if (updated > 0) {
+                                    auctionStatus = "AUCTION";
+                                    System.out.println("✅ Đã chuyển sang AUCTION: " + plateNumber);
+                                }
                             }
                         }
                     }
@@ -169,16 +149,59 @@ public class ItemDAO {
                     };
                 }
             }
-
         } catch (SQLException e) {
-
-            System.out.println(
-                    "❌ Lỗi getItemFullData: "
-                            + e.getMessage()
-            );
+            System.out.println("❌ Lỗi getItemFullData: " + e.getMessage());
         }
-
         return null;
+    }
+
+    /** Lấy auction_status mới nhất từ DB (tránh dùng cache ItemDTO cũ) */
+    public static String getAuctionStatus(String plateNumber) {
+        String sql = "SELECT auction_status, registration_end_time FROM items WHERE plate_number = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, plateNumber);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    String status = rs.getString("auction_status");
+                    Timestamp regEndTs = rs.getTimestamp("registration_end_time");
+
+                    // Tự động chuyển REGISTRATION → AUCTION nếu đã hết giờ
+                    if ("REGISTRATION".equalsIgnoreCase(status) && regEndTs != null) {
+
+                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime endTime = regEndTs.toLocalDateTime();
+
+                        if (now.isAfter(endTime)) {
+
+                            boolean updated = updateAuctionStatus(plateNumber, "AUCTION");
+
+                            if (updated) {
+                                return "AUCTION";
+                            }
+                        }
+                    }
+                    return status;
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getAuctionStatus: " + e.getMessage());
+        }
+        return "WAITING";
+    }
+
+    public static boolean updateAuctionStatus(String plateNumber, String newStatus) {
+        String sql = "UPDATE items SET auction_status = ? WHERE plate_number = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, newStatus);
+            pstmt.setString(2, plateNumber);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi updateAuctionStatus: " + e.getMessage());
+        }
+        return false;
     }
 
     public static List<String[]> getAllApprovedItems() {
@@ -219,7 +242,7 @@ public class ItemDAO {
                 "status, seller_name, seller_phone, seller_email, seller_address, " +
                 "registration_end_time, auction_start_time, auction_status, auction_end_time " +
                 "FROM items " +
-                "WHERE approval_status = 'APPROVED' AND status = 'ACTIVE'";
+                "WHERE approval_status = 'APPROVED' AND status = 'ACTIVE' AND auction_status != 'FINISHED'";
 
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
@@ -286,9 +309,7 @@ public class ItemDAO {
 
             pstmt.setString(1, plateNumber);
             try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1) > 0;
-                }
+                if (rs.next()) return rs.getInt(1) > 0;
             }
         } catch (SQLException e) {
             System.out.println("❌ Lỗi plateExists: " + e.getMessage());
@@ -339,17 +360,12 @@ public class ItemDAO {
 
             pstmt.setDouble(1, newPrice);
             pstmt.setString(2, plateNumber);
-            if (pstmt.executeUpdate() > 0) {
-                System.out.println("✅ Cập nhật giá thành công");
-            }
+            pstmt.executeUpdate();
         } catch (SQLException e) {
             System.out.println("❌ Lỗi updateCurrentPrice: " + e.getMessage());
         }
     }
 
-    /**
-     * Cập nhật giá theo itemId (overload)
-     */
     public static void updateCurrentPrice(int itemId, double newPrice) {
         String sql = "UPDATE items SET current_price = ? WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
@@ -357,45 +373,35 @@ public class ItemDAO {
 
             pstmt.setDouble(1, newPrice);
             pstmt.setInt(2, itemId);
-            if (pstmt.executeUpdate() > 0) {
-                System.out.println("✅ Cập nhật giá (itemId=" + itemId + ") thành công");
-            }
+            pstmt.executeUpdate();
         } catch (SQLException e) {
-            System.out.println("❌ Lỗi updateCurrentPrice: " + e.getMessage());
+            System.out.println("❌ Lỗi updateCurrentPrice(id): " + e.getMessage());
         }
     }
 
-    // Lựa chọn ẩn đi những phiên đấu giá.
     public static boolean hideSelectedItems(List<String> plates) {
         if (plates == null || plates.isEmpty()) return false;
-
-        // Câu lệnh SQL chuyển trạng thái các biển được chọn thành INACTIVE
         String sql = "UPDATE items SET status = 'INACTIVE' WHERE plate_number = ?";
-
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            // Chạy vòng lặp duyệt qua từng biển số được tích chọn
             for (String plate : plates) {
                 pstmt.setString(1, plate);
-                pstmt.addBatch(); // Cho vào hàng đợi (Batch) để xử lý một thể cho nhanh
+                pstmt.addBatch();
             }
-
-            int[] results = pstmt.executeBatch(); // Kích hoạt chạy hàng đợi
+            int[] results = pstmt.executeBatch();
             return results.length > 0;
-
         } catch (SQLException e) {
-            System.out.println("❌ Lỗi ẩn các biển số đã chọn: " + e.getMessage());
+            System.out.println("❌ Lỗi hideSelectedItems: " + e.getMessage());
             return false;
         }
     }
 
     // =====================================================================
-    // 4. QUẢN LÝ THỜI GIAN VÀ NGƯỜI THAM GIA ĐẤU GIÁ
+    // 4. QUẢN LÝ THỜI GIAN VÀ NGƯỜI THAM GIA
     // =====================================================================
 
     public static boolean startRegistrationPhase(String plateNumber, int regMinutes, int aucMinutes) {
-        // Cập nhật thời gian linh hoạt dựa trên input của Admin
         String sql = "UPDATE items SET " +
                 "registration_start_time = NOW(), " +
                 "registration_end_time = DATE_ADD(NOW(), INTERVAL ? MINUTE), " +
@@ -408,12 +414,12 @@ public class ItemDAO {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, regMinutes); // Đăng ký kết thúc sau regMinutes
-            pstmt.setInt(2, regMinutes); // Đấu giá bắt đầu sau regMinutes
-            pstmt.setInt(3, regMinutes); // Tính thời gian kết thúc đấu giá (Bắt đầu + aucMinutes)
+            pstmt.setInt(1, regMinutes);
+            pstmt.setInt(2, regMinutes);
+            pstmt.setInt(3, regMinutes);
             pstmt.setInt(4, aucMinutes);
             pstmt.setInt(5, regMinutes);
-            pstmt.setString(6, plateNumber); // Dùng biển số xe để tìm
+            pstmt.setString(6, plateNumber);
 
             if (pstmt.executeUpdate() > 0) {
                 System.out.println("✅ Đã setup thời gian cho biển '" + plateNumber + "'");
@@ -424,15 +430,14 @@ public class ItemDAO {
         }
         return false;
     }
+
     public static void incrementParticipantCount(String plateNumber) {
         String sql = "UPDATE items SET participant_count = participant_count + 1 WHERE plate_number = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, plateNumber);
-            if (pstmt.executeUpdate() > 0) {
-                System.out.println("✅ Tăng số người tham gia cho biển '" + plateNumber + "' thành công");
-            }
+            pstmt.executeUpdate();
         } catch (SQLException e) {
             System.out.println("❌ Lỗi incrementParticipantCount: " + e.getMessage());
         }
@@ -445,9 +450,7 @@ public class ItemDAO {
 
             pstmt.setString(1, plateNumber);
             try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("participant_count");
-                }
+                if (rs.next()) return rs.getInt("participant_count");
             }
         } catch (SQLException e) {
             System.out.println("❌ Lỗi getParticipantCount: " + e.getMessage());
@@ -463,9 +466,7 @@ public class ItemDAO {
 
             pstmt.setString(1, plateNumber);
             try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return Math.max(rs.getLong("remaining"), 0);
-                }
+                if (rs.next()) return Math.max(rs.getLong("remaining"), 0);
             }
         } catch (SQLException e) {
             System.out.println("❌ Lỗi getAuctionTimeRemaining: " + e.getMessage());
@@ -474,81 +475,55 @@ public class ItemDAO {
     }
 
     public static boolean finishAuction(int itemId, double finalPrice) {
-        String sql = """
-        UPDATE items
-        SET auction_status = 'FINISHED',
-            current_price = ?,
-            auction_end_time = NOW()
-        WHERE id = ?
-    """;
-
+        String sql = "UPDATE items SET auction_status = 'FINISHED', current_price = ?, " +
+                "auction_end_time = NOW() WHERE id = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setDouble(1, finalPrice);
             ps.setInt(2, itemId);
-
             return ps.executeUpdate() > 0;
-
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println("❌ Lỗi finishAuction: " + e.getMessage());
             return false;
         }
     }
-    public static void autoFinishAuction(String plateNumber) {
 
-        String sql =
-                "SELECT auction_end_time, auction_status, current_price " +
-                        "FROM items WHERE plate_number = ?";
+    public static void autoFinishAuction(String plateNumber) {
+        String sql = "SELECT auction_end_time, auction_status, current_price FROM items WHERE plate_number = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, plateNumber);
-
             try (ResultSet rs = pstmt.executeQuery()) {
-
                 if (rs.next()) {
                     double currentPrice = rs.getDouble("current_price");
+                    Timestamp endTimeTs = rs.getTimestamp("auction_end_time");
+                    String status = rs.getString("auction_status");
 
-                    String endTimeStr =
-                            rs.getString("auction_end_time");
+                    if (endTimeTs != null && "AUCTION".equalsIgnoreCase(status)) {
 
-                    String status =
-                            rs.getString("auction_status");
-
-                    if (endTimeStr != null &&
-                            "AUCTION".equalsIgnoreCase(status)) {
-
-                        LocalDateTime now =
-                                LocalDateTime.now();
-
-                        LocalDateTime endTime =
-                                Timestamp.valueOf(endTimeStr)
-                                        .toLocalDateTime();
+                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime endTime = endTimeTs.toLocalDateTime();
 
                         if (now.isAfter(endTime)) {
 
                             int itemId = getItemIdByPlate(plateNumber);
 
                             if (itemId != -1) {
-                                finishAuction(itemId, currentPrice);
-                            }
 
-                            System.out.println(
-                                    "✅ AUTO FINISHED: "
-                                            + plateNumber
-                            );
+                                boolean finished = finishAuction(itemId, currentPrice);
+
+                                if (finished) {
+                                    System.out.println("✅ AUTO FINISHED: " + plateNumber);
+                                }
+                            }
                         }
                     }
                 }
             }
-
         } catch (SQLException e) {
-
-            System.out.println(
-                    "❌ Lỗi autoFinishAuction: "
-                            + e.getMessage()
-            );
+            System.out.println("❌ Lỗi autoFinishAuction: " + e.getMessage());
         }
     }
 
@@ -556,16 +531,13 @@ public class ItemDAO {
         String sql = "SELECT UNIX_TIMESTAMP(bid_time) FROM bids " +
                 "WHERE item_id = (SELECT id FROM items WHERE plate_number = ?) " +
                 "AND user_id = ? ORDER BY bid_time DESC LIMIT 1";
-
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, plateNumber);
             pstmt.setInt(2, userId);
             try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getLong(1);
-                }
+                if (rs.next()) return rs.getLong(1);
             }
         } catch (SQLException e) {
             System.out.println("❌ Lỗi getLastBidTime: " + e.getMessage());
@@ -579,8 +551,9 @@ public class ItemDAO {
 
     public static List<String[]> getFinishedAuctions() {
         List<String[]> result = new ArrayList<>();
-        String sql = "SELECT id, plate_number, start_price, current_price, vehicle_type, seller_name, auction_status, auction_end_time " +
-                "FROM items WHERE auction_status = 'FINISHED' ORDER BY auction_end_time DESC LIMIT 50";
+        String sql = "SELECT id, plate_number, start_price, current_price, vehicle_type, seller_name, " +
+                "auction_status, auction_end_time FROM items " +
+                "WHERE auction_status = 'FINISHED' ORDER BY auction_end_time DESC LIMIT 50";
 
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
@@ -606,10 +579,9 @@ public class ItemDAO {
 
     public static List<String[]> getFinishedAuctionsByUserId(int userId) {
         List<String[]> results = new ArrayList<>();
-        String sql = "SELECT DISTINCT i.id, i.plate_number, i.start_price, i.current_price, i.vehicle_type, i.auction_status, i.auction_end_time " +
-                "FROM items i JOIN bids b ON i.id = b.item_id " +
-                "WHERE i.auction_status = 'FINISHED' AND b.user_id = ? " +
-                "ORDER BY i.auction_end_time DESC";
+        String sql = "SELECT DISTINCT i.id, i.plate_number, i.start_price, i.current_price, i.vehicle_type, " +
+                "i.auction_status, i.auction_end_time FROM items i JOIN bids b ON i.id = b.item_id " +
+                "WHERE i.auction_status = 'FINISHED' AND b.user_id = ? ORDER BY i.auction_end_time DESC";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -623,7 +595,7 @@ public class ItemDAO {
                             String.valueOf(rs.getDouble("start_price")),
                             String.valueOf(rs.getDouble("current_price")),
                             rs.getString("vehicle_type"),
-                            "N/A", // seller_name
+                            "N/A",
                             rs.getString("auction_status"),
                             rs.getString("auction_end_time")
                     });
@@ -634,19 +606,128 @@ public class ItemDAO {
         }
         return results;
     }
+
+    // =====================================================================
+    // 6. ADMIN GIÁM SÁT REALTIME — DỮ LIỆU ĐẦY ĐỦ
+    // =====================================================================
+
     /**
-     * Lấy các phiên đấu giá đang hoạt động để Admin giám sát
-     * Trả về: [0]plate [1]vehicle_type [2]auction_status [3]current_price
-     *         [4]registration_end_time [5]auction_end_time [6]participant_count
+     * Lấy dữ liệu đầy đủ cho trang giám sát Admin.
+     * Trả về: [0]id [1]plate [2]vehicle_type [3]auction_status [4]current_price
+     *         [5]auction_end_time [6]registration_end_time [7]participant_count
+     *         [8]highest_bidder_name [9]highest_bid_amount
+     *
+     * Bao gồm cả phiên FINISHED trong 24 giờ qua để Admin xem kết quả.
      */
+    public static List<String[]> getFullMonitoringData() {
+        List<String[]> result = new ArrayList<>();
+        String sql =
+                "SELECT i.id, i.plate_number, i.vehicle_type, i.auction_status, " +
+                        "       i.current_price, i.auction_end_time, i.registration_end_time, " +
+                        "       i.participant_count, " +
+                        "       (SELECT u.full_name FROM bids b " +
+                        "        JOIN users u ON b.user_id = u.id " +
+                        "        WHERE b.item_id = i.id " +
+                        "        ORDER BY b.bid_amount DESC LIMIT 1) AS highest_bidder, " +
+                        "       (SELECT b.bid_amount FROM bids b " +
+                        "        WHERE b.item_id = i.id " +
+                        "        ORDER BY b.bid_amount DESC LIMIT 1) AS highest_bid " +
+                        "FROM items i " +
+                        "WHERE i.approval_status = 'APPROVED' " +
+                        "  AND i.auction_status IN ('REGISTRATION', 'AUCTION', 'FINISHED') " +
+                        "  AND (i.auction_status != 'FINISHED' " +
+                        "       OR i.auction_end_time >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) " +
+                        "ORDER BY " +
+                        "  CASE i.auction_status " +
+                        "    WHEN 'AUCTION' THEN 1 " +
+                        "    WHEN 'REGISTRATION' THEN 2 " +
+                        "    WHEN 'FINISHED' THEN 3 " +
+                        "  END, " +
+                        "  i.auction_end_time ASC";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                String highestBid = rs.getString("highest_bid");
+                result.add(new String[]{
+                        String.valueOf(rs.getInt("id")),             // [0] id
+                        rs.getString("plate_number"),                // [1] biển số
+                        rs.getString("vehicle_type"),                // [2] loại xe
+                        rs.getString("auction_status"),              // [3] trạng thái
+                        String.valueOf(rs.getDouble("current_price")), // [4] giá hiện tại
+                        rs.getString("auction_end_time"),            // [5] thời gian kết thúc đấu giá
+                        rs.getString("registration_end_time"),       // [6] thời gian kết thúc đăng ký
+                        String.valueOf(rs.getInt("participant_count")), // [7] người tham gia
+                        rs.getString("highest_bidder") != null ? rs.getString("highest_bidder") : "Chưa có", // [8]
+                        highestBid != null ? highestBid : "0"        // [9] giá cao nhất
+                });
+            }
+            System.out.println("✅ Monitoring data: " + result.size() + " phiên");
+
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getFullMonitoringData: " + e.getMessage());
+        }
+        return result;
+    }
+
+    /**
+     * Lấy thông tin người thắng cuộc của 1 phiên.
+     * Trả về: [0]user_id [1]full_name [2]bid_amount
+     */
+    public static String[] getWinnerByPlate(String plateNumber) {
+        String sql = "SELECT b.user_id, u.full_name, b.bid_amount " +
+                "FROM bids b JOIN users u ON b.user_id = u.id " +
+                "WHERE b.item_id = (SELECT id FROM items WHERE plate_number = ?) " +
+                "ORDER BY b.bid_amount DESC LIMIT 1";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, plateNumber);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return new String[]{
+                            String.valueOf(rs.getInt("user_id")),
+                            rs.getString("full_name"),
+                            String.valueOf(rs.getDouble("bid_amount"))
+                    };
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getWinnerByPlate: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Lấy số tiền cao nhất mà 1 user đã đặt trong phiên (để thông báo kết quả).
+     */
+    public static double getUserHighestBid(String plateNumber, int userId) {
+        String sql = "SELECT MAX(bid_amount) FROM bids " +
+                "WHERE item_id = (SELECT id FROM items WHERE plate_number = ?) AND user_id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, plateNumber);
+            pstmt.setInt(2, userId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) return rs.getDouble(1);
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getUserHighestBid: " + e.getMessage());
+        }
+        return 0;
+    }
+
     public static List<String[]> getAuctionsForMonitoring() {
         List<String[]> result = new ArrayList<>();
         String sql =
                 "SELECT plate_number, vehicle_type, auction_status, current_price, " +
-                        "       registration_end_time, auction_end_time, participant_count " +
+                        "registration_end_time, auction_end_time, participant_count " +
                         "FROM items " +
                         "WHERE approval_status = 'APPROVED' " +
-                        "  AND auction_status IN ('REGISTRATION', 'AUCTION') " +
+                        "AND auction_status IN ('REGISTRATION', 'AUCTION') " +
                         "ORDER BY auction_end_time ASC";
 
         try (Connection conn = DatabaseConnection.getConnection();
@@ -655,73 +736,54 @@ public class ItemDAO {
 
             while (rs.next()) {
                 result.add(new String[]{
-                        rs.getString("plate_number"),                          // [0]
-                        rs.getString("vehicle_type"),                          // [1]
-                        rs.getString("auction_status"),                        // [2]
-                        String.valueOf(rs.getDouble("current_price")),         // [3]
-                        rs.getString("registration_end_time"),                 // [4]
-                        rs.getString("auction_end_time"),                      // [5]
-                        String.valueOf(rs.getInt("participant_count"))         // [6]
+                        rs.getString("plate_number"),
+                        rs.getString("vehicle_type"),
+                        rs.getString("auction_status"),
+                        String.valueOf(rs.getDouble("current_price")),
+                        rs.getString("registration_end_time"),
+                        rs.getString("auction_end_time"),
+                        String.valueOf(rs.getInt("participant_count"))
                 });
             }
-            System.out.println("✅ Đã tải " + result.size() + " phiên đang giám sát");
-
         } catch (SQLException e) {
             System.out.println("❌ Lỗi getAuctionsForMonitoring: " + e.getMessage());
         }
         return result;
     }
+
     public static int getItemIdByPlate(String plate) {
-
         String sql = "SELECT id FROM items WHERE plate_number = ?";
-
-        try (
-                Connection conn = DatabaseConnection.getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)
-        ) {
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, plate);
-
             try (ResultSet rs = ps.executeQuery()) {
-
-                if (rs.next()) {
-
-                    return rs.getInt("id");
-                }
+                if (rs.next()) return rs.getInt("id");
             }
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-        }
-
+        } catch (SQLException e) {
+        System.out.println("❌ Lỗi getItemIdByPlate: " + e.getMessage());
+    }
         return -1;
     }
+
     public static boolean updateStatus(int itemId, String status) {
         String sql = "UPDATE items SET status = ? WHERE id = ?";
-
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, status);
             ps.setInt(2, itemId);
-
             return ps.executeUpdate() > 0;
-
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println("❌ Lỗi updateStatus: " + e.getMessage());
             return false;
         }
     }
 
     // =====================================================================
-    // AUTO-EXTEND TIMER FEATURE
+    // 7. AUTO-EXTEND TIMER
     // =====================================================================
 
-    /**
-     * Kéo dài thời gian đấu giá thêm @minutes phút
-     * @return true nếu extend thành công
-     */
     public static boolean extendAuctionTime(int itemId, int minutes) {
         String sql = "UPDATE items SET auction_end_time = DATE_ADD(auction_end_time, INTERVAL ? MINUTE) " +
                 "WHERE id = ? AND auction_status = 'AUCTION'";
@@ -730,10 +792,8 @@ public class ItemDAO {
 
             pstmt.setInt(1, minutes);
             pstmt.setInt(2, itemId);
-
-            int result = pstmt.executeUpdate();
-            if (result > 0) {
-                System.out.println("⏱️ AUTO-EXTEND: Phiên item " + itemId + " được kéo dài " + minutes + " phút");
+            if (pstmt.executeUpdate() > 0) {
+                System.out.println("⏱️ AUTO-EXTEND: item " + itemId + " kéo dài " + minutes + " phút");
                 return true;
             }
         } catch (SQLException e) {
@@ -742,10 +802,6 @@ public class ItemDAO {
         return false;
     }
 
-    /**
-     * Lấy thời gian còn lại (chỉ tính để check xem có nên extend không)
-     * @return thời gian còn lại tính bằng seconds
-     */
     public static long getAuctionTimeRemainingSeconds(int itemId) {
         String sql = "SELECT UNIX_TIMESTAMP(auction_end_time) - UNIX_TIMESTAMP(NOW()) AS remaining " +
                 "FROM items WHERE id = ?";
@@ -754,15 +810,14 @@ public class ItemDAO {
 
             pstmt.setInt(1, itemId);
             try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return Math.max(rs.getLong("remaining"), 0);
-                }
+                if (rs.next()) return Math.max(rs.getLong("remaining"), 0);
             }
         } catch (SQLException e) {
             System.out.println("❌ Lỗi getAuctionTimeRemainingSeconds: " + e.getMessage());
         }
         return 0;
     }
+
     public static boolean updateCurrentPriceIfHigher(
             String plateNumber,
             double oldPrice,
@@ -773,7 +828,8 @@ public class ItemDAO {
                 "UPDATE items " +
                         "SET current_price = ? " +
                         "WHERE plate_number = ? " +
-                        "AND current_price = ?";
+                        "AND current_price = ? " +
+                        "AND ? > current_price";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -781,40 +837,53 @@ public class ItemDAO {
             ps.setDouble(1, newPrice);
             ps.setString(2, plateNumber);
             ps.setDouble(3, oldPrice);
+            ps.setDouble(4, newPrice);
 
-            int rows = ps.executeUpdate();
-
-            return rows > 0;
+            return ps.executeUpdate() > 0;
 
         } catch (SQLException e) {
-            e.printStackTrace();
+
+            System.out.println("❌ Lỗi updateCurrentPriceIfHigher: " + e.getMessage());
             return false;
         }
     }
+
     public static double getCurrentPrice(String plateNumber) {
-
-        String sql =
-                "SELECT current_price " +
-                        "FROM items " +
-                        "WHERE plate_number = ?";
-
+        String sql = "SELECT current_price FROM items WHERE plate_number = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, plateNumber);
-
             try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getDouble("current_price");
-                }
+                if (rs.next()) return rs.getDouble("current_price");
             }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getCurrentPrice: " + e.getMessage());
+        }
+        return 0;
+    }
+    public static boolean extendAuctionTime(
+            Connection conn,
+            int itemId,
+            int minutes
+    ) {
+
+        String sql =
+                "UPDATE items " +
+                        "SET auction_end_time = DATE_ADD(auction_end_time, INTERVAL ? MINUTE) " +
+                        "WHERE id = ? AND auction_status = 'AUCTION'";
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, minutes);
+            pstmt.setInt(2, itemId);
+
+            return pstmt.executeUpdate() > 0;
 
         } catch (SQLException e) {
 
-            e.printStackTrace();
+            System.out.println("❌ Lỗi extendAuctionTime(conn): " + e.getMessage());
+            return false;
         }
-
-        return 0;
     }
 }
-

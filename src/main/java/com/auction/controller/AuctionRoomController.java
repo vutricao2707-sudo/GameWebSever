@@ -208,73 +208,137 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     // =========================================================================
     @FXML
     private void handlePlaceBid() {
+
         logger.info("📍 [AuctionRoom] handlePlaceBid() called");
 
         try {
+
             if (currentPlateNumber == null || currentPlateNumber.isEmpty()) {
+
                 showAlert("Lỗi", "Biển số không xác định");
                 return;
             }
 
-            String[] itemData = ItemDAO.getItemFullData(currentPlateNumber);
+            String[] itemData =
+                    ItemDAO.getItemFullData(currentPlateNumber);
+
             if (itemData != null && itemData.length >= 10) {
+
                 if ("FINISHED".equalsIgnoreCase(itemData[9])) {
+
                     if (btnPlaceBid != null) {
+
                         btnPlaceBid.setDisable(true);
-                        btnPlaceBid.setText("PHIÊN ĐẤU GIÁ ĐÃ KẾT THÚC");
+
+                        btnPlaceBid.setText(
+                                "PHIÊN ĐẤU GIÁ ĐÃ KẾT THÚC"
+                        );
                     }
-                    showAlert("Phiên đã kết thúc", "Không thể đặt giá nữa.");
+
+                    showAlert(
+                            "Phiên đã kết thúc",
+                            "Không thể đặt giá nữa."
+                    );
+
                     return;
                 }
             }
 
-            long currentTime = System.currentTimeMillis() / 1000;
-            long timeSinceLastBid = currentTime - lastBidTime;
-
-            if (timeSinceLastBid < BID_COOLDOWN_SECONDS) {
-                long remainingTime = BID_COOLDOWN_SECONDS - timeSinceLastBid;
-                showAlert("Chờ một chút", "Bạn phải chờ " + remainingTime + " giây nữa mới được đặt giá!");
-                return;
-            }
-
             if (SessionManager.INSTANCE.getCurrentUser() == null) {
+
                 showAlert("Lỗi", "Bạn chưa đăng nhập");
                 return;
             }
 
-            int userId = SessionManager.INSTANCE.getCurrentUser().getId();
-            double latestPrice = ItemDAO.getCurrentPrice(currentPlateNumber);
-            double newBid = latestPrice + (stepValue * stepMultiplier);
+            int userId =
+                    SessionManager.INSTANCE.getCurrentUser().getId();
 
-            boolean bidSaved = BidDAO.saveBid(currentPlateNumber, userId, newBid);
+            // =====================================================
+            // LUÔN LẤY GIÁ MỚI NHẤT TỪ DB
+            // =====================================================
+
+            double latestPrice =
+                    ItemDAO.getCurrentPrice(currentPlateNumber);
+
+            double newBid =
+                    latestPrice + (stepValue * stepMultiplier);
+
+            // =====================================================
+            // SAVE BID (DAO xử lý toàn bộ transaction)
+            // =====================================================
+
+            boolean bidSaved =
+                    BidDAO.saveBid(
+                            currentPlateNumber,
+                            userId,
+                            newBid
+                    );
+
             if (!bidSaved) {
-                long dbLastBidTime = BidDAO.getLastBidTime(currentPlateNumber, userId);
-                long remainingTime = (dbLastBidTime + 60) - (System.currentTimeMillis() / 1000);
-                showAlert("Chờ một chút", "⏳ Server chặn spam.\nBạn phải chờ " + Math.max(1, remainingTime) + " giây nữa.");
+
+                long dbLastBidTime =
+                        BidDAO.getLastBidTime(
+                                currentPlateNumber,
+                                userId
+                        );
+
+                long remainingTime =
+                        (dbLastBidTime + 60)
+                                - (System.currentTimeMillis() / 1000);
+
+                refreshCurrentPrice();
+
+                showAlert(
+                        "Đặt giá thất bại",
+                        "⚠️ Có thể:\n" +
+                                "- Giá đã bị người khác vượt\n" +
+                                "- Hoặc cooldown chưa hết\n\n" +
+                                "Vui lòng thử lại.\n" +
+                                "Cooldown còn: "
+                                + Math.max(0, remainingTime)
+                                + " giây"
+                );
+
                 return;
             }
 
-            boolean updated = ItemDAO.updateCurrentPriceIfHigher(currentPlateNumber, latestPrice, newBid);
-            if (!updated) {
-                refreshCurrentPrice();
-                showAlert("Đặt giá thất bại", "⚠️ Đã có người đặt giá trước bạn.\nGiá đã được cập nhật.");
-                return;
-            }
+            // =====================================================
+            // SUCCESS
+            // =====================================================
 
             logger.info("✅ [AuctionRoom] Bid placed successfully!");
-            currentPrice = newBid;
+
+            currentPrice =
+                    ItemDAO.getCurrentPrice(currentPlateNumber);
+
             stepMultiplier = 1;
-            lastBidTime = currentTime;
+
+            lastBidTime =
+                    System.currentTimeMillis() / 1000;
 
             updatePricingUI();
-            addHistoryRow(formatter.format(newBid), currentPlateNumber + " - Bạn");
+
+            addHistoryRow(
+                    formatter.format(currentPrice),
+                    currentPlateNumber + " - Bạn"
+            );
+
+            updatePriceHistoryChart();
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Lỗi không mong đợi trong handlePlaceBid", e);
-            showAlert("Lỗi hệ thống", "Có lỗi xảy ra: " + e.getMessage());
+
+            logger.log(
+                    Level.SEVERE,
+                    "Lỗi không mong đợi trong handlePlaceBid",
+                    e
+            );
+
+            showAlert(
+                    "Lỗi hệ thống",
+                    "Có lỗi xảy ra: " + e.getMessage()
+            );
         }
     }
-
     private void updateParticipantCount() {
         try {
             if (currentPlateNumber != null && !currentPlateNumber.isEmpty() && lblParticipants != null) {
