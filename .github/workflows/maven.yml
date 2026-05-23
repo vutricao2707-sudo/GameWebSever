@@ -1,0 +1,35 @@
+name: Java CI with Maven
+
+# 1. Chạy tự động mỗi khi push lên nhánh main hoặc có pull request vào nhánh main
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# 2. Định nghĩa các công việc (jobs) sẽ được thực hiện trong workflow này
+jobs:
+  build-and-test:
+    # Cung cấp một máy ảo Ubuntu từ GitHub
+    runs-on: ubuntu-latest
+
+    steps:
+      # Tải toàn bộ source code vào máy ảo
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      # Cài đặt môi trường Java
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # Chạy toàn bộ các file JUnit Test
+      - name: Run JUnit Tests
+        run: mvn clean test
+
+      # Đóng gói project thành file .jar nếu test thành công
+      - name: Build Project (JAR)
+        run: mvn clean package -DskipTests
