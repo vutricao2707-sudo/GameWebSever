@@ -2,6 +2,7 @@ package com.auction.controller;
 
 import com.auction.database.BidDAO;
 import com.auction.database.ItemDAO;
+import com.auction.service.AuctionSyncManager;
 import com.auction.ui.AuctionWebSocketClient;
 import com.auction.util.SessionManager;
 import javafx.animation.KeyFrame;
@@ -93,6 +94,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                     if (stage != null) {
                         stage.setOnCloseRequest(event -> {
                             logger.info("🛑 [AuctionRoom] Window closing - stopping timelines");
+                            unregisterAuctionListener();
                             stopAllTimelines();
 
                             if (wsClient != null && currentItemId != -1) {
@@ -119,27 +121,42 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     // =========================================================================
     // LOGIC ĐỒNG HỒ ĐẾM NGƯỢC
     // =========================================================================
-    private void startCountdown() {
-        logger.info("📍 [AuctionRoom] startCountdown() called");
+    private AuctionSyncManager.AuctionListener auctionListener;
 
-        try {
-            if (countdownTimeline != null) {
-                countdownTimeline.stop();
+    // Thay thế startCountdown() bằng:
+    private void registerAuctionListener() {
+        logger.info("📍 [AuctionRoom] Registering AuctionListener with AuctionSyncManager");
+
+        auctionListener = new AuctionSyncManager.AuctionListener() {
+            @Override
+            public void onTimeTick(int itemId, long remainingSeconds, double currentPrice, String auctionStatus) {
+                try {
+                    if (itemId != currentItemId) return;
+
+                    javafx.application.Platform.runLater(() -> {
+                        try {
+                            // Cập nhật timer
+                            int minutes = (int) (remainingSeconds / 60);
+                            int seconds = (int) (remainingSeconds % 60);
+
+                            lblMinutes.setText(String.format("%02d", minutes));
+                            lblSeconds.setText(String.format("%02d", seconds));
+
+                            // Cập nhật giá từ DB - không poll riêng nữa
+                            AuctionRoomController.this.currentPrice = currentPrice;
+                            updatePricingUI();
+
+                        } catch (Exception ignored) {}
+                    });
+                } catch (Exception e) {}
             }
 
-            countdownTimeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
+            @Override
+            public void onAuctionEnded(int itemId, double finalPrice) {
                 try {
-                    if (timeRemainingSeconds > 0) {
-                        timeRemainingSeconds--;
-                        int minutes = timeRemainingSeconds / 60;
-                        int seconds = timeRemainingSeconds % 60;
+                    if (itemId != currentItemId) return;
 
-                        lblMinutes.setText(String.format("%02d", minutes));
-                        lblSeconds.setText(String.format("%02d", seconds));
-                    } else {
-                        logger.info("⏰ [AuctionRoom] Countdown finished");
-                        countdownTimeline.stop();
-
+                    javafx.application.Platform.runLater(() -> {
                         try {
                             if (btnPlaceBid != null) {
                                 btnPlaceBid.setText("PHIÊN ĐẤU GIÁ KẾT THÚC");
@@ -148,28 +165,38 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                             }
 
                             if (currentPlateNumber != null && !currentPlateNumber.isEmpty()) {
-                                int itemId = ItemDAO.getItemIdByPlate(currentPlateNumber);
-                                if (itemId != -1) {
-                                    ItemDAO.finishAuction(itemId, currentPrice);
+                                int itemIdDb = ItemDAO.getItemIdByPlate(currentPlateNumber);
+                                if (itemIdDb != -1) {
+                                    ItemDAO.finishAuction(itemIdDb, finalPrice);
                                     logger.info("✅ [AuctionRoom] Auction finished in database");
                                 }
                             }
-                        } catch (Exception eFinish) {
-                            logger.log(Level.WARNING, "Error finishing auction", eFinish);
-                        }
-                    }
-                } catch (Exception eTimer) {
-                    logger.log(Level.WARNING, "Error in countdown timer", eTimer);
-                }
-            }));
+                        } catch (Exception ignored) {}
+                    });
+                } catch (Exception e) {}
+            }
+        };
 
-            countdownTimeline.setCycleCount(Timeline.INDEFINITE);
-            countdownTimeline.play();
-            logger.info("✅ [AuctionRoom] Countdown started");
+        try {
+            AuctionSyncManager.getInstance().addListener(currentItemId, auctionListener);
+            logger.info("✅ [AuctionRoom] AuctionListener registered");
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error in startCountdown", e);
+            logger.log(Level.WARNING, "Error registering AuctionListener", e);
         }
     }
+
+    // Xóa listener khi rời phòng
+    private void unregisterAuctionListener() {
+        try {
+            if (auctionListener != null && currentItemId != -1) {
+                AuctionSyncManager.getInstance().removeListener(currentItemId, auctionListener);
+                logger.info("🔌 [AuctionRoom] AuctionListener unregistered");
+            }
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Error unregistering AuctionListener", e);
+        }
+    }
+
 
     // =========================================================================
     // LOGIC TĂNG GIẢM BƯỚC GIÁ
@@ -459,7 +486,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
             // ====================== Khởi động đếm ngược hoặc Kết thúc ngay ======================
             if (this.timeRemainingSeconds > 0) {
-                startCountdown();
+                registerAuctionListener();  // Thay vì startCountdown()
             } else {
                 logger.info("🏁 [AuctionRoom] Thời gian đã hết ngay khi vào phòng!");
                 lblMinutes.setText("00");
@@ -492,6 +519,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     @FXML
     private void handleBack(ActionEvent event) {
         try {
+            unregisterAuctionListener();  // Thêm dòng này
             stopAllTimelines();
             if (wsClient != null && currentItemId != -1) {
                 try {
