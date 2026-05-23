@@ -39,4 +39,4 @@ build/
 
 ### Database Config ###
 src/main/resources/database.properties
-
+.ai/
