@@ -1,11 +1,11 @@
 name: Java CI with Maven
 
-# 1. Chạy tự động mỗi khi push lên nhánh main hoặc có pull request vào nhánh main
+# 1. Chạy tự động mỗi khi push lên nhánh master hoặc có pull request vào nhánh master
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master" ]
 
 # 2. Định nghĩa các công việc (jobs) sẽ được thực hiện trong workflow này
 jobs:
