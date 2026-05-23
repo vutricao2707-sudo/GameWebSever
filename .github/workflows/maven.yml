@@ -31,4 +31,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: PlateAuction-App
-          path: target/*-jar-with-dependencies.jar #
+          path: target/*-standalone.jar
