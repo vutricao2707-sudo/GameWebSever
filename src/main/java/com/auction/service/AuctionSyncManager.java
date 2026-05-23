@@ -1,0 +1,353 @@
+package com.auction.service;
+
+import com.auction.database.DatabaseConnection;
+import javafx.application.Platform;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * AuctionSyncManager — "Bộ não" đồng bộ thời gian cho toàn bộ hệ thống.
+ *
+ * ─────────────────────────────────────────────────────────────────
+ * VẤN ĐỀ được giải quyết:
+ *   Trước đây mỗi Controller tự đếm ngược từ một mốc LOCAL khác nhau
+ *   → màn hình Dashboard và AuctionRoom hiển thị thời gian lệch nhau.
+ *
+ * GIẢI PHÁP:
+ *   • 1 Singleton chạy nền (ScheduledExecutorService), cứ 1 giây
+ *     tính lại "thời gian còn lại" từ auction_end_time lấy trực tiếp
+ *     từ Database → tất cả listener đều nhận CÙNG một giá trị.
+ *   • Observer pattern: Controller gọi addListener() để đăng ký,
+ *     removeListener() khi rời màn hình.
+ *   • Mọi callback được đưa về JavaFX Application Thread qua
+ *     Platform.runLater() → UI luôn an toàn.
+ * ─────────────────────────────────────────────────────────────────
+ *
+ * Cách dùng (trong một Controller):
+ * <pre>
+ *   // Đăng ký
+ *   AuctionSyncManager.getInstance().addListener(itemId, myListener);
+ *
+ *   // Gỡ đăng ký khi rời màn hình
+ *   AuctionSyncManager.getInstance().removeListener(itemId, myListener);
+ * </pre>
+ */
+public class AuctionSyncManager {
+
+    private static final Logger logger = Logger.getLogger(AuctionSyncManager.class.getName());
+
+    // ── Singleton ─────────────────────────────────────────────────
+    private static volatile AuctionSyncManager instance;
+
+    public static AuctionSyncManager getInstance() {
+        if (instance == null) {
+            synchronized (AuctionSyncManager.class) {
+                if (instance == null) {
+                    instance = new AuctionSyncManager();
+                }
+            }
+        }
+        return instance;
+    }
+
+    // ── Observer: itemId → List<AuctionListener> ──────────────────
+    private final Map<Integer, List<AuctionListener>> listenerMap = new ConcurrentHashMap<>();
+
+    // ── Scheduler chạy nền ────────────────────────────────────────
+    private ScheduledExecutorService scheduler;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+
+    // Không cho phép khởi tạo từ bên ngoài
+    private AuctionSyncManager() {}
+
+    // ═════════════════════════════════════════════════════════════
+    // PUBLIC INTERFACE — AuctionListener
+    // ═════════════════════════════════════════════════════════════
+
+    /**
+     * Interface mà các Controller phải implement để nhận sự kiện đồng bộ.
+     *
+     * Tất cả callback ĐÃ được đưa về JavaFX Thread → không cần
+     * gọi Platform.runLater() thêm bên trong implementation.
+     */
+    public interface AuctionListener {
+
+        /**
+         * Gọi mỗi giây, cùng lúc trên tất cả màn hình đang lắng nghe.
+         *
+         * @param itemId          ID của item đang đấu giá
+         * @param remainingSeconds Số giây còn lại (0 nếu đã hết)
+         * @param currentPrice    Giá hiện tại lấy từ DB
+         * @param auctionStatus   Trạng thái: REGISTRATION / AUCTION / FINISHED / WAITING
+         */
+        void onTimeTick(int itemId, long remainingSeconds, double currentPrice, String auctionStatus);
+
+        /**
+         * Gọi một lần duy nhất khi phiên chuyển sang trạng thái FINISHED.
+         *
+         * @param itemId     ID của item vừa kết thúc
+         * @param finalPrice Giá cuối cùng
+         */
+        default void onAuctionEnded(int itemId, double finalPrice) {}
+
+        /**
+         * Gọi khi trạng thái chuyển từ REGISTRATION → AUCTION.
+         *
+         * @param itemId ID của item vừa mở phiên đấu giá
+         */
+        default void onAuctionStarted(int itemId) {}
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // QUẢN LÝ LISTENER
+    // ═════════════════════════════════════════════════════════════
+
+    /**
+     * Đăng ký lắng nghe sự kiện cho một item cụ thể.
+     * Nếu chưa có item nào được theo dõi → tự động khởi động scheduler.
+     */
+    public void addListener(int itemId, AuctionListener listener) {
+        listenerMap.computeIfAbsent(itemId, k -> new CopyOnWriteArrayList<>())
+                .add(listener);
+        logger.info("✅ [SyncManager] Listener added for itemId=" + itemId
+                + " | Total items tracked: " + listenerMap.size());
+
+        // Đảm bảo scheduler đang chạy
+        ensureSchedulerRunning();
+    }
+
+    /**
+     * Gỡ đăng ký listener. Nếu không còn ai theo dõi item đó
+     * thì xoá entry khỏi map để tiết kiệm tài nguyên.
+     */
+    public void removeListener(int itemId, AuctionListener listener) {
+        List<AuctionListener> listeners = listenerMap.get(itemId);
+        if (listeners != null) {
+            listeners.remove(listener);
+            if (listeners.isEmpty()) {
+                listenerMap.remove(itemId);
+                logger.info("🗑️ [SyncManager] itemId=" + itemId + " removed (no listeners left)");
+            }
+        }
+
+        // Nếu không còn item nào → dừng scheduler để tiết kiệm CPU
+        if (listenerMap.isEmpty()) {
+            stopScheduler();
+        }
+    }
+
+    /** Xoá tất cả listener của một item (dùng khi rời phòng đấu giá). */
+    public void removeAllListeners(int itemId) {
+        listenerMap.remove(itemId);
+        logger.info("🗑️ [SyncManager] All listeners removed for itemId=" + itemId);
+        if (listenerMap.isEmpty()) stopScheduler();
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // VÒNG LẶP ĐỒNG BỘ CHÍNH
+    // ═════════════════════════════════════════════════════════════
+
+    private synchronized void ensureSchedulerRunning() {
+        if (running.get()) return;
+
+        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "AuctionSyncManager-Tick");
+            t.setDaemon(true);
+            return t;
+        });
+
+        scheduler.scheduleAtFixedRate(this::tick, 0, 1, TimeUnit.SECONDS);
+        running.set(true);
+        logger.info("🚀 [SyncManager] Scheduler started");
+    }
+
+    private synchronized void stopScheduler() {
+        if (!running.get()) return;
+        if (scheduler != null) {
+            scheduler.shutdownNow();
+            scheduler = null;
+        }
+        running.set(false);
+        logger.info("🛑 [SyncManager] Scheduler stopped (no active listeners)");
+    }
+
+    /**
+     * Được gọi mỗi giây bởi scheduler.
+     * Query DB lấy dữ liệu mới nhất, tính thời gian còn lại,
+     * rồi notify tất cả listeners trên JavaFX Thread.
+     */
+    private void tick() {
+        // Snapshot danh sách itemId để tránh ConcurrentModificationException
+        if (listenerMap.isEmpty()) return;
+
+        // In "Tick" ra console để dễ kiểm tra đồng bộ
+        System.out.printf("⏱ [SyncManager] Tick — tracking %d item(s): %s%n",
+                listenerMap.size(), listenerMap.keySet());
+
+        for (Integer itemId : listenerMap.keySet()) {
+            try {
+                AuctionSnapshot snap = querySnapshot(itemId);
+                if (snap == null) continue;
+
+                long remaining = calculateRemaining(snap);
+                String prevStatus = snap.auctionStatus;
+
+                // Phát hiện chuyển trạng thái tự động
+                String resolvedStatus = resolveStatus(snap, remaining);
+
+                final long finalRemaining = remaining;
+                final String finalStatus  = resolvedStatus;
+                final double finalPrice   = snap.currentPrice;
+                final boolean justEnded   = "FINISHED".equals(resolvedStatus)
+                        && !"FINISHED".equals(prevStatus)
+                        && remaining <= 0;
+                final boolean justStarted = "AUCTION".equals(resolvedStatus)
+                        && "REGISTRATION".equals(prevStatus);
+
+                List<AuctionListener> listeners = listenerMap.get(itemId);
+                if (listeners == null || listeners.isEmpty()) continue;
+
+                // Đưa về JavaFX Thread
+                Platform.runLater(() -> {
+                    for (AuctionListener l : listeners) {
+                        try {
+                            l.onTimeTick(itemId, finalRemaining, finalPrice, finalStatus);
+
+                            if (justEnded)   l.onAuctionEnded(itemId, finalPrice);
+                            if (justStarted) l.onAuctionStarted(itemId);
+
+                        } catch (Exception e) {
+                            logger.log(Level.WARNING,
+                                    "[SyncManager] Listener error for itemId=" + itemId, e);
+                        }
+                    }
+                });
+
+            } catch (Exception e) {
+                logger.log(Level.WARNING,
+                        "[SyncManager] tick() error for itemId=" + itemId, e);
+            }
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // DATABASE QUERY
+    // ═════════════════════════════════════════════════════════════
+
+    /** Snapshot nhẹ từ DB — chỉ lấy đúng những cột cần thiết. */
+    private AuctionSnapshot querySnapshot(int itemId) {
+        String sql =
+                "SELECT current_price, auction_status, " +
+                        "       registration_end_time, auction_end_time " +
+                        "FROM items WHERE id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, itemId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    AuctionSnapshot snap = new AuctionSnapshot();
+                    snap.itemId              = itemId;
+                    snap.currentPrice        = rs.getDouble("current_price");
+                    snap.auctionStatus       = rs.getString("auction_status");
+                    snap.registrationEndTime = rs.getString("registration_end_time");
+                    snap.auctionEndTime      = rs.getString("auction_end_time");
+                    return snap;
+                }
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "[SyncManager] querySnapshot error itemId=" + itemId, e);
+        }
+        return null;
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // LOGIC THỜI GIAN
+    // ═════════════════════════════════════════════════════════════
+
+    /**
+     * Tính số giây còn lại dựa trên trạng thái hiện tại.
+     * - REGISTRATION → đếm đến registration_end_time
+     * - AUCTION      → đếm đến auction_end_time
+     * - Còn lại      → 0
+     */
+    private long calculateRemaining(AuctionSnapshot snap) {
+        String targetRaw;
+
+        if ("REGISTRATION".equalsIgnoreCase(snap.auctionStatus)) {
+            targetRaw = snap.registrationEndTime;
+        } else if ("AUCTION".equalsIgnoreCase(snap.auctionStatus)) {
+            targetRaw = snap.auctionEndTime;
+        } else {
+            return 0L;
+        }
+
+        if (targetRaw == null || targetRaw.isBlank()) return 0L;
+
+        try {
+            String cleaned = targetRaw.replace("T", " ");
+            if (cleaned.contains(".")) cleaned = cleaned.substring(0, cleaned.indexOf('.'));
+            LocalDateTime target = java.sql.Timestamp.valueOf(cleaned).toLocalDateTime();
+            long secs = java.time.Duration.between(LocalDateTime.now(), target).getSeconds();
+            return Math.max(secs, 0L);
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "[SyncManager] parseTime error: " + targetRaw, e);
+            return 0L;
+        }
+    }
+
+    /**
+     * Nếu đồng hồ về 0 mà DB vẫn chưa cập nhật, trả về trạng thái
+     * logic đúng để UI hiển thị ngay — không phải chờ AuctionFinishService.
+     */
+    private String resolveStatus(AuctionSnapshot snap, long remaining) {
+        if ("REGISTRATION".equalsIgnoreCase(snap.auctionStatus) && remaining <= 0) {
+            return "AUCTION";   // Hết đăng ký → mở phiên
+        }
+        if ("AUCTION".equalsIgnoreCase(snap.auctionStatus) && remaining <= 0) {
+            return "FINISHED";  // Hết giờ đấu giá
+        }
+        return snap.auctionStatus;
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // TIỆN ÍCH CÔNG KHAI
+    // ═════════════════════════════════════════════════════════════
+
+    /** Dừng hẳn khi tắt ứng dụng (gọi từ App.java stage.setOnCloseRequest). */
+    public void shutdown() {
+        listenerMap.clear();
+        stopScheduler();
+        logger.info("🛑 [SyncManager] Shutdown complete");
+    }
+
+    /** Số item đang được theo dõi — hữu ích cho debug. */
+    public int getTrackedItemCount() {
+        return listenerMap.size();
+    }
+
+    // ═════════════════════════════════════════════════════════════
+    // INNER CLASSES
+    // ═════════════════════════════════════════════════════════════
+
+    /** Dữ liệu thô lấy từ DB mỗi giây, không expose ra ngoài class. */
+    private static class AuctionSnapshot {
+        int    itemId;
+        double currentPrice;
+        String auctionStatus;
+        String registrationEndTime;
+        String auctionEndTime;
+    }
+}
