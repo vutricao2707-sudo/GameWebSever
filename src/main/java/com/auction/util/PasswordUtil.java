@@ -6,33 +6,19 @@ import java.security.NoSuchAlgorithmException;
 public class PasswordUtil {
 
     public static String hashPassword(String password) {
-
         try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
 
-            MessageDigest md =
-                    MessageDigest.getInstance("SHA-256");
+            byte[] hashedBytes = md.digest(password.getBytes());
 
-            byte[] hashedBytes =
-                    md.digest(password.getBytes());
-
-            StringBuilder sb =
-                    new StringBuilder();
+            StringBuilder sb = new StringBuilder();
 
             for (byte b : hashedBytes) {
-
-                sb.append(
-                        String.format("%02x", b)
-                );
+                sb.append(String.format("%02x", b));
             }
-
             return sb.toString();
-
         } catch (NoSuchAlgorithmException e) {
-
-            throw new RuntimeException(
-                    "Lỗi mã hóa",
-                    e
-            );
+            throw new RuntimeException("Lỗi mã hóa", e);
         }
     }
 }
