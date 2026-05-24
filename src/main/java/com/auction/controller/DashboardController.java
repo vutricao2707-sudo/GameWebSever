@@ -1,5 +1,6 @@
 package com.auction.controller;
 
+import com.auction.database.ItemDAO;
 import com.auction.dto.ItemDTO;
 import com.auction.model.User;
 import com.auction.service.AuctionFinishService;
@@ -22,6 +23,10 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.DialogPane;
+import javafx.application.Platform;
 
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -159,18 +164,31 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
         }
 
         btnBid.setOnAction(e -> {
-            String status = item.getAuctionStatus();
+            // Kiểm tra lại trạng thái thực tế từ DB để chống click lách luật
+            String status = ItemDAO.getAuctionStatus(plate);
+
             if ("WAITING".equalsIgnoreCase(status) || "REGISTRATION".equalsIgnoreCase(status)) {
-                showInfo("Chưa mở đấu giá", "Hiện đang trong thời gian đăng ký, vui lòng quay lại khi thời gian này kết thúc.");
+                // Đã truyền đủ 4 tham số (Thêm màu xanh ngọc #00b894 ở cuối)
+                showCustomStatusPopup(
+                        "Chưa mở đấu giá",
+                        "Hiện đang trong thời gian đăng ký, vui lòng quay lại khi thời gian này kết thúc.",
+                        "⏳",
+                        "#00b894"
+                );
                 return;
             }
             if ("FINISHED".equalsIgnoreCase(status)) {
-                showInfo("Phiên đã kết thúc", "Phiên đấu giá biển số này đã kết thúc! Quý khách vui lòng tham gia đấu giá biển số khác.");
+                // Đã truyền đủ 4 tham số (Thêm màu đỏ #ef4444 ở cuối)
+                showCustomStatusPopup(
+                        "Phiên đã kết thúc",
+                        "Phiên đấu giá biển số này đã kết thúc! Quý khách vui lòng tham gia đấu giá biển số khác.",
+                        "🏁",
+                        "#ef4444"
+                );
                 return;
             }
             enterAuctionRoom(e, plate, item.getFormattedPrice(), item.getAuctionEndTime());
         });
-
         VBox card = new VBox(12);
         card.setStyle("-fx-background-color: #1a2230; -fx-background-radius: 12; -fx-border-color: #2a364a; -fx-border-radius: 12; -fx-border-width: 1; -fx-padding: 15;");
         card.setPrefWidth(280);
@@ -266,31 +284,61 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
         Label clockIcon = new Label("🕒");
         clockIcon.setStyle("-fx-text-fill: white; -fx-font-size: 20px;");
 
-        Label lblTimeLabel = new Label();
+        Label lblTimeLabel = new Label("Trạng thái");
         lblTimeLabel.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11px;");
 
-        Label lblTimeValue = new Label();
+        Label lblTimeValue = new Label("Đang tải...");
         lblTimeValue.setStyle("-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;");
 
         VBox texts = new VBox(lblTimeLabel, lblTimeValue);
         HBox row = new HBox(10, clockIcon, texts);
         row.setAlignment(Pos.CENTER_LEFT);
 
-        String status = item.getAuctionStatus();
+        // Tạo Listener để nhận tick từ SyncManager
+        AuctionSyncManager.AuctionListener listener = new AuctionSyncManager.AuctionListener() {
+            @Override
+            public void onTimeTick(int itemId, long remaining, double price, String status) {
+                Platform.runLater(() -> {
+                    if ("REGISTRATION".equalsIgnoreCase(status)) {
+                        lblTimeLabel.setText("Đăng ký còn lại");
+                        lblTimeValue.setText(formatSecondsToDHMS(remaining));
+                    } else if ("AUCTION".equalsIgnoreCase(status)) {
+                        lblTimeLabel.setText("Đấu giá còn lại");
+                        lblTimeValue.setText(formatSecondsToDHMS(remaining));
+                        lblTimeValue.setStyle("-fx-text-fill: #eab308; -fx-font-size: 15px; -fx-font-weight: bold;");
 
-        if ("WAITING".equalsIgnoreCase(status) || "PENDING".equalsIgnoreCase(status)) {
-            lblTimeLabel.setText("Trạng thái"); lblTimeValue.setText("⏳ Chờ khai mạc"); return row;
-        }
-        if ("FINISHED".equalsIgnoreCase(status)) {
-            lblTimeLabel.setText("Trạng thái"); lblTimeValue.setText("🏁 Đã kết thúc"); return row;
-        }
+                        // Cập nhật nút bấm nếu chuyển sang Đấu giá
+                        btnBid.setText("VÀO ĐẤU GIÁ NGAY");
+                        btnBid.setStyle("-fx-background-color: #eab308; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand;");
+                    } else if ("FINISHED".equalsIgnoreCase(status)) {
+                        lblTimeLabel.setText("Trạng thái");
+                        lblTimeValue.setText("🏁 Đã kết thúc");
+                    }
+                });
+            }
+        };
 
-        AuctionSyncManager.getInstance().addListener(item.getId(), (id, remaining, price, currentStatus) -> {
-            lblTimeValue.setText(formatDuration(java.time.Duration.ofSeconds(remaining)));
+        // Đăng ký lắng nghe
+        AuctionSyncManager.getInstance().addListener(item.getId(), listener);
+
+        // Gỡ lắng nghe khi card bị xóa khỏi Scene
+        card.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null) {
+                AuctionSyncManager.getInstance().removeListener(item.getId(), listener);
+            }
         });
 
-
         return row;
+    }
+
+    private String formatSecondsToDHMS(long totalSecs) {
+        if (totalSecs <= 0) return "00:00:00";
+        long days = totalSecs / 86400;
+        long hours = (totalSecs % 86400) / 3600;
+        long minutes = (totalSecs % 3600) / 60;
+        long seconds = totalSecs % 60;
+        if (days > 0) return String.format("%d ngày %02dh %02dm", days, hours, minutes);
+        return String.format("%02dh %02dm %02ds", hours, minutes, seconds);
     }
     // =================================================================
 
@@ -402,5 +450,49 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
     private void showInfo(String title, String msg) {
         Alert a = new Alert(Alert.AlertType.INFORMATION);
         a.setTitle(title); a.setHeaderText(null); a.setContentText(msg); a.showAndWait();
+    }
+    // =========================================================================
+    // POPUP THÔNG BÁO TÙY CHỈNH CHO TRẠNG THÁI BIỂN SỐ
+    // =========================================================================
+    // =========================================================================
+    // POPUP THÔNG BÁO TÙY CHỈNH CHO TRẠNG THÁI BIỂN SỐ (DARK THEME)
+    // =========================================================================
+    private void showCustomStatusPopup(String title, String message, String emoji, String themeColor) {
+        Alert alert = new Alert(Alert.AlertType.NONE);
+        alert.setTitle("Thông báo");
+        alert.setHeaderText(null); // Xóa header mặc định xấu xí
+        alert.setGraphic(null);
+
+        DialogPane dialogPane = alert.getDialogPane();
+        // Phủ nền đen, viền màu (xanh ngọc hoặc đỏ)
+        dialogPane.setStyle("-fx-background-color: #1a2230; -fx-border-color: " + themeColor + "; -fx-border-radius: 8; -fx-border-width: 2;");
+
+        VBox content = new VBox(15);
+        content.setStyle("-fx-alignment: center; -fx-padding: 25;");
+
+        Label emojiLbl = new Label(emoji);
+        emojiLbl.setStyle("-fx-font-size: 55px;");
+
+        Label titleLbl = new Label(title.toUpperCase());
+        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: " + themeColor + ";");
+
+        Label msgLbl = new Label(message);
+        msgLbl.setStyle("-fx-font-size: 15px; -fx-text-fill: #cbd5e1; -fx-text-alignment: center;");
+        msgLbl.setWrapText(true);
+        msgLbl.setMaxWidth(300);
+
+        content.getChildren().addAll(emojiLbl, titleLbl, msgLbl);
+        dialogPane.setContent(content);
+
+        ButtonType btnClose = new ButtonType("Đã hiểu", ButtonBar.ButtonData.OK_DONE);
+        alert.getButtonTypes().setAll(btnClose);
+
+        // Style nút bấm bo tròn, đổi màu theo theme
+        Node closeButton = dialogPane.lookupButton(btnClose);
+        if (closeButton != null) {
+            closeButton.setStyle("-fx-background-color: " + themeColor + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
+        }
+
+        alert.showAndWait();
     }
 }

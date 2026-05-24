@@ -7,6 +7,7 @@ import com.auction.ui.AuctionWebSocketClient;
 import com.auction.util.SessionManager;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -15,15 +16,16 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.DialogPane;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -47,25 +49,30 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     @FXML private VBox liveHistoryContainer;
     @FXML private Label lblCurrentPrice, lblStepMultiplier;
     @FXML private Button btnPlaceBid;
-    @FXML private Label lblParticipants;  // Hiển thị số người tham gia
-    @FXML private LineChart<Number, Number> priceHistoryChart;  // Biểu đồ lịch sử giá
-    @FXML private Label lblBidCount;  // Số lần đặt giá
+    @FXML private Label lblParticipants;
+    @FXML private LineChart<Number, Number> priceHistoryChart;
+    @FXML private Label lblBidCount;
 
     // --- Biến lưu trữ Logic Đấu Giá ---
-    private double currentPrice;                   // Giá khởi điểm từ database
-    private final double stepValue = 5000000.0;    // Bước giá cố định 5 triệu
-    private int stepMultiplier = 1;                // Hệ số nhân (1, 2, 3...)
-    private String currentPlateNumber;             // Lưu biển số hiện tại
-    private int currentParticipants = 0;           // Số người tham gia
-
-    // --- Biến Đồng hồ ---
+    private double currentPrice;
+    private final double stepValue = 5000000.0;
+    private int stepMultiplier = 1;
+    private String currentPlateNumber;
+    private int currentParticipants = 0;
     private int timeRemainingSeconds = 0;
-    private Timeline countdownTimeline;
+    private boolean auctionEnded = false;
+
+    // --- Biến Đồng hồ & Cấu trúc mới ---
+    private Timeline exitCountdownTimeline; // Thay thế countdownTimeline cũ
     private final DecimalFormat formatter = new DecimalFormat("#,###");
 
-    // --- Biến Cooldown (1 phút sau mỗi lần đặt giá) ---
+    private XYChart.Series<Number, Number> priceSeries;
+    private int chartPointCount = 0;
+
     private long lastBidTime = 0;
-    private static final long BID_COOLDOWN_SECONDS = 60; // 1 phút
+    private static final long BID_COOLDOWN_SECONDS = 60;
+
+    private AuctionSyncManager.AuctionListener auctionListener;
 
     @FXML
     public void initialize() {
@@ -74,42 +81,24 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         try {
             if (lblMinutes == null || lblSeconds == null || lblCurrentPrice == null ||
                     lblStepMultiplier == null || btnPlaceBid == null) {
-                logger.log(Level.SEVERE, "Một hoặc nhiều thành phần FXML là null - FXML không load đúng");
+                logger.log(Level.SEVERE, "Một hoặc nhiều thành phần FXML là null");
                 return;
             }
 
-            logger.info("✅ [AuctionRoom] Tất cả FXML elements loaded");
-
-            // Initialize UI
             lblMinutes.setText("00");
             lblSeconds.setText("00");
-
             updatePricingUI();
             updateParticipantCount();
 
-            // ========================= Fix Memory Leak =========================
-            javafx.application.Platform.runLater(() -> {
+            // Dọn dẹp tập trung (Teardown) khi đóng cửa sổ
+            Platform.runLater(() -> {
                 try {
                     Stage stage = (Stage) lblMinutes.getScene().getWindow();
                     if (stage != null) {
-                        stage.setOnCloseRequest(event -> {
-                            logger.info("🛑 [AuctionRoom] Window closing - stopping timelines");
-                            unregisterAuctionListener();
-                            stopAllTimelines();
-
-                            if (wsClient != null && currentItemId != -1) {
-                                try {
-                                    wsClient.unsubscribe(currentItemId);
-                                    wsClient.removeListener(this);
-                                    logger.info("🔌 [AuctionRoom] WebSocket unsubscribed on window close");
-                                } catch (Exception eWs) {
-                                    logger.log(Level.WARNING, "Error unsubscribing WebSocket", eWs);
-                                }
-                            }
-                        });
+                        stage.setOnCloseRequest(event -> teardown());
                     }
-                } catch (Exception eStage) {
-                    logger.log(Level.WARNING, "Error setting window close handler", eStage);
+                } catch (Exception e) {
+                    logger.log(Level.WARNING, "Lỗi khi gán sự kiện đóng cửa sổ", e);
                 }
             });
 
@@ -118,269 +107,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         }
     }
 
-    // =========================================================================
-    // LOGIC ĐỒNG HỒ ĐẾM NGƯỢC
-    // =========================================================================
-    private AuctionSyncManager.AuctionListener auctionListener;
-
-    // Thay thế startCountdown() bằng:
-    private void registerAuctionListener() {
-        logger.info("📍 [AuctionRoom] Registering AuctionListener with AuctionSyncManager");
-
-        auctionListener = new AuctionSyncManager.AuctionListener() {
-            @Override
-            public void onTimeTick(int itemId, long remainingSeconds, double currentPrice, String auctionStatus) {
-                try {
-                    if (itemId != currentItemId) return;
-
-                    javafx.application.Platform.runLater(() -> {
-                        try {
-                            // Cập nhật timer
-                            int minutes = (int) (remainingSeconds / 60);
-                            int seconds = (int) (remainingSeconds % 60);
-
-                            lblMinutes.setText(String.format("%02d", minutes));
-                            lblSeconds.setText(String.format("%02d", seconds));
-
-                            // Cập nhật giá từ DB - không poll riêng nữa
-                            AuctionRoomController.this.currentPrice = currentPrice;
-                            updatePricingUI();
-
-                        } catch (Exception ignored) {}
-                    });
-                } catch (Exception e) {}
-            }
-
-            @Override
-            public void onAuctionEnded(int itemId, double finalPrice) {
-                try {
-                    if (itemId != currentItemId) return;
-
-                    javafx.application.Platform.runLater(() -> {
-                        try {
-                            if (btnPlaceBid != null) {
-                                btnPlaceBid.setText("PHIÊN ĐẤU GIÁ KẾT THÚC");
-                                btnPlaceBid.setStyle("-fx-background-color: #334155; -fx-text-fill: #94a3b8; -fx-background-radius: 12; -fx-font-size: 16px; -fx-font-weight: bold;");
-                                btnPlaceBid.setDisable(true);
-                            }
-
-                            if (currentPlateNumber != null && !currentPlateNumber.isEmpty()) {
-                                int itemIdDb = ItemDAO.getItemIdByPlate(currentPlateNumber);
-                                if (itemIdDb != -1) {
-                                    ItemDAO.finishAuction(itemIdDb, finalPrice);
-                                    logger.info("✅ [AuctionRoom] Auction finished in database");
-                                }
-                            }
-                        } catch (Exception ignored) {}
-                    });
-                } catch (Exception e) {}
-            }
-        };
-
-        try {
-            AuctionSyncManager.getInstance().addListener(currentItemId, auctionListener);
-            logger.info("✅ [AuctionRoom] AuctionListener registered");
-        } catch (Exception e) {
-            logger.log(Level.WARNING, "Error registering AuctionListener", e);
-        }
-    }
-
-    // Xóa listener khi rời phòng
-    private void unregisterAuctionListener() {
-        try {
-            if (auctionListener != null && currentItemId != -1) {
-                AuctionSyncManager.getInstance().removeListener(currentItemId, auctionListener);
-                logger.info("🔌 [AuctionRoom] AuctionListener unregistered");
-            }
-        } catch (Exception e) {
-            logger.log(Level.WARNING, "Error unregistering AuctionListener", e);
-        }
-    }
-
-
-    // =========================================================================
-    // LOGIC TĂNG GIẢM BƯỚC GIÁ
-    // =========================================================================
-    @FXML
-    private void handleIncreaseStep() {
-        stepMultiplier++;
-        updatePricingUI();
-    }
-
-    @FXML
-    private void handleDecreaseStep() {
-        if (stepMultiplier > 1) {
-            stepMultiplier--;
-            updatePricingUI();
-        }
-    }
-
-    private void updatePricingUI() {
-        try {
-            if (lblStepMultiplier == null || lblCurrentPrice == null || btnPlaceBid == null) return;
-
-            lblStepMultiplier.setText(String.valueOf(stepMultiplier));
-            lblCurrentPrice.setText(formatter.format(currentPrice) + " đ");
-
-            double nextBid = currentPrice + (stepValue * stepMultiplier);
-            btnPlaceBid.setText("ĐẶT GIÁ: " + formatter.format(nextBid) + " đ");
-
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error in updatePricingUI", e);
-        }
-    }
-
-    // =========================================================================
-    // LOGIC BẤM NÚT "ĐẶT GIÁ"
-    // =========================================================================
-    @FXML
-    private void handlePlaceBid() {
-
-        logger.info("📍 [AuctionRoom] handlePlaceBid() called");
-
-        try {
-
-            if (currentPlateNumber == null || currentPlateNumber.isEmpty()) {
-
-                showAlert("Lỗi", "Biển số không xác định");
-                return;
-            }
-
-            String[] itemData =
-                    ItemDAO.getItemFullData(currentPlateNumber);
-
-            if (itemData != null && itemData.length >= 10) {
-
-                if ("FINISHED".equalsIgnoreCase(itemData[9])) {
-
-                    if (btnPlaceBid != null) {
-
-                        btnPlaceBid.setDisable(true);
-
-                        btnPlaceBid.setText(
-                                "PHIÊN ĐẤU GIÁ ĐÃ KẾT THÚC"
-                        );
-                    }
-
-                    showAlert(
-                            "Phiên đã kết thúc",
-                            "Không thể đặt giá nữa."
-                    );
-
-                    return;
-                }
-            }
-
-            if (SessionManager.INSTANCE.getCurrentUser() == null) {
-
-                showAlert("Lỗi", "Bạn chưa đăng nhập");
-                return;
-            }
-
-            int userId =
-                    SessionManager.INSTANCE.getCurrentUser().getId();
-
-            // =====================================================
-            // LUÔN LẤY GIÁ MỚI NHẤT TỪ DB
-            // =====================================================
-
-            double latestPrice =
-                    ItemDAO.getCurrentPrice(currentPlateNumber);
-
-            double newBid =
-                    latestPrice + (stepValue * stepMultiplier);
-
-            // =====================================================
-            // SAVE BID (DAO xử lý toàn bộ transaction)
-            // =====================================================
-
-            boolean bidSaved =
-                    BidDAO.saveBid(
-                            currentPlateNumber,
-                            userId,
-                            newBid
-                    );
-
-            if (!bidSaved) {
-
-                long dbLastBidTime =
-                        BidDAO.getLastBidTime(
-                                currentPlateNumber,
-                                userId
-                        );
-
-                long remainingTime =
-                        (dbLastBidTime + 60)
-                                - (System.currentTimeMillis() / 1000);
-
-                refreshCurrentPrice();
-
-                showAlert(
-                        "Đặt giá thất bại",
-                        "⚠️ Có thể:\n" +
-                                "- Giá đã bị người khác vượt\n" +
-                                "- Hoặc cooldown chưa hết\n\n" +
-                                "Vui lòng thử lại.\n" +
-                                "Cooldown còn: "
-                                + Math.max(0, remainingTime)
-                                + " giây"
-                );
-
-                return;
-            }
-
-            // =====================================================
-            // SUCCESS
-            // =====================================================
-
-            logger.info("✅ [AuctionRoom] Bid placed successfully!");
-
-            currentPrice =
-                    ItemDAO.getCurrentPrice(currentPlateNumber);
-
-            stepMultiplier = 1;
-
-            lastBidTime =
-                    System.currentTimeMillis() / 1000;
-
-            updatePricingUI();
-
-            addHistoryRow(
-                    formatter.format(currentPrice),
-                    currentPlateNumber + " - Bạn"
-            );
-
-            updatePriceHistoryChart();
-
-        } catch (Exception e) {
-
-            logger.log(
-                    Level.SEVERE,
-                    "Lỗi không mong đợi trong handlePlaceBid",
-                    e
-            );
-
-            showAlert(
-                    "Lỗi hệ thống",
-                    "Có lỗi xảy ra: " + e.getMessage()
-            );
-        }
-    }
-    private void updateParticipantCount() {
-        try {
-            if (currentPlateNumber != null && !currentPlateNumber.isEmpty() && lblParticipants != null) {
-                currentParticipants = ItemDAO.getParticipantCount(currentPlateNumber);
-                lblParticipants.setText("👥 " + currentParticipants + " người tham gia");
-            }
-        } catch (Exception eDb) {
-            logger.log(Level.WARNING, "Error getting participant count", eDb);
-        }
-    }
-
-    // =========================================================================
-    // TRUYỀN DỮ LIỆU VÀ ĐIỀU HƯỚNG
-    // Đã sửa: Truyền thêm endTimeRaw để đồng bộ chính xác thời gian thực
-    // =========================================================================
     public void setAuctionRoomData(String plate, double startingPrice, String endTimeRaw) {
         logger.info("📍 [AuctionRoom] setAuctionRoomData() - Plate: " + plate);
 
@@ -392,73 +118,65 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
             String[] itemData = ItemDAO.getItemFullData(plate);
             if (itemData == null || itemData.length < 10) {
-                showAlert("Lỗi", "Không tìm thấy dữ liệu item hợp lệ trong database");
+                showAlert("Lỗi", "Không tìm thấy dữ liệu hợp lệ trong database");
                 return;
             }
 
-            String auctionStatus = itemData[9];
+            // Sửa toàn bộ khối kiểm tra trạng thái trong setAuctionRoomData thành:
+            String auctionStatus = ItemDAO.getAuctionStatus(plate);
+            logger.info("📍 Status từ DB: " + auctionStatus);
 
+            // CHỈ CHẶN NẾU TRẠNG THÁI LÀ ĐĂNG KÝ HOẶC CHỜ
+            if ("REGISTRATION".equalsIgnoreCase(auctionStatus) || "WAITING".equalsIgnoreCase(auctionStatus)) {
+                showCustomStatusPopup("Chưa mở đấu giá", "Hiện đang trong thời gian đăng ký, vui lòng quay lại khi đến giờ.", "⏳", "#00b894");
+                return;
+            }
+
+            // NẾU LÀ "FINISHED" HOẶC "AUCTION" HOẶC "OPEN" -> CHO VÀO PHÒNG
+            // (Lưu ý: Nếu bạn muốn chặn Finished, hãy để nó dưới,
+            // nhưng hãy chắc chắn DB của bạn ghi là 'FINISHED')
+
+            // 2. Nếu đã kết thúc, vẫn cho vào phòng nhưng hiện popup kết quả
+            if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
+                // Chúng ta vẫn gọi showAuctionEndedUI thay vì showAlert để xem lại kết quả
+                showAuctionEndedUI(currentPrice, "— (Đã kết thúc)", false, 0);
+                return;
+            }
+            // -----------------------------------
+
+            // Dọn dẹp session cũ
+            teardown();
+            auctionEnded = false;
+            this.currentPlateNumber = plate;
+
+            // Xử lý hiển thị biển số
             try {
-                String plateTop = "";
-                String plateBottom = "";
+                String plateTop = "", plateBottom = "";
                 if (plate.contains("-")) {
                     String[] parts = plate.split("-");
                     plateTop = (parts.length > 0) ? parts[0].trim() : "";
                     plateBottom = (parts.length > 1) ? parts[1].trim() : "";
+                } else if (plate.length() >= 3) {
+                    plateTop = plate.substring(0, 2);
+                    plateBottom = plate.substring(2);
                 } else {
-                    if (plate.length() >= 2) {
-                        plateTop = plate.substring(0, 2);
-                        plateBottom = plate.substring(2);
-                    } else {
-                        plateTop = plate;
-                        plateBottom = "";
-                    }
+                    plateTop = plate;
                 }
                 lblPlateTop.setText(plateTop);
                 lblPlateBottom.setText(plateBottom);
-            } catch (Exception ePlate) {
-                logger.log(Level.SEVERE, "Lỗi display plate", ePlate);
-            }
+            } catch (Exception e) {}
 
-            if ("REGISTRATION".equalsIgnoreCase(auctionStatus)) {
-                showAlert("Phiên chưa bắt đầu", "Hiện vẫn đang trong giai đoạn đăng ký tham gia đấu giá.");
-                return;
-            }
-            if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
-                showAlert("Phiên đã kết thúc", "Phiên đấu giá này đã kết thúc.");
-                return;
-            }
-            if ("WAITING".equalsIgnoreCase(auctionStatus)) {
-                showAlert("Đang chờ", "Phiên này đang chờ khai mạc.");
-                return;
-            }
-
-            try {
-                if (wsClient != null && currentItemId != -1) {
-                    wsClient.unsubscribe(currentItemId);
-                    wsClient.removeListener(this);
-                }
-                stopAllTimelines();
-            } catch (Exception eClean) {
-                logger.log(Level.WARNING, "Error cleaning old session", eClean);
-            }
-
-            this.currentPlateNumber = plate;
-
+            // Lấy thông tin giá và ID
             try {
                 double dbPrice = ItemDAO.getCurrentPrice(plate);
                 this.currentPrice = dbPrice > 0 ? dbPrice : startingPrice;
-            } catch (Exception ePriceLoad) {
-                this.currentPrice = startingPrice;
-            }
-
-            try {
                 this.currentItemId = ItemDAO.getItemIdByPlate(plate);
-            } catch (Exception eItemId) {
-                currentItemId = -1;
+            } catch (Exception e) {
+                this.currentPrice = startingPrice;
+                this.currentItemId = -1;
             }
 
-            // ====================== Cập nhật tính toán thời gian thực ======================
+            // 3. TÍNH TOÁN THỜI GIAN
             this.timeRemainingSeconds = 0;
             if (endTimeRaw != null && !endTimeRaw.isEmpty()) {
                 try {
@@ -466,277 +184,462 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                     if (cleaned.contains(".")) cleaned = cleaned.substring(0, cleaned.indexOf("."));
                     LocalDateTime targetTime = Timestamp.valueOf(cleaned).toLocalDateTime();
                     java.time.Duration diff = java.time.Duration.between(LocalDateTime.now(), targetTime);
-
-                    if (diff.isNegative() || diff.isZero()) {
-                        this.timeRemainingSeconds = 0;
-                    } else {
-                        this.timeRemainingSeconds = (int) diff.getSeconds();
-                    }
-                    logger.info("✅ [AuctionRoom] Đã tính chuẩn thời gian còn lại: " + this.timeRemainingSeconds + " giây");
-                } catch (Exception eTime) {
-                    logger.log(Level.SEVERE, "Lỗi phân tích thời gian kết thúc", eTime);
-                    this.timeRemainingSeconds = 0;
-                }
+                    this.timeRemainingSeconds = (int) Math.max(diff.getSeconds(), 0);
+                    logger.info("⏱ Time Remaining: " + this.timeRemainingSeconds + " giây");
+                } catch (Exception e) {}
             }
 
             updatePricingUI();
             updateParticipantCount();
-            loadPriceHistoryChart();
-            loadInitialBidHistory();
+            initChartSeries();
+            restoreBidHistoryAsync();
 
-            // ====================== Khởi động đếm ngược hoặc Kết thúc ngay ======================
-            if (this.timeRemainingSeconds > 0) {
-                registerAuctionListener();  // Thay vì startCountdown()
+            // 4. QUYẾT ĐỊNH VÀO PHÒNG HAY KẾT THÚC
+            // ĐIỂM SỬA QUAN TRỌNG: Cho phép vào phòng nếu status là AUCTION
+            // kể cả khi timeRemainingSeconds tính ra là 0 (do lệch time server/client)
+            if ("AUCTION".equalsIgnoreCase(auctionStatus) || this.timeRemainingSeconds > 0) {
+                registerAuctionListener();
             } else {
-                logger.info("🏁 [AuctionRoom] Thời gian đã hết ngay khi vào phòng!");
-                lblMinutes.setText("00");
-                lblSeconds.setText("00");
-                if (btnPlaceBid != null) {
-                    btnPlaceBid.setText("PHIÊN ĐẤU GIÁ KẾT THÚC");
-                    btnPlaceBid.setStyle("-fx-background-color: #334155; -fx-text-fill: #94a3b8; -fx-background-radius: 12; -fx-font-size: 16px; -fx-font-weight: bold;");
-                    btnPlaceBid.setDisable(true);
-                }
+                showAuctionEndedUI(currentPrice, "— (Kết thúc)", false, 0);
             }
 
+            // Setup WebSocket
             try {
-                if (wsClient == null) {
-                    wsClient = AuctionWebSocketClient.getInstance();
-                }
+                if (wsClient == null) wsClient = AuctionWebSocketClient.getInstance();
                 if (wsClient != null) {
                     wsClient.addListener(this);
                     wsClient.subscribe(currentItemId);
                 }
-            } catch (Exception eWs) {
-                logger.log(Level.WARNING, "Error setting up WebSocket", eWs);
-            }
+            } catch (Exception e) {}
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Lỗi không mong đợi trong setAuctionRoomData", e);
+            logger.log(Level.SEVERE, "Lỗi hệ thống", e);
             showAlert("Lỗi hệ thống", "Có lỗi xảy ra: " + e.getMessage());
         }
+    }
+
+    // =========================================================================
+    // TỐI ƯU 1: KHÔI PHỤC LỊCH SỬ (CHẠY THREAD NỀN, KHÔNG QUERIES LẶP LẠI)
+    // =========================================================================
+    private void initChartSeries() {
+        priceSeries = new XYChart.Series<>();
+        priceSeries.setName("Giá đặt");
+        chartPointCount = 0;
+
+        priceHistoryChart.getData().clear();
+        priceHistoryChart.getData().add(priceSeries);
+
+        Platform.runLater(() -> {
+            if (priceSeries.getNode() != null) {
+                priceSeries.getNode().setStyle("-fx-stroke: #38bdf8; -fx-stroke-width: 2;");
+            }
+        });
+    }
+
+    private void restoreBidHistoryAsync() {
+        if (currentItemId == -1) return;
+
+        Thread worker = new Thread(() -> {
+            try {
+                List<String[]> history = BidDAO.getBidHistoryForChart(currentItemId);
+                int count = BidDAO.getBidCount(currentItemId);
+
+                Platform.runLater(() -> {
+                    if (lblBidCount != null) lblBidCount.setText(count + " lần đặt");
+                    if (liveHistoryContainer != null) liveHistoryContainer.getChildren().clear();
+
+                    if (history.isEmpty()) return;
+
+                    // Vẽ Chart (từ cũ tới mới)
+                    for (int i = 0; i < history.size(); i++) {
+                        try {
+                            double amount = Double.parseDouble(history.get(i)[1]);
+                            appendChartPoint(amount);
+                        } catch (Exception ignored) {}
+                    }
+
+                    // Đổ Log VBox (từ mới tới cũ)
+                    for (int i = history.size() - 1; i >= 0; i--) {
+                        try {
+                            double amount = Double.parseDouble(history.get(i)[1]);
+                            String bidder = history.get(i)[3] != null ? history.get(i)[3] : "Người dùng";
+                            addHistoryRow(formatter.format(amount), bidder);
+                        } catch (Exception ignored) {}
+                    }
+                });
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "restoreBidHistory error", e);
+            }
+        });
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    // TỐI ƯU 2: THÊM ĐIỂM VÀO CHART (KHÔNG XÓA VÀ VẼ LẠI)
+    private void appendChartPoint(double amount) {
+        chartPointCount++;
+        XYChart.Data<Number, Number> point = new XYChart.Data<>(chartPointCount, amount);
+
+        javafx.scene.shape.Circle dot = new javafx.scene.shape.Circle(4);
+        dot.setStyle("-fx-fill: #38bdf8;");
+        point.setNode(dot);
+
+        Tooltip tip = new Tooltip(formatter.format(amount) + " đ");
+        Tooltip.install(dot, tip);
+
+        priceSeries.getData().add(point);
+    }
+
+    // =========================================================================
+    // LẮNG NGHE ĐỒNG HỒ TỪ SYNC MANAGER (GIỮ NGUYÊN CODE CỦA BẠN)
+    // =========================================================================
+    private void registerAuctionListener() {
+        auctionListener = new AuctionSyncManager.AuctionListener() {
+            @Override
+            public void onTimeTick(int itemId, long remainingSeconds, double currentPriceParam, String auctionStatus) {
+                if (itemId != currentItemId || auctionEnded) return;
+                Platform.runLater(() -> {
+                    try {
+                        int minutes = (int) (remainingSeconds / 60);
+                        int seconds = (int) (remainingSeconds % 60);
+                        lblMinutes.setText(String.format("%02d", minutes));
+                        lblSeconds.setText(String.format("%02d", seconds));
+
+                        if (currentPriceParam > currentPrice) {
+                            currentPrice = currentPriceParam;
+                            updatePricingUI();
+                        }
+                    } catch (Exception ignored) {}
+                });
+            }
+
+            @Override
+            public void onAuctionEnded(int itemId, double finalPrice) {
+                if (itemId != currentItemId || auctionEnded) return;
+                auctionEnded = true;
+
+                Platform.runLater(() -> {
+                    currentPrice = finalPrice;
+                    determineResultAndShowDialog(finalPrice);
+                });
+            }
+        };
+
+        try {
+            AuctionSyncManager.getInstance().addListener(currentItemId, auctionListener);
+        } catch (Exception e) {}
+    }
+
+    // =========================================================================
+    // TỐI ƯU 3: KẾT THÚC PHIÊN + DIALOG ĐẾM NGƯỢC 60S
+    // =========================================================================
+    private void determineResultAndShowDialog(double finalPrice) {
+        Thread t = new Thread(() -> {
+            String winnerName = "Không xác định";
+            int winnerId = 0; // 1. Khai báo biến ở đây để nó có phạm vi (scope) rộng hơn
+            boolean currentUserWon = false;
+
+            try {
+                String[] winner = ItemDAO.getWinnerByPlate(currentPlateNumber);
+                if (winner != null) {
+                    winnerName = winner[1];
+                    winnerId = Integer.parseInt(winner[0]); // 2. Gán giá trị vào biến đã khai báo
+                    int myId = SessionManager.getCurrentUser() != null
+                            ? SessionManager.getCurrentUser().getId() : -1;
+                    currentUserWon = (myId == winnerId);
+                }
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Lỗi khi lấy thông tin người thắng", e);
+            }
+
+            final String wName = winnerName;
+            final boolean won = currentUserWon;
+            final int wId = winnerId; // 3. Giờ thì biến winnerId đã tồn tại ở đây để gán cho wId
+
+            Platform.runLater(() -> showAuctionEndedUI(finalPrice, wName, won, wId));
+        });
+        t.setDaemon(true);
+        t.start();
+    }
+    // ==========================================================================
+    // END OF AUCTION (Popup Báo Kết Quả - Dark Theme)
+    // ==========================================================================
+    private void showAuctionEndedUI(double finalPrice, String winnerName, boolean iWon, int winnerId) {
+        if (btnPlaceBid != null) {
+            btnPlaceBid.setDisable(true);
+            btnPlaceBid.setText("PHIÊN ĐẤU GIÁ ĐÃ KẾT THÚC");
+            btnPlaceBid.setStyle("-fx-background-color: #334155; -fx-text-fill: #94a3b8; "
+                    + "-fx-background-radius: 12; -fx-font-size: 16px; -fx-font-weight: bold;");
+        }
+
+        teardown();
+        if (lblMinutes != null) lblMinutes.setText("00");
+        if (lblSeconds != null) lblSeconds.setText("00");
+
+        String resultEmoji    = iWon ? "🏆" : "😔";
+        String resultTitle    = iWon ? "CHÚC MỪNG! BẠN ĐÃ THẮNG" : "PHIÊN ĐẤU GIÁ KẾT THÚC";
+        String resultSubtitle = iWon ? "Bạn là người đặt giá cao nhất!" : "Người thắng: " + winnerName;
+        String themeColor     = iWon ? "#00b894" : "#ef4444"; // Xanh ngọc nếu thắng, Đỏ nếu thua
+
+        Alert alert = new Alert(Alert.AlertType.NONE);
+        alert.setTitle("Kết quả đấu giá");
+        alert.setHeaderText(null);
+        alert.setGraphic(null);
+
+        DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.setStyle("-fx-background-color: #1a2230; -fx-border-color: " + themeColor + "; -fx-border-radius: 8; -fx-border-width: 2;");
+
+        VBox content = new VBox(15);
+        content.setStyle("-fx-alignment: center; -fx-padding: 25;");
+
+        Label emojiLbl = new Label(resultEmoji);
+        emojiLbl.setStyle("-fx-font-size: 55px;");
+
+        Label titleLbl = new Label(resultTitle);
+        titleLbl.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: " + themeColor + ";");
+
+        // FIX LỖI "fmt" -> Đã đổi thành "formatter"
+        Label priceLbl = new Label("Giá cuối: " + formatter.format(finalPrice) + " đ");
+        priceLbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #f59e0b;");
+
+        Label subtitleLbl = new Label(resultSubtitle);
+        subtitleLbl.setStyle("-fx-font-size: 15px; -fx-text-fill: #cbd5e1;");
+
+        content.getChildren().addAll(emojiLbl, titleLbl, priceLbl, subtitleLbl);
+        dialogPane.setContent(content);
+        dialogPane.setMinWidth(400);
+
+        ButtonType btnBack = new ButtonType("Quay lại Dashboard", ButtonBar.ButtonData.OK_DONE);
+        alert.getButtonTypes().setAll(btnBack);
+
+        // Nút bo tròn màu nổi bật
+        Node backButton = dialogPane.lookupButton(btnBack);
+        if (backButton != null) {
+            backButton.setStyle("-fx-background-color: " + themeColor + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 10 30; -fx-background-radius: 20; -fx-cursor: hand;");
+        }
+
+        alert.setOnHidden(ev -> navigateToDashboard());
+        alert.show();
+    }
+
+    // =========================================================================
+    // LOGIC ĐẶT GIÁ (GIỮ NGUYÊN)
+    // =========================================================================
+    @FXML private void handleIncreaseStep() { stepMultiplier++; updatePricingUI(); }
+    @FXML private void handleDecreaseStep() { if (stepMultiplier > 1) { stepMultiplier--; updatePricingUI(); } }
+
+    private void updatePricingUI() {
+        if (lblStepMultiplier == null || lblCurrentPrice == null || btnPlaceBid == null) return;
+        lblStepMultiplier.setText(String.valueOf(stepMultiplier));
+        lblCurrentPrice.setText(formatter.format(currentPrice) + " đ");
+        double nextBid = currentPrice + (stepValue * stepMultiplier);
+        btnPlaceBid.setText("ĐẶT GIÁ: " + formatter.format(nextBid) + " đ");
     }
 
     @FXML
-    private void handleBack(ActionEvent event) {
+    private void handlePlaceBid() {
         try {
-            unregisterAuctionListener();  // Thêm dòng này
-            stopAllTimelines();
-            if (wsClient != null && currentItemId != -1) {
-                try {
-                    wsClient.unsubscribe(currentItemId);
-                    wsClient.removeListener(this);
-                } catch (Exception eWs) {}
+            if (currentPlateNumber == null || currentPlateNumber.isEmpty()) return;
+
+            String[] itemData = ItemDAO.getItemFullData(currentPlateNumber);
+            if (itemData != null && "FINISHED".equalsIgnoreCase(itemData[9])) {
+                showAlert("Phiên đã kết thúc", "Không thể đặt giá nữa.");
+                return;
             }
 
-            Parent newRoot = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("/fxml/Dashboard.fxml")));
-            Scene currentScene = ((Node) event.getSource()).getScene();
-            if (currentScene != null) {
-                currentScene.setRoot(newRoot);
+            if (SessionManager.getCurrentUser() == null) {
+                showAlert("Lỗi", "Bạn chưa đăng nhập");
+                return;
             }
+
+            int userId = SessionManager.getCurrentUser().getId();
+            double latestPrice = ItemDAO.getCurrentPrice(currentPlateNumber);
+            double newBid = latestPrice + (stepValue * stepMultiplier);
+
+            boolean bidSaved = BidDAO.saveBid(currentPlateNumber, userId, newBid);
+
+            if (!bidSaved) {
+                long dbLastBidTime = BidDAO.getLastBidTime(currentPlateNumber, userId);
+                long remainingTime = (dbLastBidTime + 60) - (System.currentTimeMillis() / 1000);
+                refreshCurrentPrice();
+                showAlert("Đặt giá thất bại", "Vui lòng thử lại. Cooldown còn: " + Math.max(0, remainingTime) + " s");
+                return;
+            }
+
+            currentPrice = ItemDAO.getCurrentPrice(currentPlateNumber);
+            stepMultiplier = 1;
+            lastBidTime = System.currentTimeMillis() / 1000;
+            updatePricingUI();
+
+            // Thêm trực tiếp vào UI thay vì load lại toàn bộ DB
+            appendChartPoint(currentPrice);
+            addHistoryRow(formatter.format(currentPrice), "Bạn");
+
         } catch (Exception e) {
-            showAlert("Lỗi hệ thống", "Có lỗi xảy ra: " + e.getMessage());
+            showAlert("Lỗi", e.getMessage());
         }
     }
-
-    private void showAlert(String title, String message) {
-        try {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-        } catch (Exception e) {
-            System.err.println("❌ Error showing alert: " + title + " - " + message);
-        }
-    }
-
-    private void stopAllTimelines() {
-        if (countdownTimeline != null) {
-            countdownTimeline.stop();
-        }
-    }
-
-    // =====================================================================
-    // PRICE HISTORY CHART & HISTORY LOG
-    // =====================================================================
-    private void loadPriceHistoryChart() {
-        try {
-            if (currentItemId == -1 || priceHistoryChart == null) return;
-
-            List<String[]> bidHistory = BidDAO.getBidHistoryForChart(currentItemId);
-            int bidCount = BidDAO.getBidCount(currentItemId);
-
-            if (lblBidCount != null) {
-                lblBidCount.setText(bidCount + " lần đặt");
-            }
-
-            priceHistoryChart.getData().clear();
-            if (bidHistory.isEmpty()) return;
-
-            XYChart.Series<Number, Number> series = new XYChart.Series<>();
-            series.setName("Mức giá");
-
-            for (int i = 0; i < bidHistory.size(); i++) {
-                try {
-                    String[] bidData = bidHistory.get(i);
-                    double bidAmount = Double.parseDouble(bidData[1]);
-                    String bidderName = bidData[3];
-
-                    XYChart.Data<Number, Number> dataPoint = new XYChart.Data<>(i + 1, bidAmount);
-                    dataPoint.setNode(new javafx.scene.shape.Circle(3) {{
-                        setStyle("-fx-fill: #38bdf8; -fx-cursor: hand;");
-                    }});
-
-                    javafx.scene.control.Tooltip tooltip = new javafx.scene.control.Tooltip(
-                            bidderName + " - " + String.format("%.0f", bidAmount) + " đ"
-                    );
-                    javafx.scene.control.Tooltip.install(dataPoint.getNode(), tooltip);
-
-                    series.getData().add(dataPoint);
-                } catch (Exception ignored) {}
-            }
-            priceHistoryChart.getData().add(series);
-            if (series.getNode() != null) {
-                series.getNode().setStyle("-fx-stroke: #38bdf8; -fx-stroke-width: 2;");
-            }
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Lỗi trong loadPriceHistoryChart", e);
-        }
-    }
-
-    private void loadInitialBidHistory() {
-        if (currentItemId == -1 || liveHistoryContainer == null) return;
-        try {
-            liveHistoryContainer.getChildren().clear();
-            List<String[]> bidHistory = BidDAO.getBidHistoryForChart(currentItemId);
-
-            if (bidHistory.isEmpty()) return;
-
-            for (int i = bidHistory.size() - 1; i >= 0; i--) {
-                String[] bid = bidHistory.get(i);
-                try {
-                    double amount = Double.parseDouble(bid[1]);
-                    String bidderName = bid[3] != null ? bid[3] : "Người dùng";
-                    addHistoryRow(formatter.format(amount), bidderName);
-                } catch (NumberFormatException ignored) {}
-            }
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Lỗi trong loadInitialBidHistory", e);
-        }
-    }
-
-    private void updatePriceHistoryChart() {
-        javafx.application.Platform.runLater(this::loadPriceHistoryChart);
-    }
-
-    // =====================================================================
-    // WEBSOCKET LISTENER IMPLEMENTATIONS
-    // =====================================================================
-    @Override
-    public void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName) {
-        try {
-            if (itemId != currentItemId) return;
-            javafx.application.Platform.runLater(() -> {
-                try {
-                    this.currentPrice = currentPrice;
-                    updatePricingUI();
-                    addHistoryRow(formatter.format(currentPrice), bidderName);
-                    updatePriceHistoryChart();
-                } catch (Exception ignored) {}
-            });
-        } catch (Exception e) {}
-    }
-
-    @Override
-    public void onParticipantUpdate(int itemId, int participantCount) {
-        try {
-            if (itemId != currentItemId) return;
-            javafx.application.Platform.runLater(() -> {
-                try {
-                    currentParticipants = participantCount;
-                    if (lblParticipants != null) {
-                        lblParticipants.setText("👥 " + participantCount + " người tham gia");
-                    }
-                } catch (Exception ignored) {}
-            });
-        } catch (Exception e) {}
-    }
-
-    @Override
-    public void onAuctionFinished(int itemId, double finalPrice, int winnerId, String winnerName) {
-        try {
-            if (itemId != currentItemId) return;
-            javafx.application.Platform.runLater(() -> {
-                try {
-                    if (btnPlaceBid != null) {
-                        btnPlaceBid.setDisable(true);
-                        btnPlaceBid.setText("PHIÊN ĐẤU GIÁ ĐÃ KẾT THÚC");
-                        btnPlaceBid.setStyle("-fx-background-color: #334155; -fx-text-fill: #94a3b8; -fx-background-radius: 12; -fx-font-size: 16px; -fx-font-weight: bold;");
-                    }
-                    if (countdownTimeline != null) {
-                        countdownTimeline.stop();
-                    }
-                    String message = "Phiên đấu giá kết thúc!\n\nGiá cuối cùng: " + formatter.format(finalPrice) + " đ\nNgười thắng: " + winnerName;
-                    showAlert("Phiên đấu giá kết thúc", message);
-                } catch (Exception ignored) {}
-            });
-        } catch (Exception e) {}
-    }
-
-    @Override
-    public void onTimerExtended(int itemId, int newTimeRemaining) {
-        try {
-            if (itemId != currentItemId) return;
-            javafx.application.Platform.runLater(() -> {
-                try {
-                    this.timeRemainingSeconds = newTimeRemaining;
-                    long minutes = newTimeRemaining / 60;
-                    long seconds = newTimeRemaining % 60;
-                    String newTimeStr = String.format("%02d:%02d", minutes, seconds);
-
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                    alert.setTitle("⏱️ Timer Kéo Dài!");
-                    alert.setHeaderText(null);
-                    alert.setContentText("🎯 Có bid trong 2 phút cuối!\n\n✨ Timer được tự động kéo dài thêm 2 phút.\n\nThời gian còn lại: " + newTimeStr);
-                    alert.showAndWait();
-                } catch (Exception ignored) {}
-            });
-        } catch (Exception e) {}
-    }
-
-    @Override public void onConnected() {}
-    @Override public void onDisconnected() {}
 
     private void refreshCurrentPrice() {
         try {
-            if (currentPlateNumber == null || currentPlateNumber.isEmpty()) return;
             currentPrice = ItemDAO.getCurrentPrice(currentPlateNumber);
             updatePricingUI();
         } catch (Exception ignored) {}
     }
 
+    // =========================================================================
+    // WEBSOCKET & CẬP NHẬT UI
+    // =========================================================================
+    @Override
+    public void onPriceUpdate(int itemId, double currentPriceParam, int bidderId, String bidderName) {
+        if (itemId != currentItemId) return;
+        Platform.runLater(() -> {
+            try {
+                this.currentPrice = currentPriceParam;
+                updatePricingUI();
+                appendChartPoint(currentPriceParam);
+                addHistoryRow(formatter.format(currentPriceParam), bidderName);
+            } catch (Exception ignored) {}
+        });
+    }
+
+    @Override
+    public void onParticipantUpdate(int itemId, int count) {
+        if (itemId != currentItemId) return;
+        Platform.runLater(() -> {
+            if (lblParticipants != null) lblParticipants.setText("👥 " + count + " người tham gia");
+        });
+    }
+
+    @Override
+    public void onAuctionFinished(int itemId, double finalPrice, int winnerId, String winnerName) {
+        if (itemId != currentItemId || auctionEnded) return;
+        auctionEnded = true;
+        Platform.runLater(() -> {
+            int myId = SessionManager.getCurrentUser() != null ? SessionManager.getCurrentUser().getId() : -1;
+            // Thêm tham số winnerId vào đây:
+            showAuctionEndedUI(finalPrice, winnerName, myId == winnerId, winnerId);
+        });
+    }
+
+    @Override
+    public void onTimerExtended(int itemId, int newTime) {}
+
+    @Override public void onConnected() {}
+    @Override public void onDisconnected() {}
+
     private void addHistoryRow(String price, String bidderName) {
+        if (liveHistoryContainer == null) return;
+        HBox row = new HBox(10);
+        Label lblBidder = new Label(bidderName);
+        lblBidder.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Label lblPrice = new Label(price + " đ");
+        lblPrice.setStyle("-fx-text-fill: #38bdf8; -fx-font-size: 14px; -fx-font-weight: bold;");
+
+        row.getChildren().addAll(lblBidder, spacer, lblPrice);
+        liveHistoryContainer.getChildren().add(0, row);
+
+        if (liveHistoryContainer.getChildren().size() > 20) {
+            liveHistoryContainer.getChildren().remove(liveHistoryContainer.getChildren().size() - 1);
+        }
+    }
+
+    private void updateParticipantCount() {
         try {
-            if (liveHistoryContainer == null || price == null || bidderName == null) return;
-
-            HBox row = new HBox();
-            row.setSpacing(10);
-
-            Label lblBidder = new Label(bidderName);
-            lblBidder.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
-
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS);
-
-            Label lblPrice = new Label(price + " đ");
-            lblPrice.setStyle("-fx-text-fill: #38bdf8; -fx-font-size: 14px; -fx-font-weight: bold;");
-
-            row.getChildren().addAll(lblBidder, spacer, lblPrice);
-            liveHistoryContainer.getChildren().add(0, row);
-
-            if (liveHistoryContainer.getChildren().size() > 20) {
-                liveHistoryContainer.getChildren().remove(liveHistoryContainer.getChildren().size() - 1);
+            if (currentPlateNumber != null && lblParticipants != null) {
+                lblParticipants.setText("👥 " + ItemDAO.getParticipantCount(currentPlateNumber) + " người tham gia");
             }
         } catch (Exception ignored) {}
+    }
+
+    // =========================================================================
+    // TỐI ƯU 4: DỌN DẸP TẬP TRUNG (TEARDOWN)
+    // =========================================================================
+    private void teardown() {
+        if (exitCountdownTimeline != null) {
+            exitCountdownTimeline.stop();
+            exitCountdownTimeline = null;
+        }
+        try {
+            if (auctionListener != null && currentItemId != -1) {
+                AuctionSyncManager.getInstance().removeListener(currentItemId, auctionListener);
+                auctionListener = null;
+            }
+            if (wsClient != null && currentItemId != -1) {
+                wsClient.unsubscribe(currentItemId);
+                wsClient.removeListener(this);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    @FXML
+    private void handleBack(ActionEvent event) {
+        teardown();
+        try {
+            Parent root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("/fxml/Dashboard.fxml")));
+            Scene scene = ((Node) event.getSource()).getScene();
+            if (scene != null) scene.setRoot(root);
+        } catch (Exception e) {}
+    }
+
+    private void navigateToDashboard() {
+        teardown();
+        try {
+            Parent root = FXMLLoader.load(Objects.requireNonNull(getClass().getResource("/fxml/Dashboard.fxml")));
+            if (lblMinutes != null && lblMinutes.getScene() != null) {
+                lblMinutes.getScene().setRoot(root);
+            }
+        } catch (Exception e) {}
+    }
+
+    private void showAlert(String title, String message) {
+        try {
+            Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setTitle(title);
+            a.setHeaderText(null);
+            a.setContentText(message);
+            a.showAndWait();
+        } catch (Exception ignored) {}
+    }
+    // =========================================================================
+    // HÀM POPUP TÙY CHỈNH (DARK THEME)
+    // =========================================================================
+    private void showCustomStatusPopup(String title, String message, String emoji, String themeColor) {
+        Alert alert = new Alert(Alert.AlertType.NONE);
+        alert.setTitle("Thông báo");
+        alert.setHeaderText(null);
+        alert.setGraphic(null);
+
+        DialogPane dialogPane = alert.getDialogPane();
+        dialogPane.setStyle("-fx-background-color: #1a2230; -fx-border-color: " + themeColor + "; -fx-border-radius: 8; -fx-border-width: 2;");
+
+        VBox content = new VBox(15);
+        content.setStyle("-fx-alignment: center; -fx-padding: 25;");
+
+        Label emojiLbl = new Label(emoji);
+        emojiLbl.setStyle("-fx-font-size: 55px;");
+
+        Label titleLbl = new Label(title.toUpperCase());
+        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: " + themeColor + ";");
+
+        Label msgLbl = new Label(message);
+        msgLbl.setStyle("-fx-font-size: 15px; -fx-text-fill: #cbd5e1; -fx-text-alignment: center;");
+        msgLbl.setWrapText(true);
+        msgLbl.setMaxWidth(300);
+
+        content.getChildren().addAll(emojiLbl, titleLbl, msgLbl);
+        dialogPane.setContent(content);
+
+        ButtonType btnClose = new ButtonType("Đã hiểu", ButtonBar.ButtonData.OK_DONE);
+        alert.getButtonTypes().setAll(btnClose);
+
+        Node closeButton = dialogPane.lookupButton(btnClose);
+        if (closeButton != null) {
+            closeButton.setStyle("-fx-background-color: " + themeColor + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
+        }
+
+        alert.showAndWait();
     }
 }

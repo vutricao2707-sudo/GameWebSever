@@ -886,4 +886,52 @@ public class ItemDAO {
             return false;
         }
     }
+    /**
+     * Dùng để cập nhật trực tiếp auction_status.
+     * Rất quan trọng khi phiên chuyển từ REGISTRATION -> AUCTION -> FINISHED
+     */
+    public static boolean setAuctionStatus(int itemId, String status) {
+        String sql = "UPDATE items SET auction_status = ? WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, status);
+            ps.setInt(2, itemId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi setAuctionStatus: " + e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * Lấy trạng thái của item theo ID thay vì theo biển số.
+     * Dùng cho AuctionSyncManager để check trạng thái liên tục.
+     */
+    public static String getAuctionStatusById(int itemId) {
+        String sql = "SELECT auction_status FROM items WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getString("auction_status");
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getAuctionStatusById: " + e.getMessage());
+        }
+        return "UNKNOWN";
+    }
+
+    /**
+     * Tăng số lượng người tham gia an toàn bằng Transaction.
+     * Đảm bảo không bị mất dữ liệu khi 2 người cùng vào phòng 1 lúc.
+     */
+    public static void incrementParticipantCount(int itemId) {
+        String sql = "UPDATE items SET participant_count = participant_count + 1 WHERE id = ?";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, itemId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi incrementParticipantCount(id): " + e.getMessage());
+        }
+    }
 }
