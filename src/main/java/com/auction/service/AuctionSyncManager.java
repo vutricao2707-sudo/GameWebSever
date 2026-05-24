@@ -187,55 +187,102 @@ public class AuctionSyncManager {
      * rồi notify tất cả listeners trên JavaFX Thread.
      */
     private void tick() {
+
         // Snapshot danh sách itemId để tránh ConcurrentModificationException
         if (listenerMap.isEmpty()) return;
 
-        // In "Tick" ra console để dễ kiểm tra đồng bộ
         System.out.printf("⏱ [SyncManager] Tick — tracking %d item(s): %s%n",
                 listenerMap.size(), listenerMap.keySet());
 
         for (Integer itemId : listenerMap.keySet()) {
+
             try {
+
                 AuctionSnapshot snap = querySnapshot(itemId);
+
                 if (snap == null) continue;
 
+                // Tính thời gian còn lại
                 long remaining = calculateRemaining(snap);
+
+                // Status cũ từ DB
                 String prevStatus = snap.auctionStatus;
 
-                // Phát hiện chuyển trạng thái tự động
+                // Status mới sau khi resolve logic
                 String resolvedStatus = resolveStatus(snap, remaining);
 
+                // Nếu status thay đổi → update DB
+                if (!resolvedStatus.equalsIgnoreCase(prevStatus)) {
+
+                    updateAuctionStatus(itemId, resolvedStatus);
+
+                    snap.auctionStatus = resolvedStatus;
+
+                    logger.info("🔄 [SyncManager] itemId=" + itemId
+                            + " status changed: "
+                            + prevStatus + " -> "
+                            + resolvedStatus);
+                }
+
+                // Data final cho lambda
                 final long finalRemaining = remaining;
-                final String finalStatus  = resolvedStatus;
-                final double finalPrice   = snap.currentPrice;
-                final boolean justEnded   = "FINISHED".equals(resolvedStatus)
-                        && !"FINISHED".equals(prevStatus)
-                        && remaining <= 0;
-                final boolean justStarted = "AUCTION".equals(resolvedStatus)
-                        && "REGISTRATION".equals(prevStatus);
+                final String finalStatus = resolvedStatus;
+                final double finalPrice = snap.currentPrice;
+
+                // Event detect
+                final boolean justEnded =
+                        "FINISHED".equals(resolvedStatus)
+                                && !"FINISHED".equals(prevStatus)
+                                && remaining <= 0;
+
+                final boolean justStarted =
+                        "AUCTION".equals(resolvedStatus)
+                                && "REGISTRATION".equals(prevStatus);
 
                 List<AuctionListener> listeners = listenerMap.get(itemId);
+
                 if (listeners == null || listeners.isEmpty()) continue;
 
-                // Đưa về JavaFX Thread
+                // Update UI trên JavaFX Thread
                 Platform.runLater(() -> {
-                    for (AuctionListener l : listeners) {
-                        try {
-                            l.onTimeTick(itemId, finalRemaining, finalPrice, finalStatus);
 
-                            if (justEnded)   l.onAuctionEnded(itemId, finalPrice);
-                            if (justStarted) l.onAuctionStarted(itemId);
+                    for (AuctionListener l : listeners) {
+
+                        try {
+
+                            l.onTimeTick(
+                                    itemId,
+                                    finalRemaining,
+                                    finalPrice,
+                                    finalStatus
+                            );
+
+                            if (justEnded) {
+                                l.onAuctionEnded(itemId, finalPrice);
+                            }
+
+                            if (justStarted) {
+                                l.onAuctionStarted(itemId);
+                            }
 
                         } catch (Exception e) {
-                            logger.log(Level.WARNING,
-                                    "[SyncManager] Listener error for itemId=" + itemId, e);
+
+                            logger.log(
+                                    Level.WARNING,
+                                    "[SyncManager] Listener error for itemId=" + itemId,
+                                    e
+                            );
                         }
                     }
                 });
 
             } catch (Exception e) {
-                logger.log(Level.WARNING,
-                        "[SyncManager] tick() error for itemId=" + itemId, e);
+
+                logger.log(
+                        Level.WARNING,
+                        "[SyncManager] tick() error for itemId=" + itemId,
+                        e
+                );
             }
         }
     }
@@ -313,13 +360,28 @@ public class AuctionSyncManager {
      * logic đúng để UI hiển thị ngay — không phải chờ AuctionFinishService.
      */
     private String resolveStatus(AuctionSnapshot snap, long remaining) {
-        if ("REGISTRATION".equalsIgnoreCase(snap.auctionStatus) && remaining <= 0) {
-            return "AUCTION";   // Hết đăng ký → mở phiên
+
+        String current =
+                snap.auctionStatus == null
+                        ? "WAITING"
+                        : snap.auctionStatus.trim().toUpperCase();
+
+        // REGISTRATION -> AUCTION
+        if ("REGISTRATION".equals(current) && remaining <= 0) {
+            return "AUCTION";
         }
-        if ("AUCTION".equalsIgnoreCase(snap.auctionStatus) && remaining <= 0) {
-            return "FINISHED";  // Hết giờ đấu giá
+
+        // AUCTION -> FINISHED
+        if ("AUCTION".equals(current) && remaining <= 0) {
+            return "FINISHED";
         }
-        return snap.auctionStatus;
+
+        // FINISHED giữ nguyên
+        if ("FINISHED".equals(current)) {
+            return "FINISHED";
+        }
+
+        return current;
     }
 
     // ═════════════════════════════════════════════════════════════
@@ -349,5 +411,24 @@ public class AuctionSyncManager {
         String auctionStatus;
         String registrationEndTime;
         String auctionEndTime;
+    }
+    private void updateAuctionStatus(int itemId, String newStatus) {
+
+        String sql = "UPDATE items SET auction_status = ? WHERE id = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, newStatus);
+            ps.setInt(2, itemId);
+
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+
+            logger.log(Level.WARNING,
+                    "[SyncManager] updateAuctionStatus error itemId=" + itemId,
+                    e);
+        }
     }
 }

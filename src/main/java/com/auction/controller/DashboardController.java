@@ -32,7 +32,10 @@ import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -47,16 +50,38 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
     private final ProductService productService = new ProductService();
     private User currentUser;
     private final List<VBox> activeCards = new ArrayList<>();
-
+    private Timeline autoRefreshTimeline;
+    private final Map<Integer, AuctionSyncManager.AuctionListener> auctionListeners = new HashMap<>();
     @FXML
     public void initialize() {
         User user = SessionManager.INSTANCE.getCurrentUser();
-        lblUserName.setText(user != null && user.getFullName() != null
-                ? "Xin chào, " + user.getFullName() : "Xin chào, Người dùng");
+
+        String fullName = "Người dùng";
+
+        if (user != null &&
+                user.getFullName() != null &&
+                !user.getFullName().isBlank()) {
+
+            fullName = user.getFullName();
+        }
+
+        lblUserName.setText("Xin chào, " + fullName);
 
         loadProducts("Ô tô");
         setActiveTab(btnHome);
         AuctionFinishService.getInstance().addListener(this);
+        autoRefreshTimeline = new Timeline(
+                new KeyFrame(Duration.seconds(10), e -> {
+                    if (btnCar != null && btnCar.getStyle().contains("#00b894")) {
+                        loadProducts("Ô tô");
+                    } else {
+                        loadProducts("Xe máy");
+                    }
+                })
+        );
+
+        autoRefreshTimeline.setCycleCount(Timeline.INDEFINITE);
+        autoRefreshTimeline.play();
     }
 
     public void setUserInfo(User user) { this.currentUser = user; }
@@ -103,6 +128,7 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             }
         }));
         hideTimer.setCycleCount(1);
+        hideTimer.setOnFinished(e2 -> hideTimer.stop());
         hideTimer.play();
     }
 
@@ -111,7 +137,7 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
     @FXML private void handleShowResults(ActionEvent event)    { navigateTo(event, "/fxml/AuctionResult.fxml"); }
     @FXML private void handleRegisterToSell(ActionEvent event) { navigateTo(event, "/fxml/RegisterSell.fxml"); }
     @FXML private void handleLogout(ActionEvent event) {
-        AuctionFinishService.getInstance().removeListener(this);
+        cleanupResources();
         SessionManager.INSTANCE.logout();
         navigateTo(event, "/fxml/Login.fxml");
     }
@@ -120,24 +146,40 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
     @FXML private void handleToggleBike(ActionEvent event) { setActiveFilterTab(btnBike, btnCar); loadProducts("Xe máy"); }
 
     private void loadProducts(String type) {
+
         if (productContainer == null) return;
+
+        cleanupAuctionListeners();
+
+        productContainer.setDisable(true);
         productContainer.getChildren().clear();
         activeCards.clear();
 
         List<String[]> products = productService.getApprovedProductsByType(type);
+
         if (products.isEmpty()) {
             showEmptyMessage("Chưa có " + type.toUpperCase() + " nào được đăng bán.");
+            productContainer.setDisable(false);
             return;
         }
+
         for (int i = 0; i < products.size(); i++) {
+
             ItemDTO item = ItemDTO.fromApprovedArray(products.get(i));
-            if (item != null && !"FINISHED".equalsIgnoreCase(item.getAuctionStatus())) {
+
+            if (item != null &&
+                    !"FINISHED".equalsIgnoreCase(item.getAuctionStatus())) {
+
                 VBox card = createProductCard(item, i + 1);
+
                 card.setUserData(item.getPlateNumber());
+
                 activeCards.add(card);
                 productContainer.getChildren().add(card);
             }
         }
+
+        productContainer.setDisable(false);
     }
 
     private void showEmptyMessage(String msg) {
@@ -300,19 +342,63 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             public void onTimeTick(int itemId, long remaining, double price, String status) {
                 Platform.runLater(() -> {
                     if ("REGISTRATION".equalsIgnoreCase(status)) {
+
                         lblTimeLabel.setText("Đăng ký còn lại");
                         lblTimeValue.setText(formatSecondsToDHMS(remaining));
-                    } else if ("AUCTION".equalsIgnoreCase(status)) {
+
+                        lblTimeValue.setStyle(
+                                "-fx-text-fill: #38bdf8; " +
+                                        "-fx-font-size: 15px; " +
+                                        "-fx-font-weight: bold;"
+                        );
+
+                    }
+                    else if ("AUCTION".equalsIgnoreCase(status)) {
+
                         lblTimeLabel.setText("Đấu giá còn lại");
                         lblTimeValue.setText(formatSecondsToDHMS(remaining));
-                        lblTimeValue.setStyle("-fx-text-fill: #eab308; -fx-font-size: 15px; -fx-font-weight: bold;");
 
-                        // Cập nhật nút bấm nếu chuyển sang Đấu giá
+                        lblTimeValue.setStyle(
+                                "-fx-text-fill: #eab308; " +
+                                        "-fx-font-size: 15px; " +
+                                        "-fx-font-weight: bold;"
+                        );
+
                         btnBid.setText("VÀO ĐẤU GIÁ NGAY");
-                        btnBid.setStyle("-fx-background-color: #eab308; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand;");
-                    } else if ("FINISHED".equalsIgnoreCase(status)) {
+
+                        btnBid.setStyle(
+                                "-fx-background-color: #eab308; " +
+                                        "-fx-text-fill: white; " +
+                                        "-fx-font-weight: bold; " +
+                                        "-fx-background-radius: 20; " +
+                                        "-fx-cursor: hand;"
+                        );
+
+                    }
+                    else if ("FINISHED".equalsIgnoreCase(status)) {
+
                         lblTimeLabel.setText("Trạng thái");
+
                         lblTimeValue.setText("🏁 Đã kết thúc");
+
+                        lblTimeValue.setStyle(
+                                "-fx-text-fill: #ef4444; " +
+                                        "-fx-font-size: 15px; " +
+                                        "-fx-font-weight: bold;"
+                        );
+
+                    }
+                    else {
+
+                        lblTimeLabel.setText("Trạng thái");
+
+                        lblTimeValue.setText("⏳ Chờ khai mạc");
+
+                        lblTimeValue.setStyle(
+                                "-fx-text-fill: #94a3b8; " +
+                                        "-fx-font-size: 15px; " +
+                                        "-fx-font-weight: bold;"
+                        );
                     }
                 });
             }
@@ -320,11 +406,16 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
 
         // Đăng ký lắng nghe
         AuctionSyncManager.getInstance().addListener(item.getId(), listener);
-
+        auctionListeners.put(item.getId(), listener);
         // Gỡ lắng nghe khi card bị xóa khỏi Scene
         card.sceneProperty().addListener((obs, oldScene, newScene) -> {
+
             if (newScene == null) {
-                AuctionSyncManager.getInstance().removeListener(item.getId(), listener);
+
+                AuctionSyncManager.getInstance()
+                        .removeListener(item.getId(), listener);
+
+                auctionListeners.remove(item.getId());
             }
         });
 
@@ -421,10 +512,15 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
 
     private void navigateTo(ActionEvent event, String path) {
         try {
-            AuctionFinishService.getInstance().removeListener(this);
+
+            cleanupResources();
+
             Parent root = FXMLLoader.load(getClass().getResource(path));
             ((Node) event.getSource()).getScene().setRoot(root);
-        } catch (IOException e) { e.printStackTrace(); }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void setActiveFilterTab(Button active, Button inactive) {
@@ -454,9 +550,37 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
     // =========================================================================
     // POPUP THÔNG BÁO TÙY CHỈNH CHO TRẠNG THÁI BIỂN SỐ
     // =========================================================================
-    // =========================================================================
-    // POPUP THÔNG BÁO TÙY CHỈNH CHO TRẠNG THÁI BIỂN SỐ (DARK THEME)
-    // =========================================================================
+    private void cleanupResources() {
+
+        if (autoRefreshTimeline != null) {
+            autoRefreshTimeline.stop();
+            autoRefreshTimeline = null;
+        }
+
+        AuctionFinishService.getInstance().removeListener(this);
+        cleanupAuctionListeners();
+        for (VBox card : activeCards) {
+
+            Object data = card.getUserData();
+
+            if (data instanceof String plate) {
+                // optional cleanup
+            }
+        }
+
+        activeCards.clear();
+    }
+    private void cleanupAuctionListeners() {
+
+        for (Map.Entry<Integer, AuctionSyncManager.AuctionListener> entry
+                : auctionListeners.entrySet()) {
+
+            AuctionSyncManager.getInstance()
+                    .removeListener(entry.getKey(), entry.getValue());
+        }
+
+        auctionListeners.clear();
+    }
     private void showCustomStatusPopup(String title, String message, String emoji, String themeColor) {
         Alert alert = new Alert(Alert.AlertType.NONE);
         alert.setTitle("Thông báo");
@@ -493,6 +617,6 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             closeButton.setStyle("-fx-background-color: " + themeColor + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
         }
 
-        alert.showAndWait();
+        Platform.runLater(alert::showAndWait);
     }
 }

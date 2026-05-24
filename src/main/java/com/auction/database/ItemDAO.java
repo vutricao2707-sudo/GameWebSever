@@ -891,7 +891,11 @@ public class ItemDAO {
      * Rất quan trọng khi phiên chuyển từ REGISTRATION -> AUCTION -> FINISHED
      */
     public static boolean setAuctionStatus(int itemId, String status) {
-        String sql = "UPDATE items SET auction_status = ? WHERE id = ?";
+        String sql =
+                "UPDATE items " +
+                        "SET auction_status = ? " +
+                        "WHERE id = ? " +
+                        "AND auction_status != 'FINISHED'";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, status);

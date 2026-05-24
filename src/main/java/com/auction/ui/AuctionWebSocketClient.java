@@ -120,6 +120,7 @@ public class AuctionWebSocketClient extends WebSocketClient {
      */
     @Override
     public void onMessage(String message) {
+        System.out.println("📩 WS MESSAGE: " + message);
         try {
             JSONObject json = new JSONObject(message);
             String type = json.optString("type", "");
@@ -170,15 +171,46 @@ public class AuctionWebSocketClient extends WebSocketClient {
      * Subscribe tới updates của 1 item
      */
     public void subscribe(int itemId) {
-        if (isConnected) {
-            JSONObject message = new JSONObject();
-            message.put("action", "SUBSCRIBE");
-            message.put("itemId", itemId);
-            send(message.toString());
-            System.out.println("📤 Gửi SUBSCRIBE itemId: " + itemId);
-        } else {
-            System.err.println("⚠️ WebSocket chưa kết nối!");
-        }
+
+        new Thread(() -> {
+
+            try {
+
+                int retry = 0;
+
+                while (!isConnected && retry < 20) {
+
+                    Thread.sleep(300);
+
+                    retry++;
+                }
+
+                if (!isConnected) {
+
+                    System.err.println(
+                            "❌ Không thể subscribe - WS chưa connect"
+                    );
+
+                    return;
+                }
+
+                JSONObject message = new JSONObject();
+
+                message.put("action", "SUBSCRIBE");
+                message.put("itemId", itemId);
+
+                send(message.toString());
+
+                System.out.println(
+                        "📤 SUBSCRIBED itemId = " + itemId
+                );
+
+            } catch (Exception e) {
+
+                e.printStackTrace();
+            }
+
+        }).start();
     }
 
     /**
