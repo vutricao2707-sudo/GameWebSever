@@ -521,13 +521,48 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     public void onAuctionFinished(int itemId, double finalPrice, int winnerId, String winnerName) {
         if (itemId != currentItemId) return;
 
+        // Đảm bảo chỉ xử lý 1 lần
         if (!auctionEnded.compareAndSet(false, true)) {
             return;
         }
+
         Platform.runLater(() -> {
-            int myId = SessionManager.getCurrentUser() != null ? SessionManager.getCurrentUser().getId() : -1;
-            // Thêm tham số winnerId vào đây:
-            showAuctionEndedUI(finalPrice, winnerName, myId == winnerId, winnerId);
+            try {
+                int myId = SessionManager.getCurrentUser() != null ? SessionManager.getCurrentUser().getId() : -1;
+
+                boolean iWon = false;
+
+                // Nếu có session user
+                if (myId > 0) {
+                    try {
+                        // Kiểm tra bid cao nhất của user trong phiên này (theo plate)
+                        double myHighest = ItemDAO.getUserHighestBid(currentPlateNumber, myId);
+
+                        // Nếu user từng đặt giá và giá cao nhất của họ trùng với finalPrice → thắng
+                        if (myHighest > 0 && Math.abs(myHighest - finalPrice) < 0.0001) {
+                            iWon = true;
+                        } else if (myId == winnerId) {
+                            // Dự phòng: nếu WinnerId trùng với myId thì cũng là thắng
+                            iWon = true;
+                        }
+                    } catch (Exception eDb) {
+                        // Nếu truy vấn DB lỗi, fallback dùng winnerId so sánh
+                        if (myId == winnerId) iWon = true;
+                    }
+                } else {
+                    // Guest / chưa đăng nhập => chắc chắn không thắng
+                    iWon = false;
+                }
+
+                // Hiển thị dialog kết quả — iWon true => hiện success, ngược lại failure
+                showAuctionEndedUI(finalPrice, winnerName, iWon, winnerId);
+
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Error handling onAuctionFinished", e);
+                // Fallback: hiển thị kết quả theo winnerId
+                int myId = SessionManager.getCurrentUser() != null ? SessionManager.getCurrentUser().getId() : -1;
+                showAuctionEndedUI(finalPrice, winnerName, myId == winnerId, winnerId);
+            }
         });
     }
 
