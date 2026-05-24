@@ -37,6 +37,5 @@ build/
 ### Mac OS ###
 .DS_Store
 
-### Database Config ###
-src/main/resources/database.properties
-.ai/
+
+

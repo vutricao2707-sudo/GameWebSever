@@ -3,6 +3,7 @@ package com.auction.controller;
 import com.auction.dto.ItemDTO;
 import com.auction.model.User;
 import com.auction.service.AuctionFinishService;
+import com.auction.service.AuctionSyncManager;
 import com.auction.service.ProductService;
 import com.auction.util.SessionManager;
 import javafx.animation.KeyFrame;
@@ -284,55 +285,10 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             lblTimeLabel.setText("Trạng thái"); lblTimeValue.setText("🏁 Đã kết thúc"); return row;
         }
 
-        LocalDateTime regEnd = parseTime(item.getRegistrationEndTime());
-        LocalDateTime aucEnd = parseTime(item.getAuctionEndTime());
+        AuctionSyncManager.getInstance().addListener(item.getId(), (id, remaining, price, currentStatus) -> {
+            lblTimeValue.setText(formatDuration(java.time.Duration.ofSeconds(remaining)));
+        });
 
-        Timeline tl = new Timeline();
-        tl.getKeyFrames().add(new KeyFrame(Duration.seconds(1), e -> {
-            LocalDateTime now = LocalDateTime.now();
-            String currentStatus = item.getAuctionStatus();
-
-            // Nếu đang trong thời gian đăng ký
-            if ("REGISTRATION".equalsIgnoreCase(currentStatus)) {
-                if (regEnd != null) {
-                    java.time.Duration d = java.time.Duration.between(now, regEnd);
-                    if (d.isNegative() || d.isZero()) {
-                        // Hết giờ đăng ký -> KHÔNG DỪNG TIMELINE, tự động chuyển sang trạng thái Đấu giá
-                        item.setAuctionStatus("AUCTION");
-                        lblTimeLabel.setText("Đấu giá còn lại");
-                        btnBid.setText("VÀO ĐẤU GIÁ NGAY");
-                        btnBid.setStyle("-fx-background-color: #eab308; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand;");
-                    } else {
-                        lblTimeLabel.setText("Đăng ký còn lại");
-                        lblTimeValue.setText(formatDuration(d));
-                        lblTimeValue.setStyle("-fx-text-fill: white; -fx-font-size: 15px; -fx-font-weight: bold;");
-                    }
-                } else {
-                    lblTimeValue.setText("Không xác định");
-                }
-            }
-
-            // Nếu đã chuyển sang trạng thái đấu giá (hoặc vốn dĩ đang đấu giá)
-            if ("AUCTION".equalsIgnoreCase(item.getAuctionStatus())) {
-                if (aucEnd != null) {
-                    java.time.Duration d = java.time.Duration.between(now, aucEnd);
-                    if (d.isNegative() || d.isZero()) {
-                        // Hết giờ đấu giá -> Mới dừng timeline và ẩn thẻ
-                        tl.stop();
-                        item.setAuctionStatus("FINISHED");
-                        handleCardFinished(card, item.getPlateNumber());
-                    } else {
-                        lblTimeLabel.setText("Đấu giá còn lại");
-                        lblTimeValue.setText(formatDuration(d));
-                        lblTimeValue.setStyle("-fx-text-fill: #eab308; -fx-font-size: 15px; -fx-font-weight: bold;");
-                    }
-                } else {
-                    lblTimeValue.setText("Không xác định");
-                }
-            }
-        }));
-        tl.setCycleCount(Timeline.INDEFINITE);
-        tl.play();
 
         return row;
     }
