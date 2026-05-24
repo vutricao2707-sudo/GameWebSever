@@ -5,7 +5,7 @@ import com.auction.util.NavigationUtil;
 import com.auction.util.PlateValidator;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
+import com.auction.util.UIUtils;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 
@@ -42,44 +42,40 @@ public class RegisterSellController {
         // 1. Kiểm tra rỗng
         if (fullName.isEmpty() || phone.isEmpty() || email.isEmpty() || address.isEmpty()
                 || type == null || plate.isEmpty() || province.isEmpty() || price.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập đầy đủ các ô có dấu *");
+            UIUtils.showInfo("Thiếu thông tin", "Vui lòng nhập đầy đủ các ô có dấu *");
             return;
         }
 
-        // 2. Validate biển số theo regex (FORMAT: 2 số + 1 chữ cái + 1 số/chữ + dấu gạch + 4/5 số)
+// 2. Validate biển số
         if (!PlateValidator.isValidPlate(plate)) {
-            showAlert(Alert.AlertType.ERROR, "Biển số không hợp lệ",
-                    "Biển số phải theo định dạng: 29A-12345 hoặc 29A.12345\n" +
-                    "Ví dụ: 30K-555555, 51A.123456");
+            UIUtils.showError("Biển số không hợp lệ", "Biển số phải theo định dạng: 29A-12345 hoặc 29A.12345");
             return;
         }
 
-        // 3. Validate giá tiền (Chặn nhập chữ và số âm)
-        double validPrice = 0;
+        // 3. Validate giá tiền
+        double validPrice; // Khai báo kiểu dữ liệu cho nó
         try {
             validPrice = Double.parseDouble(price);
             if (validPrice <= 0) {
-                showAlert(Alert.AlertType.ERROR, "Lỗi nhập liệu", "Giá khởi điểm phải lớn hơn 0!");
+                UIUtils.showError("Lỗi nhập liệu", "Giá khởi điểm phải lớn hơn 0!");
                 return;
             }
         } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Lỗi nhập liệu", "Giá tiền chỉ được phép nhập số (ví dụ: 50000000)!");
+            UIUtils.showError("Lỗi nhập liệu", "Giá tiền chỉ được phép nhập số!");
             return;
         }
 
-        // 4. Gọi Service để thêm mới và kiểm tra trùng lặp
+// 4. Gọi Service để thêm mới và kiểm tra trùng lặp
         boolean isSuccess = productService.addNewProduct(type, plate, province, price, fullName, phone, email, address);
 
         // Nếu isSuccess là false (tức là bị trùng biển số)
         if (!isSuccess) {
-            showAlert(Alert.AlertType.ERROR, "Từ chối đăng ký", "Biển số " + plate + " đã tồn tại trên hệ thống! Vui lòng kiểm tra lại.");
-            return; // Dừng lại, không cho đăng ký tiếp
+            UIUtils.showError("Từ chối đăng ký", "Biển số " + plate + " đã tồn tại trên hệ thống! Vui lòng kiểm tra lại.");
+            return;
         }
 
-        // 4. Nếu qua hết các ải trên thì thông báo thành công
-        showAlert(Alert.AlertType.INFORMATION, "Gửi yêu cầu thành công!",
-                "Biển số " + plate + " đã được gửi đi.\nVui lòng chờ hệ thống duyệt!");
-
+// 5. Thông báo thành công
+        UIUtils.showSuccess("Gửi yêu cầu thành công!", "Biển số " + plate + " đã được gửi đi.\nVui lòng chờ hệ thống duyệt!");
         // (Tùy chọn) Xóa trắng các ô nhập liệu sau khi đăng ký thành công
         // txtPlateNumber.clear();
         // txtStartingPrice.clear();
@@ -89,11 +85,4 @@ public class RegisterSellController {
         NavigationUtil.navigateTo(event, "/fxml/Dashboard.fxml");
     }
 
-    private void showAlert(Alert.AlertType type, String title, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
 }

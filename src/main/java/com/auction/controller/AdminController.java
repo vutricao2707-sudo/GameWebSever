@@ -4,6 +4,7 @@ import com.auction.database.ItemDAO;
 import com.auction.database.UserDAO;
 import com.auction.model.User;
 import com.auction.service.ProductService;
+import com.auction.util.UIUtils;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
@@ -17,7 +18,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import javafx.scene.Scene;
 import com.auction.database.AuctionDAO;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -181,62 +185,79 @@ public class  AdminController {
     }
 
     private void handleApprove(String plate, HBox rowToRemove) {
-        // 1. Duyệt trạng thái thành APPROVED trước
         boolean ok = productService.approveProduct(plate);
         if (!ok) {
-            showAlert(Alert.AlertType.ERROR, "Thất bại", "Không tìm thấy biển số " + plate);
+            UIUtils.showError("Thất bại", "Không tìm thấy biển số " + plate);
             return;
         }
 
-        // 2. Tạo một Hộp thoại tùy chỉnh (Custom Dialog)
-        javafx.scene.control.Dialog<ButtonType> dialog = new javafx.scene.control.Dialog<>();
-        dialog.setTitle("Cài đặt thời gian đấu giá");
-        dialog.setHeaderText("Cấu hình cho biển số: " + plate);
+        // --- CHUYỂN SANG DÙNG STAGE TRONG SUỐT HOÀN TOÀN ---
+        Stage stage = new Stage();
+        stage.initStyle(StageStyle.TRANSPARENT);
+        stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
 
-        // Nút OK và Cancel
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        VBox vbox = new VBox(15);
+        vbox.setAlignment(Pos.CENTER);
+        vbox.setStyle("-fx-background-color: #1a2230; -fx-border-color: #00b894; -fx-border-radius: 12; -fx-background-radius: 12; -fx-border-width: 2; -fx-padding: 25;");
+        vbox.setPrefWidth(380);
 
-        // Tạo 2 ô nhập liệu
-        TextField txtRegMinutes = new TextField("60"); // Mặc định chờ 60p
-        TextField txtAucMinutes = new TextField("60"); // Mặc định đấu giá 60p
+        Label title = new Label("CÀI ĐẶT THỜI GIAN ĐẤU GIÁ");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #00b894;");
 
-        // Đưa 2 ô nhập vào một VBox (Layout dọc)
-        VBox vbox = new VBox(10); // Khoảng cách giữa các phần tử là 10px
-        vbox.getChildren().addAll(
-                new Label("Thời gian chờ trước khi mở phiên (Phút):"), txtRegMinutes,
-                new Label("Thời lượng diễn ra đấu giá (Phút):"), txtAucMinutes
-        );
-        dialog.getDialogPane().setContent(vbox);
+        Label subtitle = new Label("Cấu hình cho biển số: " + plate);
+        subtitle.setStyle("-fx-text-fill: #cbd5e1; -fx-font-size: 14px;");
 
-        // Hiện Dialog và chờ Admin bấm nút
-        Optional<ButtonType> res = dialog.showAndWait();
+        Label lbl1 = new Label("Thời gian chờ trước khi mở phiên (Phút):");
+        lbl1.setStyle("-fx-text-fill: white;");
+        TextField txtRegMinutes = new TextField("60");
+        txtRegMinutes.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-border-color: #475569; -fx-border-radius: 20; -fx-padding: 6 12;");
 
-        // Nếu Admin bấm OK
-        if (res.isPresent() && res.get() == ButtonType.OK) {
+        Label lbl2 = new Label("Thời lượng diễn ra đấu giá (Phút):");
+        lbl2.setStyle("-fx-text-fill: white;");
+        TextField txtAucMinutes = new TextField("60");
+        txtAucMinutes.setStyle("-fx-background-color: #334155; -fx-text-fill: white; -fx-border-color: #475569; -fx-border-radius: 20; -fx-padding: 6 12;");
+
+        // Tạo biến flag kiểm tra bấm nút
+        final boolean[] isOkPressed = {false};
+
+        Button btnConfirm = new Button("Xác nhận");
+        btnConfirm.setStyle("-fx-background-color: #00b894; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
+        btnConfirm.setOnAction(ev -> { isOkPressed[0] = true; stage.close(); });
+
+        Button btnCancel = new Button("Hủy bỏ");
+        btnCancel.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
+        btnCancel.setOnAction(ev -> { isOkPressed[0] = false; stage.close(); });
+
+        HBox btnBox = new HBox(15, btnCancel, btnConfirm);
+        btnBox.setAlignment(Pos.CENTER);
+
+        vbox.getChildren().addAll(title, subtitle, lbl1, txtRegMinutes, lbl2, txtAucMinutes, btnBox);
+
+        Scene scene = new Scene(vbox);
+        scene.setFill(Color.TRANSPARENT);
+        stage.setScene(scene);
+        stage.centerOnScreen();
+        stage.showAndWait();
+
+        // Xử lý logic sau khi đóng cửa sổ Stage
+        if (isOkPressed[0]) {
             try {
                 int regMinutes = Integer.parseInt(txtRegMinutes.getText().trim());
                 int aucMinutes = Integer.parseInt(txtAucMinutes.getText().trim());
 
-                if (regMinutes <= 0 || aucMinutes <= 0) {
-                    throw new NumberFormatException();
-                }
+                if (regMinutes <= 0 || aucMinutes <= 0) throw new NumberFormatException();
 
-                // GỌI HÀM DATABASE VỪA SỬA (Truyền đúng plate thay vì itemId)
                 boolean started = ItemDAO.startRegistrationPhase(plate, regMinutes, aucMinutes);
-
                 if (started) {
                     adminListContainer.getChildren().remove(rowToRemove);
                     updateCounter(adminListContainer.getChildren().size(), "yêu cầu");
-
-                    showAlert(Alert.AlertType.INFORMATION, "Duyệt thành công",
-                            "Biển số " + plate + " đã lên sàn!\n" +
-                                    "Sẽ mở phiên sau: " + regMinutes + " phút.\n" +
-                                    "Thời lượng đấu giá: " + aucMinutes + " phút.");
+                    UIUtils.showSuccess("Duyệt thành công",
+                            "Biển số " + plate + " đã lên sàn!\nSẽ mở phiên sau: " + regMinutes + " phút.\nThời lượng: " + aucMinutes + " phút.");
                 } else {
-                    showAlert(Alert.AlertType.ERROR, "Lỗi Database", "Không thể cập nhật thời gian.");
+                    UIUtils.showError("Lỗi Database", "Không thể cập nhật thời gian.");
                 }
             } catch (NumberFormatException ex) {
-                showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Vui lòng nhập số nguyên dương!");
+                UIUtils.showError("Lỗi nhập liệu", "Vui lòng nhập số nguyên dương!");
             }
         }
     }
@@ -257,84 +278,92 @@ public class  AdminController {
     }
     @FXML
     private void handleClearFinished() {
-        // 1. Lấy toàn bộ danh sách xe đang hiển thị trên Dashboard (kể cả chưa mở đấu giá)
         List<String[]> activeItems = ItemDAO.getAllApprovedActiveItems();
 
         if (activeItems.isEmpty()) {
-            showAlert(Alert.AlertType.INFORMATION, "Thông báo", "Hiện tại không có biển số nào trên Dashboard.");
+            UIUtils.showInfo("Thông báo", "Hiện tại không có biển số nào trên Dashboard.");
             return;
         }
 
-        // 2. Khởi tạo một Hộp thoại tùy chỉnh
-        javafx.scene.control.Dialog<ButtonType> dialog = new javafx.scene.control.Dialog<>();
-        dialog.setTitle("Quản lý danh sách Dashboard");
-        dialog.setHeaderText("Tích chọn những biển số bạn muốn XÓA/ẨN khỏi Dashboard:");
+        // --- CHUYỂN SANG DÙNG STAGE TRONG SUỐT HOÀN TOÀN ---
+        Stage stage = new Stage();
+        stage.initStyle(StageStyle.TRANSPARENT);
+        stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
 
-        // Thêm nút xác nhận OK và nút Hủy
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        VBox mainVbox = new VBox(15);
+        mainVbox.setAlignment(Pos.CENTER);
+        mainVbox.setStyle("-fx-background-color: #1a2230; -fx-border-color: #38bdf8; -fx-border-radius: 12; -fx-background-radius: 12; -fx-border-width: 2; -fx-padding: 25;");
+        mainVbox.setPrefWidth(420);
 
-        // Tạo một VBox để chứa danh sách các ô tích chọn CheckBox
+        Label title = new Label("QUẢN LÝ DANH SÁCH DASHBOARD");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #38bdf8;");
+
+        Label subtitle = new Label("Tích chọn những biển số bạn muốn XÓA/ẨN khỏi Dashboard:");
+        subtitle.setStyle("-fx-text-fill: #cbd5e1; -fx-font-size: 13px;");
+
         VBox checklistContainer = new VBox(12);
-        checklistContainer.setStyle("-fx-padding: 15;");
+        checklistContainer.setStyle("-fx-background-color: #1a2230; -fx-padding: 10;");
 
-        // Danh sách phụ để tí nữa chúng ta duyệt qua xem ô nào được tích
         List<CheckBox> listCheckBoxes = new ArrayList<>();
-
-        // Vòng lặp tự động tạo ô CheckBox cho từng biển số
         for (String[] item : activeItems) {
-            String plate = item[1];       // Lấy Biển số xe
-            String status = item[13];     // Lấy Trạng thái đấu giá (WAITING, REGISTRATION, AUCTION)
-
-            // Định dạng chuỗi hiển thị cho dễ đọc
+            String plate = item[1];
+            String status = item[13];
             String displayInfo = String.format("%-15s [%s]", plate, status);
 
             CheckBox cb = new CheckBox(displayInfo);
-            cb.setUserData(plate); //Giấu mã biển số xe vào userData của CheckBox để tí lấy ra
-            cb.setStyle("-fx-text-fill: #1e293b; -fx-font-family: 'Courier New'; -fx-font-weight: bold; -fx-font-size: 14px;");
+            cb.setUserData(plate);
+            cb.setStyle("-fx-text-fill: white; -fx-font-family: 'Courier New'; -fx-font-weight: bold; -fx-font-size: 14px;");
 
-            checklistContainer.getChildren().add(cb); // Thêm ô CheckBox vào giao diện hộp thoại
-            listCheckBoxes.add(cb);                  // Lưu vào danh sách quản lý
+            checklistContainer.getChildren().add(cb);
+            listCheckBoxes.add(cb);
         }
 
-        // Bọc VBox vào một ScrollPane đề phòng trường hợp có quá nhiều biển số gây tràn màn hình
         ScrollPane scrollPane = new ScrollPane(checklistContainer);
-        scrollPane.setPrefSize(380, 320);
+        scrollPane.setPrefSize(380, 220);
         scrollPane.setFitToWidth(true);
-        dialog.getDialogPane().setContent(scrollPane);
+        scrollPane.setStyle("-fx-background-color: #1a2230; -fx-background: #1a2230; -fx-border-color: #334155;");
 
-        // 3. Hiển thị hộp thoại và chờ Admin bấm nút
-        Optional<ButtonType> clickedButton = dialog.showAndWait();
+        final boolean[] isOkPressed = {false};
 
-        // Nếu Admin bấm nút OK
-        if (clickedButton.isPresent() && clickedButton.get() == ButtonType.OK) {
+        Button btnConfirm = new Button("Xác nhận ẩn");
+        btnConfirm.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
+        btnConfirm.setOnAction(ev -> { isOkPressed[0] = true; stage.close(); });
+
+        Button btnCancel = new Button("Quay lại");
+        btnCancel.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
+        btnCancel.setOnAction(ev -> { isOkPressed[0] = false; stage.close(); });
+
+        HBox btnBox = new HBox(15, btnCancel, btnConfirm);
+        btnBox.setAlignment(Pos.CENTER);
+
+        mainVbox.getChildren().addAll(title, subtitle, scrollPane, btnBox);
+
+        Scene scene = new Scene(mainVbox);
+        scene.setFill(Color.TRANSPARENT);
+        stage.setScene(scene);
+        stage.centerOnScreen();
+        stage.showAndWait();
+
+        // Xử lý logic sau khi đóng Stage
+        if (isOkPressed[0]) {
             List<String> selectedPlates = new ArrayList<>();
-
-            // Duyệt qua danh sách CheckBox xem cái nào đã được tích chọn v
             for (CheckBox cb : listCheckBoxes) {
                 if (cb.isSelected()) {
-                    selectedPlates.add(cb.getUserData().toString()); // Lấy lại biển số xe đã giấu lúc nãy
+                    selectedPlates.add(cb.getUserData().toString());
                 }
             }
 
-            // Nếu Admin bấm OK nhưng không tích chọn cái nào cả
             if (selectedPlates.isEmpty()) {
-                showAlert(Alert.AlertType.WARNING, "Thông báo", "Bạn chưa tích chọn biển số nào cả!");
+                UIUtils.showError("Thông báo", "Bạn chưa tích chọn biển số nào cả!");
                 return;
             }
 
-            // 4. Gửi danh sách các biển đã chọn xuống Database để ẩn hàng loạt
             boolean success = ItemDAO.hideSelectedItems(selectedPlates);
-
             if (success) {
-                showAlert(Alert.AlertType.INFORMATION, "Thành công",
-                        "Đã xóa ẩn thành công " + selectedPlates.size() + " biển số khỏi Dashboard người dùng!");
-
-                // Nếu Admin đang đứng ở tab Giám sát thì nạp lại bảng cho đồng bộ dữ liệu ngay lập tức
-                if (currentView == ViewMode.MONITORING) {
-                    loadMonitoringView();
-                }
+                UIUtils.showSuccess("Thành công", "Đã xóa ẩn thành công " + selectedPlates.size() + " biển số khỏi Dashboard!");
+                if (currentView == ViewMode.MONITORING) loadMonitoringView();
             } else {
-                showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể cập nhật dữ liệu. Vui lòng thử lại.");
+                UIUtils.showError("Lỗi", "Không thể cập nhật dữ liệu. Vui lòng thử lại.");
             }
         }
     }
@@ -752,5 +781,50 @@ public class  AdminController {
             autoRefreshTimeline = null;
             System.out.println("🛑 Auto refresh stopped");
         }
+    }
+    // =========================================================================
+    // POPUP XÁC NHẬN (Cửa sổ tàng hình 100%)
+    // =========================================================================
+    public static boolean showConfirm(String title, String message) {
+        javafx.stage.Stage stage = new javafx.stage.Stage();
+        stage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
+        stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+
+        VBox content = new VBox(15);
+        content.setAlignment(javafx.geometry.Pos.CENTER);
+        content.setStyle("-fx-background-color: #1a2230; -fx-border-color: #f59e0b; -fx-border-radius: 15; -fx-background-radius: 15; -fx-border-width: 2; -fx-padding: 30;");
+        content.setPrefWidth(380);
+
+        Label lblEmoji = new Label("❓");
+        lblEmoji.setStyle("-fx-font-size: 55px;");
+
+        Label lblTitle = new Label(title.toUpperCase());
+        lblTitle.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #f59e0b;");
+
+        Label lblMessage = new Label(message);
+        lblMessage.setStyle("-fx-font-size: 15px; -fx-text-fill: #cbd5e1; -fx-text-alignment: center;");
+        lblMessage.setWrapText(true);
+
+        final boolean[] result = {false};
+
+        javafx.scene.control.Button btnYes = new javafx.scene.control.Button("Đồng ý");
+        btnYes.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
+        btnYes.setOnAction(e -> { result[0] = true; stage.close(); });
+
+        javafx.scene.control.Button btnNo = new javafx.scene.control.Button("Hủy");
+        btnNo.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
+        btnNo.setOnAction(e -> { result[0] = false; stage.close(); });
+
+        javafx.scene.layout.HBox btnBox = new javafx.scene.layout.HBox(15, btnNo, btnYes);
+        btnBox.setAlignment(javafx.geometry.Pos.CENTER);
+
+        content.getChildren().addAll(lblEmoji, lblTitle, lblMessage, btnBox);
+        javafx.scene.Scene scene = new javafx.scene.Scene(content);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+        stage.setScene(scene);
+        stage.centerOnScreen();
+        stage.showAndWait();
+
+        return result[0];
     }
 }

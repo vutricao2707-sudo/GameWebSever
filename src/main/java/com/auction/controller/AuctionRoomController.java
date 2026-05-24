@@ -5,6 +5,7 @@ import com.auction.database.ItemDAO;
 import com.auction.service.AuctionSyncManager;
 import com.auction.ui.AuctionWebSocketClient;
 import com.auction.util.SessionManager;
+import com.auction.util.UIUtils;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -109,23 +110,22 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
         try {
             if (plate == null || plate.trim().isEmpty()) {
-                showAlert("Lỗi", "Biển số không hợp lệ");
+                UIUtils.showError("Lỗi", "Biển số không hợp lệ");
                 return;
             }
 
             String[] itemData = ItemDAO.getItemFullData(plate);
             if (itemData == null || itemData.length < 10) {
-                showAlert("Lỗi", "Không tìm thấy dữ liệu hợp lệ trong database");
+                UIUtils.showError("Lỗi", "Không tìm thấy dữ liệu hợp lệ trong database");
                 return;
             }
 
-            // Sửa toàn bộ khối kiểm tra trạng thái trong setAuctionRoomData thành:
             String auctionStatus = ItemDAO.getAuctionStatus(plate);
             logger.info("📍 Status từ DB: " + auctionStatus);
 
             // CHỈ CHẶN NẾU TRẠNG THÁI LÀ ĐĂNG KÝ HOẶC CHỜ
             if ("REGISTRATION".equalsIgnoreCase(auctionStatus) || "WAITING".equalsIgnoreCase(auctionStatus)) {
-                showCustomStatusPopup("Chưa mở đấu giá", "Hiện đang trong thời gian đăng ký, vui lòng quay lại khi đến giờ.", "⏳", "#00b894");
+                UIUtils.showCustomPopup("Chưa mở đấu giá", "Hiện đang trong thời gian đăng ký, vui lòng quay lại khi đến giờ.", "⏳", "#00b894");
                 return;
             }
             // 2. Nếu đã kết thúc, vẫn cho vào phòng nhưng hiện popup kết quả
@@ -220,7 +220,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Lỗi hệ thống", e);
-            showAlert("Lỗi hệ thống", "Có lỗi xảy ra: " + e.getMessage());
+            UIUtils.showError("Lỗi hệ thống", "Có lỗi xảy ra: " + e.getMessage());
         }
     }
 
@@ -401,50 +401,8 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         if (lblMinutes != null) lblMinutes.setText("00");
         if (lblSeconds != null) lblSeconds.setText("00");
 
-        String resultEmoji    = iWon ? "🏆" : "😔";
-        String resultTitle    = iWon ? "CHÚC MỪNG! BẠN ĐÃ THẮNG" : "PHIÊN ĐẤU GIÁ KẾT THÚC";
-        String resultSubtitle = iWon ? "Bạn là người đặt giá cao nhất!" : "Người thắng: " + winnerName;
-        String themeColor     = iWon ? "#00b894" : "#ef4444"; // Xanh ngọc nếu thắng, Đỏ nếu thua
-
-        Alert alert = new Alert(Alert.AlertType.NONE);
-        alert.setTitle("Kết quả đấu giá");
-        alert.setHeaderText(null);
-        alert.setGraphic(null);
-
-        DialogPane dialogPane = alert.getDialogPane();
-        dialogPane.setStyle("-fx-background-color: #1a2230; -fx-border-color: " + themeColor + "; -fx-border-radius: 8; -fx-border-width: 2;");
-
-        VBox content = new VBox(15);
-        content.setStyle("-fx-alignment: center; -fx-padding: 25;");
-
-        Label emojiLbl = new Label(resultEmoji);
-        emojiLbl.setStyle("-fx-font-size: 55px;");
-
-        Label titleLbl = new Label(resultTitle);
-        titleLbl.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: " + themeColor + ";");
-
-        // FIX LỖI "fmt" -> Đã đổi thành "formatter"
-        Label priceLbl = new Label("Giá cuối: " + formatter.format(finalPrice) + " đ");
-        priceLbl.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #f59e0b;");
-
-        Label subtitleLbl = new Label(resultSubtitle);
-        subtitleLbl.setStyle("-fx-font-size: 15px; -fx-text-fill: #cbd5e1;");
-
-        content.getChildren().addAll(emojiLbl, titleLbl, priceLbl, subtitleLbl);
-        dialogPane.setContent(content);
-        dialogPane.setMinWidth(400);
-
-        ButtonType btnBack = new ButtonType("Quay lại Dashboard", ButtonBar.ButtonData.OK_DONE);
-        alert.getButtonTypes().setAll(btnBack);
-
-        // Nút bo tròn màu nổi bật
-        Node backButton = dialogPane.lookupButton(btnBack);
-        if (backButton != null) {
-            backButton.setStyle("-fx-background-color: " + themeColor + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 10 30; -fx-background-radius: 20; -fx-cursor: hand;");
-        }
-
-        alert.setOnHidden(ev -> navigateToDashboard());
-        alert.show();
+        // Gọi UIUtils xịn xò, bay sạch viền trắng
+        UIUtils.showAuctionResult(iWon, formatter.format(finalPrice), winnerName, this::navigateToDashboard);
     }
 
     // =========================================================================
@@ -483,12 +441,12 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
             String[] itemData = ItemDAO.getItemFullData(currentPlateNumber);
             if (itemData != null && "FINISHED".equalsIgnoreCase(itemData[9])) {
-                showAlert("Phiên đã kết thúc", "Không thể đặt giá nữa.");
+                UIUtils.showError("Phiên đã kết thúc", "Không thể đặt giá nữa.");
                 return;
             }
 
             if (SessionManager.getCurrentUser() == null) {
-                showAlert("Lỗi", "Bạn chưa đăng nhập");
+                UIUtils.showError("Lỗi", "Bạn chưa đăng nhập");
                 return;
             }
 
@@ -502,7 +460,11 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 long dbLastBidTime = BidDAO.getLastBidTime(currentPlateNumber, userId);
                 long remainingTime = (dbLastBidTime + 60) - (System.currentTimeMillis() / 1000);
                 refreshCurrentPrice();
-                showAlert("Đặt giá thất bại", "Vui lòng thử lại. Cooldown còn: " + Math.max(0, remainingTime) + " s");
+
+                // Popup Cooldown xịn xò
+                UIUtils.showCustomPopup("ĐẶT GIÁ THẤT BẠI",
+                        "Vui lòng chờ hết thời gian 1 phút từ lần đặt gần nhất để đặt giá tiếp.\nThời gian còn lại: " + Math.max(0, remainingTime) + " giây",
+                        "⏳", "#ef4444");
                 return;
             }
 
@@ -514,7 +476,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             addHistoryRow(formatter.format(newBid), "Bạn");
 
         } catch (Exception e) {
-            showAlert("Lỗi", e.getMessage());
+            UIUtils.showError("Lỗi", e.getMessage());
         }
     }
 
@@ -649,55 +611,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 lblMinutes.getScene().setRoot(root);
             }
         } catch (Exception e) {}
-    }
-
-    private void showAlert(String title, String message) {
-        try {
-            Alert a = new Alert(Alert.AlertType.INFORMATION);
-            a.setTitle(title);
-            a.setHeaderText(null);
-            a.setContentText(message);
-            a.showAndWait();
-        } catch (Exception ignored) {}
-    }
-    // =========================================================================
-    // HÀM POPUP TÙY CHỈNH (DARK THEME)
-    // =========================================================================
-    private void showCustomStatusPopup(String title, String message, String emoji, String themeColor) {
-        Alert alert = new Alert(Alert.AlertType.NONE);
-        alert.setTitle("Thông báo");
-        alert.setHeaderText(null);
-        alert.setGraphic(null);
-
-        DialogPane dialogPane = alert.getDialogPane();
-        dialogPane.setStyle("-fx-background-color: #1a2230; -fx-border-color: " + themeColor + "; -fx-border-radius: 8; -fx-border-width: 2;");
-
-        VBox content = new VBox(15);
-        content.setStyle("-fx-alignment: center; -fx-padding: 25;");
-
-        Label emojiLbl = new Label(emoji);
-        emojiLbl.setStyle("-fx-font-size: 55px;");
-
-        Label titleLbl = new Label(title.toUpperCase());
-        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: " + themeColor + ";");
-
-        Label msgLbl = new Label(message);
-        msgLbl.setStyle("-fx-font-size: 15px; -fx-text-fill: #cbd5e1; -fx-text-alignment: center;");
-        msgLbl.setWrapText(true);
-        msgLbl.setMaxWidth(300);
-
-        content.getChildren().addAll(emojiLbl, titleLbl, msgLbl);
-        dialogPane.setContent(content);
-
-        ButtonType btnClose = new ButtonType("Đã hiểu", ButtonBar.ButtonData.OK_DONE);
-        alert.getButtonTypes().setAll(btnClose);
-
-        Node closeButton = dialogPane.lookupButton(btnClose);
-        if (closeButton != null) {
-            closeButton.setStyle("-fx-background-color: " + themeColor + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
-        }
-
-        alert.showAndWait();
     }
     // =========================================================================
 // TỐI ƯU CHART: INCREMENTAL UPDATE — Thêm điểm mới thay vì load lại toàn bộ

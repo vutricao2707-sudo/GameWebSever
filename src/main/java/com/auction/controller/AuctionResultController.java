@@ -13,7 +13,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-
+import com.auction.util.UIUtils;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.List;
@@ -173,15 +173,7 @@ public class AuctionResultController {
             currentScene.setRoot(newRoot);
         } catch (IOException e) {
             e.printStackTrace();
-            showInfo("Lỗi hệ thống", "Không thể tải màn hình: " + fxmlPath);
+            UIUtils.showError("Lỗi hệ thống", "Không thể tải màn hình: " + fxmlPath);
         }
-    }
-
-    private void showInfo(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
     }
 }

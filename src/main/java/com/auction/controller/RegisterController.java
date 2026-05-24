@@ -4,7 +4,7 @@ import com.auction.database.UserDAO;
 import com.auction.util.NavigationUtil;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Alert;
+import com.auction.util.UIUtils;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.PasswordField;
@@ -41,75 +41,54 @@ public class RegisterController {
         String password = txtPass.getText().trim();
         String confirm  = txtConfirmPass.getText().trim();
 
-        // Kiểm tra tất cả trường bắt buộc
         if (username.isEmpty() || fullName.isEmpty() || phone.isEmpty() ||
                 email.isEmpty() || password.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Thông báo", "Vui lòng nhập đầy đủ thông tin!");
+            UIUtils.showInfo("Thông báo", "Vui lòng nhập đầy đủ thông tin!");
             return;
         }
 
-        // =====================================================================
-        // MỚI THÊM: Kiểm tra username bị cấm (admin, vpa_admin, root…)
-        // =====================================================================
         if (UserDAO.isReservedUsername(username)) {
-            showAlert(Alert.AlertType.ERROR, "Tên đăng nhập không hợp lệ",
-                    "Tên đăng nhập \"" + username + "\" không được phép sử dụng.\n"
-                            + "Vui lòng chọn tên đăng nhập khác.");
+            UIUtils.showError("Tên đăng nhập không hợp lệ", "Tên đăng nhập \"" + username + "\" không được phép sử dụng.");
             txtUsername.requestFocus();
             return;
         }
 
-        // =====================================================================
-        // MỚI THÊM: Kiểm tra username đã tồn tại trên server chưa
-        // =====================================================================
         if (UserDAO.usernameExists(username)) {
-            showAlert(Alert.AlertType.ERROR, "Tên đăng nhập đã tồn tại",
-                    "Tên đăng nhập \"" + username + "\" đã được đăng ký trước đó.\n"
-                            + "Vui lòng chọn tên đăng nhập khác.");
+            UIUtils.showError("Tên đăng nhập đã tồn tại", "Tên đăng nhập \"" + username + "\" đã được đăng ký trước đó.");
             txtUsername.clear();
             txtUsername.requestFocus();
             return;
         }
 
-        // Kiểm tra mật khẩu khớp
         if (!password.equals(confirm)) {
-            showAlert(Alert.AlertType.ERROR, "Lỗi mật khẩu", "Mật khẩu xác nhận không khớp!");
+            UIUtils.showError("Lỗi mật khẩu", "Mật khẩu xác nhận không khớp!");
             return;
         }
 
-        // Kiểm tra độ dài mật khẩu
         if (password.length() < 6) {
-            showAlert(Alert.AlertType.WARNING, "Cảnh báo", "Mật khẩu phải có ít nhất 6 ký tự!");
+            UIUtils.showError("Cảnh báo", "Mật khẩu phải có ít nhất 6 ký tự!");
             return;
         }
 
-        // Kiểm tra email hợp lệ
         if (!email.contains("@")) {
-            showAlert(Alert.AlertType.WARNING, "Cảnh báo", "Email không hợp lệ!");
+            UIUtils.showError("Cảnh báo", "Email không hợp lệ!");
             return;
         }
 
-        // Lưu tài khoản vào database
         try {
             UserDAO.addUser(username, password, email, fullName, "Seller", phone, "");
-            showAlert(Alert.AlertType.INFORMATION, "Thành công",
-                    "Tài khoản " + username + " đã được tạo thành công!\nBạn có thể đăng nhập ngay.");
-            NavigationUtil.navigateTo(event, "/fxml/Login.fxml");
+            UIUtils.showSuccess("Thành công", "Tài khoản " + username + " đã được tạo thành công!");
+
+            // Dùng NavigationUtil để chuyển trang, nếu lỗi hiện lỗi
+            if (!NavigationUtil.navigateTo(event, "/fxml/Login.fxml")) {
+                UIUtils.showError("Lỗi", "Không thể quay lại màn hình đăng nhập.");
+            }
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể tạo tài khoản: " + e.getMessage());
+            UIUtils.showError("Lỗi", "Không thể tạo tài khoản: " + e.getMessage());
         }
     }
-
     @FXML
     private void handleBackToLogin(ActionEvent event) {
         NavigationUtil.navigateTo(event, "/fxml/Login.fxml");
-    }
-
-    private void showAlert(Alert.AlertType type, String title, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 }

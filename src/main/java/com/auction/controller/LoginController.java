@@ -10,7 +10,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
+import com.auction.util.UIUtils;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
@@ -28,7 +28,7 @@ public class LoginController {
         String password = txtPassword.getText().trim();
 
         if (username.isEmpty() || password.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Thông báo", "Vui lòng nhập đầy đủ thông tin!");
+            UIUtils.showInfo("Thông báo", "Vui lòng nhập đầy đủ thông tin!");
             return;
         }
 
@@ -71,10 +71,10 @@ public class LoginController {
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                showAlert(Alert.AlertType.ERROR, "Lỗi hệ thống", "Không thể tải giao diện!");
+                UIUtils.showError("Lỗi hệ thống", "Không thể tải giao diện!");
             }
         } else {
-            showAlert(Alert.AlertType.ERROR, "Lỗi đăng nhập", "Tài khoản hoặc mật khẩu không chính xác!");
+            UIUtils.showError("Lỗi đăng nhập", "Tài khoản hoặc mật khẩu không chính xác!");
         }
     }
 
@@ -99,11 +99,4 @@ public class LoginController {
         NavigationUtil.navigateTo(event, "/fxml/Guide.fxml");
     }
 
-    private void showAlert(Alert.AlertType type, String title, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
 }

@@ -1,5 +1,5 @@
 package com.auction.controller;
-
+import com.auction.util.UIUtils;
 import com.auction.database.ItemDAO;
 import com.auction.dto.ItemDTO;
 import com.auction.model.User;
@@ -210,8 +210,8 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             String status = ItemDAO.getAuctionStatus(plate);
 
             if ("WAITING".equalsIgnoreCase(status) || "REGISTRATION".equalsIgnoreCase(status)) {
-                // Đã truyền đủ 4 tham số (Thêm màu xanh ngọc #00b894 ở cuối)
-                showCustomStatusPopup(
+                // Gọi thẳng UIUtils tàng hình viền Windows
+                UIUtils.showCustomPopup(
                         "Chưa mở đấu giá",
                         "Hiện đang trong thời gian đăng ký, vui lòng quay lại khi thời gian này kết thúc.",
                         "⏳",
@@ -220,8 +220,8 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
                 return;
             }
             if ("FINISHED".equalsIgnoreCase(status)) {
-                // Đã truyền đủ 4 tham số (Thêm màu đỏ #ef4444 ở cuối)
-                showCustomStatusPopup(
+                // Gọi thẳng UIUtils tàng hình viền Windows
+                UIUtils.showCustomPopup(
                         "Phiên đã kết thúc",
                         "Phiên đấu giá biển số này đã kết thúc! Quý khách vui lòng tham gia đấu giá biển số khác.",
                         "🏁",
@@ -440,7 +440,10 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             Parent root = loader.load();
 
             AuctionRoomController roomController = loader.getController();
-            if (roomController == null) { showInfo("Lỗi", "Không khởi tạo được controller"); return; }
+            if (roomController == null) {
+                UIUtils.showError("Lỗi", "Không khởi tạo được controller");
+                return;
+            }
 
             roomController.setAuctionRoomData(plate, startingPrice, endTimeRaw);
 
@@ -449,10 +452,10 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
 
         } catch (IOException eLoad) {
             String msg = eLoad.getCause() != null ? eLoad.getCause().getMessage() : eLoad.getMessage();
-            showInfo("Lỗi tải giao diện", "Không thể tải phòng đấu giá:\n" + msg);
+            UIUtils.showError("Lỗi tải giao diện", "Không thể tải phòng đấu giá:\n" + msg);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Lỗi enterAuctionRoom", e);
-            showInfo("Lỗi hệ thống", e.getMessage());
+            UIUtils.showError("Lỗi hệ thống", e.getMessage());
         }
     }
 
@@ -542,11 +545,6 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             }
         }
     }
-
-    private void showInfo(String title, String msg) {
-        Alert a = new Alert(Alert.AlertType.INFORMATION);
-        a.setTitle(title); a.setHeaderText(null); a.setContentText(msg); a.showAndWait();
-    }
     // =========================================================================
     // POPUP THÔNG BÁO TÙY CHỈNH CHO TRẠNG THÁI BIỂN SỐ
     // =========================================================================
@@ -580,43 +578,5 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
         }
 
         auctionListeners.clear();
-    }
-    private void showCustomStatusPopup(String title, String message, String emoji, String themeColor) {
-        Alert alert = new Alert(Alert.AlertType.NONE);
-        alert.setTitle("Thông báo");
-        alert.setHeaderText(null); // Xóa header mặc định xấu xí
-        alert.setGraphic(null);
-
-        DialogPane dialogPane = alert.getDialogPane();
-        // Phủ nền đen, viền màu (xanh ngọc hoặc đỏ)
-        dialogPane.setStyle("-fx-background-color: #1a2230; -fx-border-color: " + themeColor + "; -fx-border-radius: 8; -fx-border-width: 2;");
-
-        VBox content = new VBox(15);
-        content.setStyle("-fx-alignment: center; -fx-padding: 25;");
-
-        Label emojiLbl = new Label(emoji);
-        emojiLbl.setStyle("-fx-font-size: 55px;");
-
-        Label titleLbl = new Label(title.toUpperCase());
-        titleLbl.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: " + themeColor + ";");
-
-        Label msgLbl = new Label(message);
-        msgLbl.setStyle("-fx-font-size: 15px; -fx-text-fill: #cbd5e1; -fx-text-alignment: center;");
-        msgLbl.setWrapText(true);
-        msgLbl.setMaxWidth(300);
-
-        content.getChildren().addAll(emojiLbl, titleLbl, msgLbl);
-        dialogPane.setContent(content);
-
-        ButtonType btnClose = new ButtonType("Đã hiểu", ButtonBar.ButtonData.OK_DONE);
-        alert.getButtonTypes().setAll(btnClose);
-
-        // Style nút bấm bo tròn, đổi màu theo theme
-        Node closeButton = dialogPane.lookupButton(btnClose);
-        if (closeButton != null) {
-            closeButton.setStyle("-fx-background-color: " + themeColor + "; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 8 25; -fx-background-radius: 20; -fx-cursor: hand;");
-        }
-
-        Platform.runLater(alert::showAndWait);
     }
 }

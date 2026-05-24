@@ -13,7 +13,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-
+import com.auction.util.UIUtils;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.List;
@@ -179,7 +179,8 @@ public class AuctionHistoryController {
         try {
             var resource = getClass().getResource(fxmlPath);
             if (resource == null) {
-                showInfo("Không thể tìm trang: " + fxmlPath);
+                // Thay bằng Popup lỗi Dark Mode
+                UIUtils.showError("Lỗi tải trang", "Không thể tìm trang: " + fxmlPath);
                 return;
             }
             Parent newRoot = FXMLLoader.load(resource);
@@ -187,15 +188,8 @@ public class AuctionHistoryController {
             currentScene.setRoot(newRoot);
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Lỗi khi chuyển trang", e);
-            showInfo("Không thể tải trang: " + fxmlPath);
+            // Thay bằng Popup lỗi Dark Mode
+            UIUtils.showError("Lỗi hệ thống", "Không thể tải trang: " + fxmlPath);
         }
-    }
-
-    private void showInfo(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Thông báo");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
     }
 }

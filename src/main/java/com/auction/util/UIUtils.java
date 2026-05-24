@@ -1,207 +1,179 @@
 package com.auction.util;
 
-import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.DialogPane;
-import javafx.scene.layout.VBox;
+import javafx.application.Platform;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 
-/**
- * UIUtils — Bộ tiện ích giao diện dùng chung cho toàn bộ ứng dụng.
- *
- * Mọi Popup/Alert phải đi qua class này để đảm bảo:
- *  • Giao diện Dark Mode nhất quán (nền #1a2230, viền màu, bo góc)
- *  • Không còn Alert mặc định xấu xí của JavaFX
- *  • Dễ bảo trì: muốn đổi theme chỉ sửa 1 chỗ
- */
 public class UIUtils {
 
     // ─── Màu sắc chủ đạo (Dark Mode) ─────────────────────────────────────────
     private static final String BG_DARK        = "#1a2230";
     private static final String TEXT_SECONDARY = "#cbd5e1";
-    private static final String BORDER_RADIUS  = "8";
+    private static final String BORDER_RADIUS  = "15";
 
-    // Không cho khởi tạo
     private UIUtils() {}
 
     // =========================================================================
-    // POPUP THÔNG BÁO TÙY CHỈNH (Dark Mode)
-    // Dùng cho: trạng thái biển số, kết quả đấu giá, lỗi hệ thống
+    // CÁC HÀM TIỆN ÍCH GỌI NHANH
     // =========================================================================
 
-    /**
-     * Hiển thị một Popup thông báo đơn giản với Dark Mode.
-     *
-     * @param title      Tiêu đề popup (VD: "Chưa mở đấu giá")
-     * @param message    Nội dung thông báo
-     * @param emoji      Biểu tượng lớn (VD: "⏳", "🏁", "⚠️")
-     * @param themeColor Màu viền + màu tiêu đề (VD: "#00b894", "#ef4444")
-     */
-    public static void showCustomPopup(String title, String message,
-                                       String emoji, String themeColor) {
-        Alert alert = new Alert(Alert.AlertType.NONE);
-        alert.setTitle("Thông báo");
-        alert.setHeaderText(null);
-        alert.setGraphic(null);
+    public static void showError(String title, String message) {
+        showCustomPopup(title, message, "⚠️", "#ef4444");
+    }
 
-        DialogPane pane = alert.getDialogPane();
-        pane.setStyle(
+    public static void showSuccess(String title, String message) {
+        showCustomPopup(title, message, "✅", "#00b894");
+    }
+
+    public static void showInfo(String title, String message) {
+        showCustomPopup(title, message, "ℹ️", "#38bdf8");
+    }
+
+    // =========================================================================
+    // POPUP THÔNG BÁO TÙY CHỈNH (Cửa sổ tàng hình 100%)
+    // =========================================================================
+
+    public static void showCustomPopup(String title, String message, String emoji, String themeColor) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> showCustomPopup(title, message, emoji, themeColor));
+            return;
+        }
+
+        // Tự tạo một Stage (Cửa sổ) mới tinh, bỏ qua Alert
+        Stage stage = new Stage();
+        stage.initStyle(StageStyle.TRANSPARENT); // Xóa sạch viền Windows
+        stage.initModality(Modality.APPLICATION_MODAL); // Chặn không cho bấm ra ngoài khi popup đang hiện
+        stage.setTitle("Thông báo");
+
+        // Khung nội dung chính
+        VBox content = new VBox(15);
+        content.setAlignment(Pos.CENTER);
+        content.setStyle(
                 "-fx-background-color: " + BG_DARK + ";" +
                         "-fx-border-color: " + themeColor + ";" +
                         "-fx-border-radius: " + BORDER_RADIUS + ";" +
-                        "-fx-border-width: 2;"
+                        "-fx-background-radius: " + BORDER_RADIUS + ";" +
+                        "-fx-border-width: 2;" +
+                        "-fx-padding: 30;"
         );
-
-        VBox content = new VBox(15);
-        content.setStyle("-fx-alignment: center; -fx-padding: 25;");
+        // Thiết lập kích thước khung
+        content.setPrefWidth(350);
+        content.setMinHeight(250);
 
         Label lblEmoji = new Label(emoji);
         lblEmoji.setStyle("-fx-font-size: 55px;");
 
         Label lblTitle = new Label(title.toUpperCase());
-        lblTitle.setStyle(
-                "-fx-font-size: 20px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-text-fill: " + themeColor + ";"
-        );
+        lblTitle.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: " + themeColor + ";");
 
         Label lblMessage = new Label(message);
-        lblMessage.setStyle(
-                "-fx-font-size: 14px;" +
-                        "-fx-text-fill: " + TEXT_SECONDARY + ";" +
-                        "-fx-text-alignment: center;"
-        );
+        lblMessage.setStyle("-fx-font-size: 15px; -fx-text-fill: " + TEXT_SECONDARY + "; -fx-text-alignment: center;");
         lblMessage.setWrapText(true);
-        lblMessage.setMaxWidth(320);
+        lblMessage.setMaxWidth(300);
 
-        content.getChildren().addAll(lblEmoji, lblTitle, lblMessage);
-        pane.setContent(content);
+        // Nút bấm căn giữa hoàn hảo
+        Button btnOk = new Button("Đã hiểu");
+        btnOk.setStyle(
+                "-fx-background-color: " + themeColor + ";" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-font-size: 15px;" +
+                        "-fx-padding: 8 30;" +
+                        "-fx-background-radius: 20;" +
+                        "-fx-cursor: hand;"
+        );
+        // Bấm nút thì đóng cửa sổ
+        btnOk.setOnAction(e -> stage.close());
 
-        ButtonType btnOk = new ButtonType("Đã hiểu", ButtonBar.ButtonData.OK_DONE);
-        alert.getButtonTypes().setAll(btnOk);
+        content.getChildren().addAll(lblEmoji, lblTitle, lblMessage, btnOk);
 
-        Node okButton = pane.lookupButton(btnOk);
-        if (okButton != null) {
-            okButton.setStyle(
-                    "-fx-background-color: " + themeColor + ";" +
-                            "-fx-text-fill: white;" +
-                            "-fx-font-weight: bold;" +
-                            "-fx-font-size: 14px;" +
-                            "-fx-padding: 8 25;" +
-                            "-fx-background-radius: 20;" +
-                            "-fx-cursor: hand;"
-            );
-        }
+        // Ném khung nội dung vào Scene, làm nền Scene trong suốt
+        Scene scene = new Scene(content);
+        scene.setFill(Color.TRANSPARENT);
 
-        alert.showAndWait();
+        stage.setScene(scene);
+        stage.centerOnScreen(); // Ép nó ra giữa màn hình
+        stage.showAndWait();
     }
 
     // =========================================================================
-    // POPUP KẾT QUẢ ĐẤU GIÁ (thắng / thua)
+    // POPUP KẾT QUẢ ĐẤU GIÁ (Cửa sổ tàng hình 100%)
     // =========================================================================
 
-    /**
-     * Hiển thị kết quả sau khi phiên đấu giá kết thúc.
-     *
-     * @param iWon        true nếu người dùng thắng
-     * @param finalPrice  Giá cuối cùng (đã format)
-     * @param winnerName  Tên người thắng
-     * @param onBack      Callback khi người dùng bấm "Quay lại Dashboard"
-     */
-    public static void showAuctionResult(boolean iWon, String finalPrice,
-                                         String winnerName, Runnable onBack) {
+    public static void showAuctionResult(boolean iWon, String finalPrice, String winnerName, Runnable onBack) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> showAuctionResult(iWon, finalPrice, winnerName, onBack));
+            return;
+        }
+
         String emoji      = iWon ? "🏆" : "😔";
         String title      = iWon ? "CHÚC MỪNG! BẠN ĐÃ THẮNG" : "PHIÊN ĐẤU GIÁ KẾT THÚC";
         String subtitle   = iWon ? "Bạn là người đặt giá cao nhất!" : "Người thắng: " + winnerName;
         String themeColor = iWon ? "#00b894" : "#ef4444";
 
-        Alert alert = new Alert(Alert.AlertType.NONE);
-        alert.setTitle("Kết quả đấu giá");
-        alert.setHeaderText(null);
-        alert.setGraphic(null);
+        Stage stage = new Stage();
+        stage.initStyle(StageStyle.TRANSPARENT);
+        stage.initModality(Modality.APPLICATION_MODAL);
 
-        DialogPane pane = alert.getDialogPane();
-        pane.setStyle(
+        VBox content = new VBox(15);
+        content.setAlignment(Pos.CENTER);
+        content.setStyle(
                 "-fx-background-color: " + BG_DARK + ";" +
                         "-fx-border-color: " + themeColor + ";" +
                         "-fx-border-radius: " + BORDER_RADIUS + ";" +
-                        "-fx-border-width: 2;"
+                        "-fx-background-radius: " + BORDER_RADIUS + ";" +
+                        "-fx-border-width: 2;" +
+                        "-fx-padding: 35;"
         );
-
-        VBox content = new VBox(15);
-        content.setStyle("-fx-alignment: center; -fx-padding: 25;");
+        content.setPrefWidth(420);
 
         Label lblEmoji = new Label(emoji);
-        lblEmoji.setStyle("-fx-font-size: 55px;");
+        lblEmoji.setStyle("-fx-font-size: 65px;");
 
         Label lblTitle = new Label(title);
-        lblTitle.setStyle(
-                "-fx-font-size: 22px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-text-fill: " + themeColor + ";"
-        );
+        lblTitle.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: " + themeColor + ";");
         lblTitle.setWrapText(true);
-        lblTitle.setMaxWidth(350);
 
         Label lblPrice = new Label("Giá cuối: " + finalPrice + " đ");
-        lblPrice.setStyle(
-                "-fx-font-size: 18px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-text-fill: #f59e0b;"
-        );
+        lblPrice.setStyle("-fx-font-size: 19px; -fx-font-weight: bold; -fx-text-fill: #f59e0b;");
 
         Label lblSubtitle = new Label(subtitle);
-        lblSubtitle.setStyle(
-                "-fx-font-size: 15px;" +
-                        "-fx-text-fill: " + TEXT_SECONDARY + ";"
+        lblSubtitle.setStyle("-fx-font-size: 16px; -fx-text-fill: " + TEXT_SECONDARY + ";");
+
+        Button btnBack = new Button("Quay lại Dashboard");
+        btnBack.setStyle(
+                "-fx-background-color: " + themeColor + ";" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-font-size: 15px;" +
+                        "-fx-padding: 10 30;" +
+                        "-fx-background-radius: 20;" +
+                        "-fx-cursor: hand;"
         );
-
-        content.getChildren().addAll(lblEmoji, lblTitle, lblPrice, lblSubtitle);
-        pane.setContent(content);
-        pane.setMinWidth(420);
-
-        ButtonType btnBack = new ButtonType("Quay lại Dashboard", ButtonBar.ButtonData.OK_DONE);
-        alert.getButtonTypes().setAll(btnBack);
-
-        Node backButton = pane.lookupButton(btnBack);
-        if (backButton != null) {
-            backButton.setStyle(
-                    "-fx-background-color: " + themeColor + ";" +
-                            "-fx-text-fill: white;" +
-                            "-fx-font-weight: bold;" +
-                            "-fx-font-size: 15px;" +
-                            "-fx-padding: 10 30;" +
-                            "-fx-background-radius: 20;" +
-                            "-fx-cursor: hand;"
-            );
-        }
-
-        // Khi popup đóng (dù bấm nút hay X), gọi callback để quay lại Dashboard
-        alert.setOnHidden(e -> {
+        btnBack.setOnAction(e -> {
+            stage.close();
             if (onBack != null) onBack.run();
         });
 
-        alert.show();
-    }
+        // Bắt sự kiện nếu lỡ người dùng dùng Alt+F4 tắt popup thì vẫn chạy callback
+        stage.setOnCloseRequest(e -> {
+            if (onBack != null) onBack.run();
+        });
 
-    // =========================================================================
-    // SHORTCUT — Popup lỗi đơn giản (thay thế showAlert cũ)
-    // =========================================================================
+        content.getChildren().addAll(lblEmoji, lblTitle, lblPrice, lblSubtitle, btnBack);
 
-    /** Popup lỗi màu đỏ */
-    public static void showError(String title, String message) {
-        showCustomPopup(title, message, "⚠️", "#ef4444");
-    }
+        Scene scene = new Scene(content);
+        scene.setFill(Color.TRANSPARENT);
 
-    /** Popup thành công màu xanh ngọc */
-    public static void showSuccess(String title, String message) {
-        showCustomPopup(title, message, "✅", "#00b894");
-    }
-
-    /** Popup thông tin màu xanh dương */
-    public static void showInfo(String title, String message) {
-        showCustomPopup(title, message, "ℹ️", "#38bdf8");
+        stage.setScene(scene);
+        stage.centerOnScreen();
+        stage.show();
     }
 }
