@@ -510,6 +510,9 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             stepMultiplier = 1;
             updatePricingUI();
 
+            appendChartPoint(newBid);
+            addHistoryRow(formatter.format(newBid), "Bạn");
+
         } catch (Exception e) {
             showAlert("Lỗi", e.getMessage());
         }
@@ -526,46 +529,22 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     // WEBSOCKET & CẬP NHẬT UI
     // =========================================================================
     @Override
-    public void onPriceUpdate(int itemId,
-                              double currentPriceParam,
-                              int bidderId,
-                              String bidderName) {
+    public void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName) {
+        try {
+            if (itemId != currentItemId) return;
 
-        if (itemId != currentItemId) return;
+            javafx.application.Platform.runLater(() -> {
+                try {
+                    AuctionRoomController.this.currentPrice = currentPrice;
+                    updatePricingUI();
+                    addHistoryRow(formatter.format(currentPrice), bidderName);
 
-        Platform.runLater(() -> {
+                    // 🚀 Thêm điểm vào chart thay vì load lại toàn bộ
+                    addPricePointToChart(currentPrice, bidderName);
 
-            try {
-
-                // KHÔNG CHECK > nữa
-                currentPrice = currentPriceParam;
-
-                updatePricingUI();
-
-                appendChartPoint(currentPriceParam);
-
-                addHistoryRow(
-                        formatter.format(currentPriceParam),
-                        bidderName
-                );
-
-                // update bid count realtime
-                if (lblBidCount != null) {
-
-                    int current =
-                            Integer.parseInt(
-                                    lblBidCount.getText()
-                                            .replace(" lần đặt", "")
-                            );
-
-                    lblBidCount.setText((current + 1) + " lần đặt");
-                }
-
-            } catch (Exception e) {
-
-                e.printStackTrace();
-            }
-        });
+                } catch (Exception ignored) {}
+            });
+        } catch (Exception e) {}
     }
 
     @Override
@@ -719,5 +698,115 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         }
 
         alert.showAndWait();
+    }
+    // =========================================================================
+// TỐI ƯU CHART: INCREMENTAL UPDATE — Thêm điểm mới thay vì load lại toàn bộ
+// =========================================================================
+
+    private int chartDataPointCount = 0;  // Theo dõi số điểm trên chart
+
+    /**
+     * Thêm một điểm dữ liệu mới vào biểu đồ MÀ KHÔNG load lại từ đầu.
+     * Được gọi ngay sau khi user đặt giá thành công.
+     * @param newPrice Giá mới vừa đặt
+     * @param bidderName Tên người đặt
+     */
+    private void addPricePointToChart(double newPrice, String bidderName) {
+        try {
+            if (priceHistoryChart == null || priceHistoryChart.getData().isEmpty()) {
+                return; // Chart chưa khởi tạo hoặc rỗng
+            }
+
+            XYChart.Series<Number, Number> series = priceHistoryChart.getData().get(0);
+            if (series == null) return;
+
+            // Tăng index điểm (x-axis)
+            chartDataPointCount++;
+
+            // Tạo điểm mới
+            XYChart.Data<Number, Number> newDataPoint =
+                    new XYChart.Data<>(chartDataPointCount, newPrice);
+
+            // Styling điểm
+            newDataPoint.setNode(new javafx.scene.shape.Circle(3) {{
+                setStyle("-fx-fill: #38bdf8; -fx-cursor: hand;");
+            }});
+
+            // Tooltip
+            javafx.scene.control.Tooltip tooltip = new javafx.scene.control.Tooltip(
+                    bidderName + " - " + formatter.format(newPrice) + " đ"
+            );
+            javafx.scene.control.Tooltip.install(newDataPoint.getNode(), tooltip);
+
+            // Thêm vào series
+            series.getData().add(newDataPoint);
+
+            logger.info("✅ [Chart] Added new data point: " + chartDataPointCount
+                    + " | Price: " + formatter.format(newPrice));
+
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Error adding price point to chart", e);
+        }
+    }
+
+    /**
+     * Load lại toàn bộ chart từ DB (chỉ gọi lần đầu khi vào phòng).
+     * Sau đó dùng addPricePointToChart() để update incremental.
+     */
+    private void loadPriceHistoryChart() {
+        try {
+            if (currentItemId == -1 || priceHistoryChart == null) return;
+
+            List<String[]> bidHistory = BidDAO.getBidHistoryForChart(currentItemId);
+            int bidCount = BidDAO.getBidCount(currentItemId);
+
+            if (lblBidCount != null) {
+                lblBidCount.setText(bidCount + " lần đặt");
+            }
+
+            priceHistoryChart.getData().clear();
+            chartDataPointCount = 0;  // Reset counter
+
+            if (bidHistory.isEmpty()) return;
+
+            XYChart.Series<Number, Number> series = new XYChart.Series<>();
+            series.setName("Mức giá");
+
+            for (int i = 0; i < bidHistory.size(); i++) {
+                try {
+                    String[] bidData = bidHistory.get(i);
+                    double bidAmount = Double.parseDouble(bidData[1]);
+                    String bidderName = bidData[3];
+
+                    chartDataPointCount = i + 1;
+
+                    XYChart.Data<Number, Number> dataPoint =
+                            new XYChart.Data<>(chartDataPointCount, bidAmount);
+
+                    dataPoint.setNode(new javafx.scene.shape.Circle(3) {{
+                        setStyle("-fx-fill: #38bdf8; -fx-cursor: hand;");
+                    }});
+
+                    javafx.scene.control.Tooltip tooltip =
+                            new javafx.scene.control.Tooltip(
+                                    bidderName + " - " + formatter.format(bidAmount) + " đ"
+                            );
+                    javafx.scene.control.Tooltip.install(dataPoint.getNode(), tooltip);
+
+                    series.getData().add(dataPoint);
+                } catch (Exception ignored) {}
+            }
+
+            priceHistoryChart.getData().add(series);
+
+            if (series.getNode() != null) {
+                series.getNode().setStyle("-fx-stroke: #38bdf8; -fx-stroke-width: 2;");
+            }
+
+            logger.info("✅ [Chart] Initial load: " + chartDataPointCount + " data points");
+
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Lỗi trong loadPriceHistoryChart", e);
+        }
     }
 }
