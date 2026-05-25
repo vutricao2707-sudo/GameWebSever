@@ -242,7 +242,7 @@ public class ItemDAO {
                 "status, seller_name, seller_phone, seller_email, seller_address, " +
                 "registration_end_time, auction_start_time, auction_status, auction_end_time " +
                 "FROM items " +
-                "WHERE approval_status = 'APPROVED' AND status = 'ACTIVE' AND auction_status != 'FINISHED'";
+                "WHERE approval_status = 'APPROVED' AND status = 'ACTIVE'";
 
         try (Connection conn = DatabaseConnection.getConnection();
              Statement stmt = conn.createStatement();
@@ -606,6 +606,7 @@ public class ItemDAO {
                         "        ORDER BY b.bid_amount DESC LIMIT 1) AS highest_bid " +
                         "FROM items i " +
                         "WHERE i.approval_status = 'APPROVED' " +
+                        "  AND i.status != 'HIDDEN' " +
                         "  AND i.auction_status IN ('REGISTRATION', 'AUCTION', 'FINISHED') " +
                         "  AND (i.auction_status != 'FINISHED' " +
                         "       OR i.auction_end_time >= DATE_SUB(NOW(), INTERVAL 24 HOUR)) " +

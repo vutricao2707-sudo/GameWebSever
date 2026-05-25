@@ -120,16 +120,6 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             }
         });
 
-        // Ẩn biển số sau khi kết thúc 3 giây để user kịp nhìn
-        Timeline hideTimer = new Timeline(new KeyFrame(Duration.seconds(3), e -> {
-            if (productContainer != null) {
-                productContainer.getChildren().remove(card);
-                activeCards.remove(card);
-            }
-        }));
-        hideTimer.setCycleCount(1);
-        hideTimer.setOnFinished(e2 -> hideTimer.stop());
-        hideTimer.play();
     }
 
     @FXML private void handleHome(ActionEvent event)           { setActiveTab(btnHome); loadProducts("Ô tô"); }
@@ -164,16 +154,11 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
         }
 
         for (int i = 0; i < products.size(); i++) {
-
             ItemDTO item = ItemDTO.fromApprovedArray(products.get(i));
 
-            if (item != null &&
-                    !"FINISHED".equalsIgnoreCase(item.getAuctionStatus())) {
-
+            if (item != null) {
                 VBox card = createProductCard(item, i + 1);
-
                 card.setUserData(item.getPlateNumber());
-
                 activeCards.add(card);
                 productContainer.getChildren().add(card);
             }
@@ -197,7 +182,11 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
         Button btnBid = new Button();
         btnBid.setMaxWidth(Double.MAX_VALUE);
 
-        if ("AUCTION".equalsIgnoreCase(auctionStatus)) {
+        if ("FINISHED".equalsIgnoreCase(auctionStatus)) {
+            btnBid.setText("ĐÃ KẾT THÚC");
+            btnBid.setDisable(true);
+            btnBid.setStyle("-fx-background-color: #475569; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20;");
+        } else if ("AUCTION".equalsIgnoreCase(auctionStatus)) {
             btnBid.setText("VÀO ĐẤU GIÁ NGAY");
             btnBid.setStyle("-fx-background-color: #eab308; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 20; -fx-cursor: hand;");
         } else {
