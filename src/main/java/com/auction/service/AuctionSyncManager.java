@@ -323,7 +323,6 @@ public class AuctionSyncManager {
     // ═════════════════════════════════════════════════════════════
     // LOGIC THỜI GIAN
     // ═════════════════════════════════════════════════════════════
-
     /**
      * Tính số giây còn lại dựa trên trạng thái hiện tại.
      * - REGISTRATION → đếm đến registration_end_time
@@ -346,8 +345,16 @@ public class AuctionSyncManager {
         try {
             String cleaned = targetRaw.replace("T", " ");
             if (cleaned.contains(".")) cleaned = cleaned.substring(0, cleaned.indexOf('.'));
-            LocalDateTime target = java.sql.Timestamp.valueOf(cleaned).toLocalDateTime();
-            long secs = java.time.Duration.between(LocalDateTime.now(), target).getSeconds();
+
+            // --- ÉP CHUẨN MÚI GIỜ VIỆT NAM ---
+            LocalDateTime targetLocal = java.sql.Timestamp.valueOf(cleaned).toLocalDateTime();
+            java.time.ZonedDateTime targetTime = targetLocal.atZone(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+
+            java.time.ZonedDateTime now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+
+            long secs = java.time.Duration.between(now, targetTime).getSeconds();
+            // ---------------------------------
+
             return Math.max(secs, 0L);
         } catch (Exception e) {
             logger.log(Level.WARNING, "[SyncManager] parseTime error: " + targetRaw, e);

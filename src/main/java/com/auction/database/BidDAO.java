@@ -239,7 +239,6 @@ public class BidDAO {
     }
 
     // 8. Lưu bid khi bấm nút đặt giá - FIX CHUẨN (với server-side cooldown validation)
-    // 8. Lưu bid khi bấm nút đặt giá - FIX CHUẨN (với server-side cooldown validation)
     public static synchronized boolean saveBid(String plateNumber, int userId, double bidAmount) {
 
         Connection conn = null;
@@ -375,23 +374,6 @@ public class BidDAO {
 
                     conn.rollback();
                     return false;
-                }
-            }
-
-            // =====================================================
-            // 7. AUTO EXTEND
-            // =====================================================
-
-            long remainingSeconds =
-                    (auctionEnd.getTime() - System.currentTimeMillis()) / 1000;
-
-            if (remainingSeconds > 0 && remainingSeconds <= 120) {
-
-                boolean extended =
-                        ItemDAO.extendAuctionTime(conn, itemId, 2);
-
-                if (extended) {
-                    System.out.println("⏱️ AUTO EXTEND 2 phút");
                 }
             }
 
