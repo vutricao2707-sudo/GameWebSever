@@ -3,6 +3,7 @@ package com.auction.controller;
 import com.auction.database.ItemDAO;
 import com.auction.database.UserDAO;
 import com.auction.model.User;
+import com.auction.service.AuctionSyncManager;
 import com.auction.service.ProductService;
 import com.auction.util.UIUtils;
 import javafx.animation.KeyFrame;
@@ -48,6 +49,9 @@ public class  AdminController {
     @FXML private Label  lblViewSubtitle;
     @FXML private HBox   tableHeaderRow;
     @FXML private VBox   adminListContainer;
+
+    // Quản lý listener cho tab giám sát
+    private final java.util.Map<Integer, AuctionSyncManager.AuctionListener> monitoringListeners = new java.util.HashMap<>();
 
     // Sidebar buttons — cần fx:id trong FXML
     @FXML private Button btnPendingTab;
@@ -368,112 +372,133 @@ public class  AdminController {
         }
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // VIEW 2 — GIÁM SÁT ĐẤU GIÁ (MONITORING)
+// ═════════════════════════════════════════════════════════════════════════
+    // VIEW 2 — GIÁM SÁT ĐẤU GIÁ (REAL-TIME SYNC)
     // ═════════════════════════════════════════════════════════════════════════
 
     private void loadMonitoringView() {
-        stopAllTimelines();
+        stopAllTimelines(); // Dọn dẹp dữ liệu tab cũ
         lblViewTitle.setText("GIÁM SÁT ĐẤU GIÁ");
-        lblViewSubtitle.setText("Theo dõi realtime các phiên đấu giá đang mở.");
+        lblViewSubtitle.setText("Theo dõi realtime các phiên đấu giá đang mở, sắp mở và vừa kết thúc.");
 
+        // Vẽ lại tiêu đề các cột cho hợp lý hơn
         buildHeader(
-                new String[]{"ID", "Item ID", "Seller", "Winner", "Bắt đầu", "Kết thúc", "Giá cuối", "Trạng thái"},
-                new double[]{80, 100, 100, 100, 170, 170, 120, 120}
+                new String[]{"Biển số", "Loại", "Trạng thái", "Thời gian", "Giá hiện tại", "Top Bidder"},
+                new double[]{120, 80, 130, 180, 150, 150}
         );
 
         adminListContainer.getChildren().clear();
-        cntLabels.clear();
-        cntEndTimes.clear();
-        cntIsAuction.clear();
 
-        List<String[]> items = AuctionDAO.getOpenAuctions();
-        updateCounter(items.size(), "phiên đang diễn ra");
+        // Lấy dữ liệu từ DAO (đã bao gồm các xe Đang chuẩn bị, Đang đấu, và Vừa kết thúc)
+        List<String[]> items = ItemDAO.getFullMonitoringData();
+        updateCounter(items.size(), "phiên");
 
         if (items.isEmpty()) {
-            adminListContainer.getChildren().add(emptyLabel("📭 Không có phiên đấu giá nào đang mở."));
+            adminListContainer.getChildren().add(emptyLabel("📭 Không có phiên đấu giá nào trên hệ thống."));
             return;
         }
 
+        // Vẽ danh sách
         for (String[] item : items) {
+            // Map dữ liệu từ SQL:
+            // [0]id, [1]plate, [2]type, [3]status, [4]price, [5]auc_end, [6]reg_end, [7]parts, [8]top_bidder, [9]top_bid
+            int itemId = Integer.parseInt(item[0]);
+            String plate = item[1];
+            String type = item[2];
+            String status = item[3];
+            double currentPrice = Double.parseDouble(item[4]);
+            String topBidder = item[8] != null ? item[8] : "Chưa có";
 
-            String auctionId = item[0];
-            String itemId    = item[1];
-            String sellerId  = item[2];
-            String winnerId  = item[3];
-            String startTime = item[4];
-            String endTime   = item[5];
-            String finalPrice = item[6];
-            boolean isOpen   = "1".equals(item[7]);
+            // Tạo các Label riêng lẻ để SyncManager có thể cập nhật nội dung bên trong
+            Label lblStatus = cell(status, 130, "");
+            Label lblTime   = cell("--:--:--", 180, "-fx-text-fill: #94a3b8;");
+            Label lblPrice  = cell(formatMoney(String.valueOf(currentPrice)) + " đ", 150, "-fx-text-fill: #10b981; -fx-font-weight: bold;");
+            Label lblBidder = cell(topBidder, 150, "-fx-text-fill: #cbd5e1;");
 
-            String statusLabel = isOpen ? "🟢 OPEN" : "🔴 CLOSED";
-            String statusStyle = isOpen
-                    ? "-fx-text-fill: #10b981; -fx-font-weight: bold;"
-                    : "-fx-text-fill: #ef4444; -fx-font-weight: bold;";
+            updateStatusStyle(lblStatus, status); // Tô màu cho chữ Status
 
-            Label lbl = new Label(isOpen ? "Đang chạy..." : "Đã đóng");
-            lbl.setPrefWidth(170);
-            lbl.setStyle("-fx-text-fill: #f59e0b; -fx-font-weight: bold;");
-
+            // Gói vào HBox
             HBox row = createBaseRow();
-            row.setUserData(auctionId);
-
             row.getChildren().addAll(
-                    cell(auctionId, 80, "-fx-text-fill:white;"),
-                    cell(itemId, 100, "-fx-text-fill:#94a3b8;"),
-                    cell(sellerId, 100, "-fx-text-fill:#94a3b8;"),
-                    cell(winnerId, 100, "-fx-text-fill:#94a3b8;"),
-                    cell(startTime, 170, "-fx-text-fill:#94a3b8;"),
-                    cell(endTime, 170, "-fx-text-fill:#94a3b8;"),
-                    cell(finalPrice, 120, "-fx-text-fill:#10b981;"),
-                    cell(statusLabel, 120, statusStyle)
+                    cell(plate, 120, "-fx-text-fill: white; -fx-font-weight: bold;"),
+                    cell(type, 80, "-fx-text-fill: #64748b;"),
+                    lblStatus,
+                    lblTime,
+                    lblPrice,
+                    lblBidder
             );
 
             hoverEffect(row);
             adminListContainer.getChildren().add(row);
+
+            // Tích hợp SyncManager vào hàng này
+            attachSyncListener(itemId, plate, lblStatus, lblTime, lblPrice, lblBidder, currentPrice);
         }
-
-        startMonitoringTimeline();
-
-        if (autoRefreshTimeline != null) {
-            autoRefreshTimeline.stop();
-            autoRefreshTimeline = null;
-        }
-
-        startAutoRefresh();
     }
 
-    private void startMonitoringTimeline() {
-        monitoringTimeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), e -> {
-            LocalDateTime now = LocalDateTime.now();
-            for (int i = 0; i < cntLabels.size(); i++) {
-                if (i >= cntEndTimes.size()) break;
-                LocalDateTime end = cntEndTimes.get(i);
-                boolean isAuction = i < cntIsAuction.size() && cntIsAuction.get(i);
+    /** Cấy Listener vào từng hàng để tự động nhảy số */
+    private void attachSyncListener(int itemId, String plate, Label lblStatus, Label lblTime, Label lblPrice, Label lblBidder, double initialPrice) {
+        // Lưu lại giá cũ để kiểm tra xem có ai vừa đẩy giá lên không
+        final double[] lastPrice = {initialPrice};
 
-                long totalSecs = java.time.Duration.between(now, end).getSeconds();
-                Label lbl = cntLabels.get(i);
+        AuctionSyncManager.AuctionListener listener = new AuctionSyncManager.AuctionListener() {
+            @Override
+            public void onTimeTick(int id, long remainingSeconds, double price, String status) {
+                // 1. Cập nhật đếm ngược
+                if ("FINISHED".equals(status)) {
+                    lblTime.setText("🏁 Đã kết thúc");
+                    lblTime.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold;");
+                } else if ("REGISTRATION".equals(status)) {
+                    lblTime.setText("⏳ Bắt đầu sau: " + formatSeconds(remainingSeconds));
+                    lblTime.setStyle("-fx-text-fill: #38bdf8; -fx-font-weight: bold;");
+                } else if ("AUCTION".equals(status)) {
+                    lblTime.setText("⚡ Còn lại: " + formatSeconds(remainingSeconds));
+                    lblTime.setStyle("-fx-text-fill: #eab308; -fx-font-weight: bold;");
+                }
 
-                if (totalSecs <= 0) {
-                    lbl.setText("⏰ Đã kết thúc");
-                    lbl.setStyle("-fx-text-fill: #64748b; -fx-font-weight: bold; -fx-font-size: 13;");
-                } else {
-                    long h = totalSecs / 3600;
-                    long m = (totalSecs % 3600) / 60;
-                    long s = totalSecs % 60;
-                    String phase = isAuction ? "⚡ " : "📝 ";
-                    lbl.setText(phase + String.format("%02d:%02d:%02d", h, m, s));
-                    // Cảnh báo đỏ nếu còn dưới 10 phút
-                    if (totalSecs < 600) {
-                        lbl.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold; -fx-font-size: 14;");
-                    } else {
-                        lbl.setStyle("-fx-text-fill: #f59e0b; -fx-font-weight: bold; -fx-font-size: 14;");
-                    }
+                // 2. Cập nhật Status
+                updateStatusStyle(lblStatus, status);
+
+                // 3. Nếu giá thay đổi -> Đổi giá và tìm người mới đặt (Chạy ngầm tránh lag)
+                if (price != lastPrice[0]) {
+                    lastPrice[0] = price;
+                    lblPrice.setText(formatMoney(String.valueOf(price)) + " đ");
+
+                    new Thread(() -> {
+                        String[] winner = ItemDAO.getWinnerByPlate(plate);
+                        if (winner != null) {
+                            javafx.application.Platform.runLater(() -> lblBidder.setText(winner[1]));
+                        }
+                    }).start();
                 }
             }
-        }));
-        monitoringTimeline.setCycleCount(Timeline.INDEFINITE);
-        monitoringTimeline.play();
+        };
+
+        // Đăng ký và lưu lại
+        AuctionSyncManager.getInstance().addListener(itemId, listener);
+        monitoringListeners.put(itemId, listener);
+    }
+
+    // Các hàm tiện ích hỗ trợ hiển thị
+    private void updateStatusStyle(Label lbl, String status) {
+        if ("FINISHED".equals(status)) {
+            lbl.setText("🔴 KẾT THÚC");
+            lbl.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold;");
+        } else if ("AUCTION".equals(status)) {
+            lbl.setText("🟢 ĐANG ĐẤU");
+            lbl.setStyle("-fx-text-fill: #10b981; -fx-font-weight: bold;");
+        } else {
+            lbl.setText("🔵 CHUẨN BỊ");
+            lbl.setStyle("-fx-text-fill: #38bdf8; -fx-font-weight: bold;");
+        }
+    }
+
+    private String formatSeconds(long totalSecs) {
+        if (totalSecs <= 0) return "00:00:00";
+        long h = totalSecs / 3600;
+        long m = (totalSecs % 3600) / 60;
+        long s = totalSecs % 60;
+        return String.format("%02d:%02d:%02d", h, m, s);
     }
 
 
@@ -667,121 +692,23 @@ public class  AdminController {
         alert.setContentText(message);
         alert.showAndWait();
     }
-    private void startAutoRefresh() {
 
-        if (autoRefreshTimeline != null) {
-            autoRefreshTimeline.stop();
-        }
-
-        autoRefreshTimeline = new Timeline(
-
-                new KeyFrame(javafx.util.Duration.seconds(10), e -> {
-
-                    if (currentView == ViewMode.MONITORING) {
-
-                        refreshMonitoringData();
-                    }
-                })
-        );
-
-        autoRefreshTimeline.setCycleCount(Timeline.INDEFINITE);
-
-        autoRefreshTimeline.play();
-    }
-    private void refreshMonitoringData() {
-
-        List<String[]> items = AuctionDAO.getOpenAuctions();
-
-        updateCounter(items.size(), "phiên đang diễn ra");
-
-        // so sánh theo danh sách ID thay vì size
-        List<String> newIds = items.stream()
-                .map(i -> i[0])
-                .toList();
-
-        List<String> oldIds = adminListContainer.getChildren().stream()
-                .filter(node -> node instanceof HBox)
-                .map(node -> node.getUserData())
-                .filter(Objects::nonNull)
-                .map(Object::toString)
-                .toList();
-
-        if (newIds.equals(oldIds)) {
-            return; // không đổi gì → khỏi reload
-        }
-
-        // ✅ DIFF UPDATE (không rebuild toàn bộ - FIX flicker)
-
-        // 1️⃣ Xóa các row đã kết thúc
-        List<String> toRemove = oldIds.stream()
-                .filter(id -> !newIds.contains(id))
-                .toList();
-
-        if (!toRemove.isEmpty()) {
-            adminListContainer.getChildren().removeIf(node ->
-                    node instanceof HBox && toRemove.contains(node.getUserData().toString())
-            );
-            System.out.println("✅ Removed " + toRemove.size() + " finished auctions");
-        }
-
-        // 2️⃣ Thêm items mới (chỉ những item không có trong oldIds)
-        for (String[] item : items) {
-            String auctionId = item[0];
-
-            // Nếu item này đã có trong oldIds → skip (không add lại, keep countdown running)
-            if (oldIds.contains(auctionId)) {
-                continue;
-            }
-
-            // Item mới → tạo row và add vào
-            String itemId    = item[1];
-            String sellerId  = item[2];
-            String winnerId  = item[3];
-            String startTime = item[4];
-            String endTime   = item[5];
-            String finalPrice = item[6];
-            boolean isOpen   = "1".equals(item[7]);
-
-            String statusLabel = isOpen ? "🟢 OPEN" : "🔴 CLOSED";
-            String statusStyle = isOpen
-                    ? "-fx-text-fill: #10b981; -fx-font-weight: bold;"
-                    : "-fx-text-fill: #ef4444; -fx-font-weight: bold;";
-
-            HBox row = createBaseRow();
-            row.setUserData(auctionId);
-
-            row.getChildren().addAll(
-                    cell(auctionId, 80, "-fx-text-fill:white;"),
-                    cell(itemId, 100, "-fx-text-fill:#94a3b8;"),
-                    cell(sellerId, 100, "-fx-text-fill:#94a3b8;"),
-                    cell(winnerId, 100, "-fx-text-fill:#94a3b8;"),
-                    cell(startTime, 170, "-fx-text-fill:#94a3b8;"),
-                    cell(endTime, 170, "-fx-text-fill:#94a3b8;"),
-                    cell(finalPrice, 120, "-fx-text-fill:#10b981;"),
-                    cell(statusLabel, 120, statusStyle)
-            );
-
-            hoverEffect(row);
-            adminListContainer.getChildren().add(row);
-            System.out.println("✅ Added new auction: " + auctionId);
-        }
-
-        lastItemCount = items.size();
-    }
     private void stopAllTimelines() {
-
-        if (monitoringTimeline != null) {
-            monitoringTimeline.stop();
-            monitoringTimeline = null;
-            System.out.println("🛑 Monitoring timeline stopped");
-        }
-
-        if (autoRefreshTimeline != null) {
-            autoRefreshTimeline.stop();
-            autoRefreshTimeline = null;
-            System.out.println("🛑 Auto refresh stopped");
-        }
+    if (monitoringTimeline != null) {
+        monitoringTimeline.stop();
+        monitoringTimeline = null;
     }
+    if (autoRefreshTimeline != null) {
+        autoRefreshTimeline.stop();
+        autoRefreshTimeline = null;
+    }
+
+    // MỚI THÊM: Gỡ tất cả listener của màn giám sát khi chuyển Tab
+    for (java.util.Map.Entry<Integer, AuctionSyncManager.AuctionListener> entry : monitoringListeners.entrySet()) {
+        AuctionSyncManager.getInstance().removeListener(entry.getKey(), entry.getValue());
+    }
+    monitoringListeners.clear();
+}
     // =========================================================================
     // POPUP XÁC NHẬN (Cửa sổ tàng hình 100%)
     // =========================================================================
