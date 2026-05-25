@@ -54,7 +54,10 @@ public class AuctionWebSocketServer extends WebSocketServer {
 
             if ("SUBSCRIBE".equals(action)) {
                 int itemId = json.getInt("itemId");
-                itemSubscribers.computeIfAbsent(itemId, k -> new CopyOnWriteArrayList<>()).add(conn);
+                List<WebSocket> subscribers = itemSubscribers.computeIfAbsent(itemId, k -> new CopyOnWriteArrayList<>());
+                if (!subscribers.contains(conn)) {
+                    subscribers.add(conn);
+                }
                 System.out.println("📌 Client subscribe itemId: " + itemId);
 
                 // Gửi confirmation
@@ -100,18 +103,27 @@ public class AuctionWebSocketServer extends WebSocketServer {
      * @param itemId ID sản phẩm
      * @param currentPrice Giá hiện tại
      * @param bidderId ID người đặt giá
-     * @param binderName Tên người đặt giá
+     * @param bidderName Tên người đặt giá
      */
-    public void broadcastPriceUpdate(int itemId, double currentPrice, int bidderId, String binderName) {
+    public void broadcastPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName) {
+        broadcastBidUpdate(itemId, currentPrice, bidderId, bidderName, System.currentTimeMillis());
+    }
+
+    /**
+     * Broadcast bid mới cho tất cả clients đang ở cùng phòng đấu giá.
+     */
+    public void broadcastBidUpdate(int itemId, double bidAmount, int bidderId, String bidderName, long bidTime) {
         List<WebSocket> subscribers = itemSubscribers.get(itemId);
         if (subscribers != null && !subscribers.isEmpty()) {
             JSONObject message = new JSONObject();
             message.put("type", "PRICE_UPDATE");
             message.put("itemId", itemId);
-            message.put("currentPrice", currentPrice);
+            message.put("currentPrice", bidAmount);
+            message.put("bidAmount", bidAmount);
             message.put("bidderId", bidderId);
-            message.put("bidderName", binderName);
-            message.put("timestamp", System.currentTimeMillis());
+            message.put("bidderName", bidderName);
+            message.put("bidTime", bidTime);
+            message.put("timestamp", bidTime);
 
             String payload = message.toString();
             subscribers.forEach(conn -> {
@@ -122,7 +134,7 @@ public class AuctionWebSocketServer extends WebSocketServer {
                 }
             });
 
-            System.out.println("📤 Broadcast PRICE_UPDATE itemId=" + itemId + " price=" + currentPrice + " -> " + subscribers.size() + " clients");
+            System.out.println("📤 Broadcast PRICE_UPDATE itemId=" + itemId + " price=" + bidAmount + " -> " + subscribers.size() + " clients");
         }
     }
 

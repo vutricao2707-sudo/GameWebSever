@@ -2,6 +2,7 @@ package com.auction.controller;
 
 import com.auction.database.BidDAO;
 import com.auction.database.ItemDAO;
+import com.auction.server.AuctionWebSocketServer;
 import com.auction.service.AuctionSyncManager;
 import com.auction.ui.AuctionWebSocketClient;
 import com.auction.util.SessionManager;
@@ -29,7 +30,10 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.DialogPane;
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Objects;
@@ -66,6 +70,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     // --- Biến Đồng hồ & Cấu trúc mới ---
     private Timeline exitCountdownTimeline; // Thay thế countdownTimeline cũ
     private final DecimalFormat formatter = new DecimalFormat("#,###");
+    private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private XYChart.Series<Number, Number> priceSeries;
     private int chartPointCount = 0;
@@ -461,8 +466,12 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             stepMultiplier = 1;
             updatePricingUI();
 
-            appendChartPoint(newBid);
-            addHistoryRow(formatter.format(newBid), "Bạn");
+            String bidderName = SessionManager.getCurrentUser().getFullName();
+            if (bidderName == null || bidderName.isBlank()) {
+                bidderName = "Người dùng #" + userId;
+            }
+            AuctionWebSocketServer.getInstance()
+                    .broadcastBidUpdate(currentItemId, newBid, userId, bidderName, System.currentTimeMillis());
 
         } catch (Exception e) {
             UIUtils.showError("Lỗi", e.getMessage());
@@ -480,7 +489,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     // WEBSOCKET & CẬP NHẬT UI
     // =========================================================================
     @Override
-    public void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName) {
+    public void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName, long bidTime) {
         try {
             if (itemId != currentItemId) return;
 
@@ -488,10 +497,11 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 try {
                     AuctionRoomController.this.currentPrice = currentPrice;
                     updatePricingUI();
-                    addHistoryRow(formatter.format(currentPrice), bidderName);
+                    addHistoryRow(formatter.format(currentPrice), bidderName + " - " + formatBidTime(bidTime));
 
                     // 🚀 Thêm điểm vào chart thay vì load lại toàn bộ
                     addPricePointToChart(currentPrice, bidderName);
+                    incrementBidCount();
 
                 } catch (Exception ignored) {}
             });
@@ -560,6 +570,27 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
     @Override public void onConnected() {}
     @Override public void onDisconnected() {}
+
+    private String formatBidTime(long bidTime) {
+        try {
+            return Instant.ofEpochMilli(bidTime)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalTime()
+                    .format(timeFormatter);
+        } catch (Exception e) {
+            return timeFormatter.format(LocalDateTime.now());
+        }
+    }
+
+    private void incrementBidCount() {
+        if (lblBidCount == null) return;
+        String text = lblBidCount.getText();
+        int count = 0;
+        try {
+            count = Integer.parseInt(text.replaceAll("\\D+", ""));
+        } catch (Exception ignored) {}
+        lblBidCount.setText((count + 1) + " lần đặt");
+    }
 
     private void addHistoryRow(String price, String bidderName) {
         if (liveHistoryContainer == null) return;
@@ -654,15 +685,17 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 return; // Chart chưa khởi tạo hoặc rỗng
             }
 
-            XYChart.Series<Number, Number> series = priceHistoryChart.getData().get(0);
+            XYChart.Series<Number, Number> series = priceSeries != null
+                    ? priceSeries
+                    : priceHistoryChart.getData().get(0);
             if (series == null) return;
 
             // Tăng index điểm (x-axis)
-            chartDataPointCount++;
+            chartPointCount++;
 
             // Tạo điểm mới
             XYChart.Data<Number, Number> newDataPoint =
-                    new XYChart.Data<>(chartDataPointCount, newPrice);
+                    new XYChart.Data<>(chartPointCount, newPrice);
 
             // Styling điểm
             newDataPoint.setNode(new javafx.scene.shape.Circle(3) {{
@@ -678,7 +711,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             // Thêm vào series
             series.getData().add(newDataPoint);
 
-            logger.info("✅ [Chart] Added new data point: " + chartDataPointCount
+            logger.info("✅ [Chart] Added new data point: " + chartPointCount
                     + " | Price: " + formatter.format(newPrice));
 
         } catch (Exception e) {

@@ -19,7 +19,7 @@ public class AuctionWebSocketClient extends WebSocketClient {
     private boolean isConnected = false;
     private boolean isReconnecting = false;
     public interface AuctionWebSocketListener {
-        void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName);
+        void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName, long bidTime);
         void onParticipantUpdate(int itemId, int participantCount);
         void onAuctionFinished(int itemId, double finalPrice, int winnerId, String winnerName);
         void onTimerExtended(int itemId, int newTimeRemaining);
@@ -130,8 +130,9 @@ public class AuctionWebSocketClient extends WebSocketClient {
                 double currentPrice = json.getDouble("currentPrice");
                 int bidderId = json.getInt("bidderId");
                 String bidderName = json.getString("bidderName");
+                long bidTime = json.optLong("bidTime", json.optLong("timestamp", System.currentTimeMillis()));
 
-                listeners.forEach(listener -> listener.onPriceUpdate(itemId, currentPrice, bidderId, bidderName));
+                listeners.forEach(listener -> listener.onPriceUpdate(itemId, currentPrice, bidderId, bidderName, bidTime));
 
             } else if ("PARTICIPANT_UPDATE".equals(type)) {
                 int itemId = json.getInt("itemId");
