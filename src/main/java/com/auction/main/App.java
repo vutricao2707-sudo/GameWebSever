@@ -53,17 +53,29 @@ public class App extends Application {
         stage.centerOnScreen();
         stage.show();
 
-        // ✅ Dừng servers khi đóng ứng dụng
-        stage.setOnCloseRequest(event -> {
-            System.out.println("Đóng ứng dụng, dừng servers...");
-            AuctionSyncManager.getInstance().shutdown();
-            try {
-                wsServer.stop();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                System.err.println("Lỗi khi dừng WebSocket Server: " + e.getMessage());
-            }
-        });
+    }
+
+    // =========================================================
+    // TẮT SẠCH MỌI THỨ KHI ĐÓNG APP
+    // =========================================================
+    @Override
+    public void stop() {
+        System.out.println("🛑 Ứng dụng đang đóng, dọn dẹp tài nguyên...");
+
+        // Tắt luồng đồng bộ thời gian
+        try {
+            com.auction.service.AuctionSyncManager.getInstance().shutdown();
+        } catch (Exception e) {}
+
+        // Tắt WebSocket Server
+        try {
+            com.auction.server.AuctionWebSocketServer.getInstance().stop();
+        } catch (Exception e) {}
+
+        System.out.println("✅ Đã dọn dẹp xong. Ép tắt toàn bộ JVM!");
+
+        // Ép tắt ngay lập tức toàn bộ các luồng đang chạy ngầm
+        System.exit(0);
     }
 
     public static void main(String[] args) {

@@ -88,17 +88,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             updatePricingUI();
             updateParticipantCount();
 
-            // Dọn dẹp tập trung (Teardown) khi đóng cửa sổ
-            Platform.runLater(() -> {
-                try {
-                    Stage stage = (Stage) lblMinutes.getScene().getWindow();
-                    if (stage != null) {
-                        stage.setOnCloseRequest(event -> teardown(currentItemId));
-                    }
-                } catch (Exception e) {
-                    logger.log(Level.WARNING, "Lỗi khi gán sự kiện đóng cửa sổ", e);
-                }
-            });
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Lỗi trong initialize", e);

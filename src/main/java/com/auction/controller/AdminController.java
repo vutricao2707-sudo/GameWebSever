@@ -85,20 +85,6 @@ public class  AdminController {
         loadPendingView();
 
         if (lblAdminName == null) return;
-
-        javafx.application.Platform.runLater(() -> {
-            Stage stage = (Stage) lblAdminName.getScene().getWindow();
-            stage.setOnCloseRequest(event -> {
-
-                stopAllTimelines();
-                System.out.println("🛑 Admin window closed");
-
-                javafx.application.Platform.exit();
-
-                System.exit(0);
-
-            });
-        });
     }
 
     // ═════════════════════════════════════════════════════════════════════════
