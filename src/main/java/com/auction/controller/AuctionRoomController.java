@@ -28,6 +28,8 @@ import javafx.scene.layout.Region;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.DialogPane;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -470,9 +472,20 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             if (bidderName == null || bidderName.isBlank()) {
                 bidderName = "Người dùng #" + userId;
             }
-            AuctionWebSocketServer.getInstance()
-                    .broadcastBidUpdate(currentItemId, newBid, userId, bidderName, System.currentTimeMillis());
+            if (wsClient != null && wsClient.isConnected()) {
+                JSONObject bidMsg = new JSONObject();
+                bidMsg.put("action", "NEW_BID");
+                bidMsg.put("itemId", currentItemId);
+                bidMsg.put("bidAmount", newBid);
+                bidMsg.put("bidderId", userId);
+                bidMsg.put("bidderName", bidderName);
+                bidMsg.put("bidTime", System.currentTimeMillis());
 
+                wsClient.send(bidMsg.toString());
+                System.out.println("📤 Client đã bắn NEW_BID lên Server!");
+            } else {
+                System.err.println("⚠️ Mất kết nối WebSocket, không thể gửi real-time!");
+            }
         } catch (Exception e) {
             UIUtils.showError("Lỗi", e.getMessage());
         }

@@ -73,7 +73,18 @@ public class AuctionWebSocketServer extends WebSocketServer {
                     subscribers.remove(conn);
                 }
                 System.out.println("📍 Client unsubscribe itemId: " + itemId);
+            } else if ("NEW_BID".equals(action)) {
+                int itemId = json.getInt("itemId");
+                double bidAmount = json.getDouble("bidAmount");
+                int bidderId = json.getInt("bidderId");
+                String bidderName = json.getString("bidderName");
+                long bidTime = json.optLong("bidTime", System.currentTimeMillis());
+
+                // Server nhận được lệnh, tiến hành "phát loa" cho toàn bộ phòng
+                broadcastBidUpdate(itemId, bidAmount, bidderId, bidderName, bidTime);
+                System.out.println("🔔 Server nhận được BID mới và đang Broadcast...");
             }
+
         } catch (Exception e) {
             System.err.println("❌ Lỗi xử lý WebSocket message: " + e.getMessage());
         }
