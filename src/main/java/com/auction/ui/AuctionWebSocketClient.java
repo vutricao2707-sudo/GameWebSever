@@ -46,7 +46,7 @@ public class AuctionWebSocketClient extends WebSocketClient {
 
                 instance =
                         new AuctionWebSocketClient(
-                                "ws://localhost:8081"
+                                "ws://172.20.10.2:8081"
                         );
 
                 instance.connect();

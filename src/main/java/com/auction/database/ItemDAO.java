@@ -756,7 +756,27 @@ public class ItemDAO {
     // =====================================================================
     // 7. AUTO-EXTEND TIMER
     // =====================================================================
+    /**
+     * Gia hạn đấu giá bằng biển số xe và tính theo GIÂY (Dùng cho Anti-Snipping)
+     */
+    public static boolean extendAuctionTime(String plateNumber, int seconds) {
+        String sql = "UPDATE items SET auction_end_time = DATE_ADD(auction_end_time, INTERVAL ? SECOND) " +
+                "WHERE plate_number = ? AND auction_status = 'AUCTION'";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
+            pstmt.setInt(1, seconds);
+            pstmt.setString(2, plateNumber);
+
+            if (pstmt.executeUpdate() > 0) {
+                System.out.println("⏱️ ANTI-SNIPPING: Biển " + plateNumber + " được cộng thêm " + seconds + " giây!");
+                return true;
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi extendAuctionTime (plateNumber): " + e.getMessage());
+        }
+        return false;
+    }
     public static boolean extendAuctionTime(int itemId, int minutes) {
         String sql = "UPDATE items SET auction_end_time = DATE_ADD(auction_end_time, INTERVAL ? MINUTE) " +
                 "WHERE id = ? AND auction_status = 'AUCTION'";

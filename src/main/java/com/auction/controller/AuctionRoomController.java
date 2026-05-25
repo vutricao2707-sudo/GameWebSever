@@ -227,7 +227,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         priceSeries = new XYChart.Series<>();
         priceSeries.setName("Giá đặt");
         chartPointCount = 0;
-
+        priceHistoryChart.setAnimated(false);
         priceHistoryChart.getData().clear();
         priceHistoryChart.getData().add(priceSeries);
 
@@ -464,6 +464,29 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 return;
             }
 
+            // =========================================================
+            // 👇 THÊM VÀO: LOGIC GIA HẠN 60 GIÂY PHÚT CHÓT (ANTI-SNIPPING)
+            // Dùng getAuctionTimeRemaining để lấy thời gian thực chuẩn tuyệt đối từ DB
+            // =========================================================
+            long currentRemainingTime = ItemDAO.getAuctionTimeRemaining(currentPlateNumber);
+            if (currentRemainingTime > 0 && currentRemainingTime <= 30) {
+
+                // 1. Cộng thêm 60 giây xuống Database
+                ItemDAO.extendAuctionTime(currentPlateNumber, 60);
+
+                // 2. Bắn lệnh EXTEND_TIME lên Server để phát loa thông báo cho toàn phòng
+                if (wsClient != null && wsClient.isConnected()) {
+                    JSONObject extendMsg = new JSONObject();
+                    extendMsg.put("action", "EXTEND_TIME");
+                    extendMsg.put("itemId", currentItemId);
+                    extendMsg.put("addedSeconds", 60);
+                    wsClient.send(extendMsg.toString());
+                }
+            }
+            // =========================================================
+            // 👆 KẾT THÚC PHẦN THÊM MỚI
+            // =========================================================
+
             currentPrice = ItemDAO.getCurrentPrice(currentPlateNumber);
             stepMultiplier = 1;
             updatePricingUI();
@@ -472,6 +495,8 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             if (bidderName == null || bidderName.isBlank()) {
                 bidderName = "Người dùng #" + userId;
             }
+
+            // Logic cũ: Bắn NEW_BID lên Server
             if (wsClient != null && wsClient.isConnected()) {
                 JSONObject bidMsg = new JSONObject();
                 bidMsg.put("action", "NEW_BID");
@@ -579,7 +604,15 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     }
 
     @Override
-    public void onTimerExtended(int itemId, int newTime) {}
+    public void onTimerExtended(int itemId, int newTime) {
+        if (itemId != currentItemId) return;
+        Platform.runLater(() -> {
+            addHistoryRow("GIA HẠN", "Hệ thống +60 giây (Anti-Snipping)");
+            UIUtils.showCustomPopup("GIA HẠN THỜI GIAN",
+                    "Có người đặt giá phút chót! Phiên đấu giá được cộng thêm 60 giây.",
+                    "⏳", "#f59e0b");
+        });
+    }
 
     @Override public void onConnected() {}
     @Override public void onDisconnected() {}
