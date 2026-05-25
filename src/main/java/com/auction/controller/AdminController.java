@@ -82,22 +82,21 @@ public class  AdminController {
     @FXML
     public void initialize() {
         stopAllTimelines();
-
         loadPendingView();
+
         if (lblAdminName == null) return;
 
         javafx.application.Platform.runLater(() -> {
-
-            Stage stage =
-                    (Stage) lblAdminName.getScene().getWindow();
-
+            Stage stage = (Stage) lblAdminName.getScene().getWindow();
             stage.setOnCloseRequest(event -> {
 
                 stopAllTimelines();
+                System.out.println("🛑 Admin window closed");
 
-                System.out.println(
-                        "🛑 Admin window closed"
-                );
+                javafx.application.Platform.exit();
+
+                System.exit(0);
+
             });
         });
     }
@@ -372,24 +371,21 @@ public class  AdminController {
         }
     }
 
-// ═════════════════════════════════════════════════════════════════════════
+    // ═════════════════════════════════════════════════════════════════════════
     // VIEW 2 — GIÁM SÁT ĐẤU GIÁ (REAL-TIME SYNC)
     // ═════════════════════════════════════════════════════════════════════════
 
     private void loadMonitoringView() {
-        stopAllTimelines(); // Dọn dẹp dữ liệu tab cũ
+        stopAllTimelines();
         lblViewTitle.setText("GIÁM SÁT ĐẤU GIÁ");
         lblViewSubtitle.setText("Theo dõi realtime các phiên đấu giá đang mở, sắp mở và vừa kết thúc.");
 
-        // Vẽ lại tiêu đề các cột cho hợp lý hơn
         buildHeader(
-                new String[]{"Biển số", "Loại", "Trạng thái", "Thời gian", "Giá hiện tại", "Top Bidder"},
-                new double[]{120, 80, 130, 180, 150, 150}
+                new String[]{"Biển số", "Loại", "Trạng thái", "Thời gian", "Giá hiện tại", "Top Bidder", "Thao tác"},
+                new double[]{120, 80, 120, 160, 130, 130, 90}
         );
 
         adminListContainer.getChildren().clear();
-
-        // Lấy dữ liệu từ DAO (đã bao gồm các xe Đang chuẩn bị, Đang đấu, và Vừa kết thúc)
         List<String[]> items = ItemDAO.getFullMonitoringData();
         updateCounter(items.size(), "phiên");
 
@@ -398,10 +394,7 @@ public class  AdminController {
             return;
         }
 
-        // Vẽ danh sách
         for (String[] item : items) {
-            // Map dữ liệu từ SQL:
-            // [0]id, [1]plate, [2]type, [3]status, [4]price, [5]auc_end, [6]reg_end, [7]parts, [8]top_bidder, [9]top_bid
             int itemId = Integer.parseInt(item[0]);
             String plate = item[1];
             String type = item[2];
@@ -409,15 +402,13 @@ public class  AdminController {
             double currentPrice = Double.parseDouble(item[4]);
             String topBidder = item[8] != null ? item[8] : "Chưa có";
 
-            // Tạo các Label riêng lẻ để SyncManager có thể cập nhật nội dung bên trong
-            Label lblStatus = cell(status, 130, "");
-            Label lblTime   = cell("--:--:--", 180, "-fx-text-fill: #94a3b8;");
-            Label lblPrice  = cell(formatMoney(String.valueOf(currentPrice)) + " đ", 150, "-fx-text-fill: #10b981; -fx-font-weight: bold;");
-            Label lblBidder = cell(topBidder, 150, "-fx-text-fill: #cbd5e1;");
+            Label lblStatus = cell(status, 120, "");
+            Label lblTime   = cell("--:--:--", 160, "-fx-text-fill: #94a3b8;");
+            Label lblPrice  = cell(formatMoney(String.valueOf(currentPrice)) + " đ", 130, "-fx-text-fill: #10b981; -fx-font-weight: bold;"); // Đổi thành 130
+            Label lblBidder = cell(topBidder, 130, "-fx-text-fill: #cbd5e1;");
 
-            updateStatusStyle(lblStatus, status); // Tô màu cho chữ Status
+            updateStatusStyle(lblStatus, status);
 
-            // Gói vào HBox
             HBox row = createBaseRow();
             row.getChildren().addAll(
                     cell(plate, 120, "-fx-text-fill: white; -fx-font-weight: bold;"),
@@ -425,14 +416,51 @@ public class  AdminController {
                     lblStatus,
                     lblTime,
                     lblPrice,
-                    lblBidder
+                    lblBidder,
+                    buildHideMonitoringBox(itemId, plate, row)
             );
 
             hoverEffect(row);
             adminListContainer.getChildren().add(row);
 
-            // Tích hợp SyncManager vào hàng này
             attachSyncListener(itemId, plate, lblStatus, lblTime, lblPrice, lblBidder, currentPrice);
+        }
+    }
+
+    //Tạo nút bấm Ẩn thiết kế Dark Mode
+    private HBox buildHideMonitoringBox(int itemId, String plate, HBox parentRow) {
+        Button btnHide = iconBtn("👁 Ẩn",
+                "-fx-background-color: rgba(148, 163, 184, 0.15); -fx-text-fill: #94a3b8; " +
+                        "-fx-background-radius: 6; -fx-cursor: hand; -fx-padding: 4 10; -fx-font-size: 12;");
+
+        btnHide.setOnAction(e -> handleHideMonitoringItem(itemId, plate, parentRow));
+
+        HBox box = new HBox(btnHide);
+        box.setPrefWidth(90);
+        box.setAlignment(Pos.CENTER_LEFT);
+        return box;
+    }
+
+    // Xử lý xóa hàng và gỡ chip SyncManager
+    private void handleHideMonitoringItem(int itemId, String plate, HBox rowToRemove) {
+        boolean confirm = showConfirm("Xác nhận ẩn", "Bạn có chắc chắn muốn ẩn biển số " + plate + " khỏi màn hình giám sát?");
+
+        if (confirm) {
+            boolean isSuccess = ItemDAO.updateStatus(itemId, "HIDDEN");
+
+            if (isSuccess) {
+                if (monitoringListeners.containsKey(itemId)) {
+                    AuctionSyncManager.getInstance().removeListener(itemId, monitoringListeners.get(itemId));
+                    monitoringListeners.remove(itemId);
+                }
+
+                adminListContainer.getChildren().remove(rowToRemove);
+
+                updateCounter(adminListContainer.getChildren().size(), "phiên");
+            }
+            else {
+                UIUtils.showError("Lỗi", "Không thể cập nhật trạng thái biển số dưới Database.");
+            }
         }
     }
 

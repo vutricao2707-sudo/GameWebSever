@@ -199,9 +199,9 @@ public class AuctionFinishService {
     private boolean markAsFinished(int itemId, double finalPrice) {
         String sql = "UPDATE items " +
                 "SET auction_status = 'FINISHED', " +
-                "    status = 'INACTIVE', " +
                 "    current_price = ? " +
                 "WHERE id = ? AND auction_status = 'AUCTION'";
+
         try (Connection conn = com.auction.database.DatabaseConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setDouble(1, finalPrice);

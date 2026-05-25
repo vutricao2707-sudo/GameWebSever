@@ -87,7 +87,7 @@ public class AuctionQueryDAO {
     }
 
     public static FinishResult finishAuction(int itemId, int winnerId, double finalPrice) {
-        String sqlItem = "UPDATE items SET auction_status = 'FINISHED', status = 'INACTIVE', current_price = ? WHERE id = ? AND auction_status = 'AUCTION'";
+        String sqlItem = "UPDATE items SET auction_status = 'FINISHED', current_price = ? WHERE id = ? AND auction_status = 'AUCTION'";
         String sqlAuction = "UPDATE auctions SET is_open = 0, winner_id = ?, final_price = ?, end_time = NOW() WHERE item_id = ? AND is_open = 1";
         String sqlResult = "INSERT IGNORE INTO auction_results (item_id, winner_id, final_price) VALUES (?, ?, ?)";
         Connection conn = null;
