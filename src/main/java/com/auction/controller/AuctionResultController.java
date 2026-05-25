@@ -66,7 +66,7 @@ public class AuctionResultController {
         // 2. Lấy ID của tài khoản đang đăng nhập
         int userId = SessionManager.INSTANCE.getCurrentUser().getId();
 
-        // 3. Lấy dữ liệu từ ItemDAO - chỉ những phiên đã FINISHED mà user này có tham gia trả giá
+        // 3. Lấy dữ liệu từ ItemDAO
         List<String[]> finishedItems = ItemDAO.getFinishedAuctionsByUserId(userId);
 
         if (finishedItems.isEmpty()) {
@@ -79,12 +79,14 @@ public class AuctionResultController {
         // 4. Duyệt qua các items đã kết thúc
         for (int i = 0; i < finishedItems.size(); i++) {
             String[] item = finishedItems.get(i);
-            // Cấu trúc: [0]id, [1]plate, [2]start_price, [3]current_price, [4]vehicle_type, [5]seller_name, [6]auction_status, [7]auction_end_time
+            // Cấu trúc: [0]id, [1]plate, [2]start_price, [3]current_price, [4]vehicle_type, [5]winner_id, [6]auction_status, [7]auction_end_time
             int stt = i + 1;
             String plate = item[1];
             double finalPrice = Double.parseDouble(item[3]);
             String endTime = item[7];
-            boolean isSuccess = finalPrice > Double.parseDouble(item[2]); // Nếu final_price > start_price thì thành công
+            int winnerId = Integer.parseInt(item[5]); // Lấy winner_id
+            // Kiểm tra xem người dùng hiện tại có phải người thắng không
+            boolean isSuccess = (winnerId == userId);
 
             resultListContainer.getChildren().add(createRow(stt, plate, finalPrice, endTime, isSuccess));
         }

@@ -577,35 +577,7 @@ public class ItemDAO {
         return result;
     }
 
-    public static List<String[]> getFinishedAuctionsByUserId(int userId) {
-        List<String[]> results = new ArrayList<>();
-        String sql = "SELECT DISTINCT i.id, i.plate_number, i.start_price, i.current_price, i.vehicle_type, " +
-                "i.auction_status, i.auction_end_time FROM items i JOIN bids b ON i.id = b.item_id " +
-                "WHERE i.auction_status = 'FINISHED' AND b.user_id = ? ORDER BY i.auction_end_time DESC";
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, userId);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    results.add(new String[]{
-                            String.valueOf(rs.getInt("id")),
-                            rs.getString("plate_number"),
-                            String.valueOf(rs.getDouble("start_price")),
-                            String.valueOf(rs.getDouble("current_price")),
-                            rs.getString("vehicle_type"),
-                            "N/A",
-                            rs.getString("auction_status"),
-                            rs.getString("auction_end_time")
-                    });
-                }
-            }
-        } catch (SQLException e) {
-            System.out.println("❌ Lỗi getFinishedAuctionsByUserId: " + e.getMessage());
-        }
-        return results;
-    }
 
     // =====================================================================
     // 6. ADMIN GIÁM SÁT REALTIME — DỮ LIỆU ĐẦY ĐỦ
@@ -937,5 +909,37 @@ public class ItemDAO {
         } catch (SQLException e) {
             System.out.println("❌ Lỗi incrementParticipantCount(id): " + e.getMessage());
         }
+    }
+    public static List<String[]> getFinishedAuctionsByUserId(int userId) {
+        List<String[]> results = new ArrayList<>();
+        String sql = "SELECT DISTINCT i.id, i.plate_number, i.start_price, i.current_price, i.vehicle_type, " +
+                "(SELECT b.user_id FROM bids b WHERE b.item_id = i.id ORDER BY b.bid_amount DESC LIMIT 1) AS winner_id, " +
+                "i.auction_status, i.auction_end_time " +
+                "FROM items i " +
+                "JOIN bids b ON i.id = b.item_id " +
+                "WHERE i.auction_status = 'FINISHED' AND b.user_id = ? ORDER BY i.auction_end_time DESC";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, userId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    results.add(new String[]{
+                            String.valueOf(rs.getInt("id")),
+                            rs.getString("plate_number"),
+                            String.valueOf(rs.getDouble("start_price")),
+                            String.valueOf(rs.getDouble("current_price")),
+                            rs.getString("vehicle_type"),
+                            String.valueOf(rs.getInt("winner_id")), // ID của người đặt giá cao nhất
+                            rs.getString("auction_status"),
+                            rs.getString("auction_end_time")
+                    });
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("❌ Lỗi getFinishedAuctionsByUserId: " + e.getMessage());
+        }
+        return results;
     }
 }
