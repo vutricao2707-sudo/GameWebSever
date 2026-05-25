@@ -367,8 +367,8 @@ public class  AdminController {
         lblViewSubtitle.setText("Theo dõi realtime các phiên đấu giá đang mở, sắp mở và vừa kết thúc.");
 
         buildHeader(
-                new String[]{"Biển số", "Loại", "Trạng thái", "Thời gian", "Giá hiện tại", "Top Bidder", "Thao tác"},
-                new double[]{120, 80, 120, 160, 130, 130, 90}
+                new String[]{"Biển số", "Loại", "Trạng thái", "Đếm ngược", "Kết thúc lúc", "Giá hiện tại", "Top Bidder", "Thao tác"},
+                new double[]{120, 80, 110, 150, 140, 130, 130, 90}
         );
 
         adminListContainer.getChildren().clear();
@@ -386,11 +386,18 @@ public class  AdminController {
             String type = item[2];
             String status = item[3];
             double currentPrice = Double.parseDouble(item[4]);
+
+            // Lấy thời gian kết thúc (item[5]) và format lại cho đẹp
+            String auctionEnd = item[5];
             String topBidder = item[8] != null ? item[8] : "Chưa có";
 
-            Label lblStatus = cell(status, 120, "");
-            Label lblTime   = cell("--:--:--", 160, "-fx-text-fill: #94a3b8;");
-            Label lblPrice  = cell(formatMoney(String.valueOf(currentPrice)) + " đ", 130, "-fx-text-fill: #10b981; -fx-font-weight: bold;"); // Đổi thành 130
+            Label lblStatus = cell(status, 110, "");
+            Label lblTime   = cell("--:--:--", 150, "-fx-text-fill: #94a3b8;");
+
+            // ✨ MỚI THÊM: Tạo Label hiển thị mốc thời gian kết thúc
+            Label lblEndTime = cell(formatDate(auctionEnd), 140, "-fx-text-fill: #cbd5e1;");
+
+            Label lblPrice  = cell(formatMoney(String.valueOf(currentPrice)) + " đ", 130, "-fx-text-fill: #10b981; -fx-font-weight: bold;");
             Label lblBidder = cell(topBidder, 130, "-fx-text-fill: #cbd5e1;");
 
             updateStatusStyle(lblStatus, status);
@@ -401,6 +408,7 @@ public class  AdminController {
                     cell(type, 80, "-fx-text-fill: #64748b;"),
                     lblStatus,
                     lblTime,
+                    lblEndTime, // ✨ MỚI THÊM: Nhét cột mốc thời gian vào giữa
                     lblPrice,
                     lblBidder,
                     buildHideMonitoringBox(itemId, plate, row)
