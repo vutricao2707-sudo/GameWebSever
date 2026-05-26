@@ -222,7 +222,7 @@ public class BidDAO {
     // =====================================================================
     // HÀM LƯU LỊCH SỬ KHI BẤM "ĐẶT GIÁ" (Hỗ trợ cả 2 phiên bản Database)
     // =====================================================================
-    private static final long BID_COOLDOWN_SECONDS = 60; // 1 phút - cần match với client
+    private static final long BID_COOLDOWN_SECONDS = 10; // 1 phút - cần match với client
 
     /**
      * Kiểm tra xem user có thể đặt giá không (validate cooldown ở server)
@@ -470,12 +470,12 @@ public class BidDAO {
 
     /**
      * Kiểm tra xem phiên có cần auto-extend không
-     * Điều kiện: Nếu có bid trong 2 phút cuối (time remaining <= 120s) -> extend 2 phút
+     * Điều kiện: Nếu có bid trong 2 phút cuối (time remaining <= 120s) -> extend 30 giây
      * @return true nếu cần extend, false nếu không
      */
     public static boolean shouldExtendAuction(int itemId) {
         long timeRemaining = ItemDAO.getAuctionTimeRemainingSeconds(itemId);
-        final long AUTO_EXTEND_THRESHOLD = 120; // 2 phút
+        final long AUTO_EXTEND_THRESHOLD = 30; // 30s
         return timeRemaining > 0 && timeRemaining <= AUTO_EXTEND_THRESHOLD;
     }
 

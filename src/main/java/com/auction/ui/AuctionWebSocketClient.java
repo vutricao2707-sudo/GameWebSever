@@ -25,6 +25,8 @@ public class AuctionWebSocketClient extends WebSocketClient {
         void onTimerExtended(int itemId, int newTimeRemaining);
         void onConnected();
         void onDisconnected();
+        void onItemsReceived(org.json.JSONArray items); // Để hứng danh sách xe
+        void onBidResponse(boolean isSuccess, String message); // Để hứng thông báo đặt giá thành công/thất bại
     }
 
     private AuctionWebSocketClient(String serverUrl) throws URISyntaxException {
@@ -46,10 +48,8 @@ public class AuctionWebSocketClient extends WebSocketClient {
 
                 instance =
                         new AuctionWebSocketClient(
-                                "wss://coexist-failing-pavilion.ngrok-free.dev"
+                                "wss://plateauction-production.up.railway.app"
                         );
-                instance.addHeader("ngrok-skip-browser-warning", "true");
-
                 instance.connect();
 
                 System.out.println(
@@ -124,9 +124,32 @@ public class AuctionWebSocketClient extends WebSocketClient {
         System.out.println("📩 WS MESSAGE: " + message);
         try {
             JSONObject json = new JSONObject(message);
-            String type = json.optString("type", "");
 
-            if ("PRICE_UPDATE".equals(type)) {
+            // Server có thể gửi "type" (cho realtime broadcast) hoặc "action" (cho trả kết quả request)
+            String type = json.optString("type", "");
+            String action = json.optString("action", "");
+
+            // =============================================================
+            // LUỒNG 1: XỬ LÝ KẾT QUẢ REQUEST (Thay thế cho TCP Socket cũ)
+            // =============================================================
+            if ("GET_ITEMS_RESPONSE".equals(action)) {
+                if ("success".equals(json.optString("status"))) {
+                    org.json.JSONArray itemsArray = json.getJSONArray("items");
+                    // Đẩy danh sách xe ra cho Giao diện hiển thị
+                    listeners.forEach(listener -> listener.onItemsReceived(itemsArray));
+                }
+            }
+            else if ("PLACE_BID_RESPONSE".equals(action)) {
+                boolean isSuccess = "success".equals(json.optString("status"));
+                String msg = json.optString("message", "");
+                // Báo cho Giao diện biết đặt giá thành công hay lỗi (để hiện Popup Alert)
+                listeners.forEach(listener -> listener.onBidResponse(isSuccess, msg));
+            }
+
+            // =============================================================
+            // LUỒNG 2: XỬ LÝ REAL-TIME BROADCAST (Code cũ của bạn giữ nguyên)
+            // =============================================================
+            else if ("PRICE_UPDATE".equals(type)) {
                 int itemId = json.getInt("itemId");
                 double currentPrice = json.getDouble("currentPrice");
                 int bidderId = json.getInt("bidderId");
@@ -158,8 +181,10 @@ public class AuctionWebSocketClient extends WebSocketClient {
             } else if ("SUBSCRIBED".equals(type)) {
                 System.out.println("📌 Subscribed tới itemId: " + json.getInt("itemId"));
             }
+
         } catch (Exception e) {
             System.err.println("❌ Lỗi xử lý WebSocket message: " + e.getMessage());
+            e.printStackTrace(); // Thêm dòng này để in chi tiết lỗi nếu có
         }
     }
 

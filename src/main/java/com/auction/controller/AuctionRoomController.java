@@ -28,6 +28,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.DialogPane;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
@@ -454,12 +455,12 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
             if (!bidSaved) {
                 long dbLastBidTime = BidDAO.getLastBidTime(currentPlateNumber, userId);
-                long remainingTime = (dbLastBidTime + 60) - (System.currentTimeMillis() / 1000);
+                long remainingTime = (dbLastBidTime + 10) - (System.currentTimeMillis() / 1000);
                 refreshCurrentPrice();
 
                 // Popup Cooldown xịn xò
                 UIUtils.showCustomPopup("ĐẶT GIÁ THẤT BẠI",
-                        "Vui lòng chờ hết thời gian 1 phút từ lần đặt gần nhất để đặt giá tiếp.\nThời gian còn lại: " + Math.max(0, remainingTime) + " giây",
+                        "Vui lòng chờ hết thời gian 10 giây từ lần đặt gần nhất để đặt giá tiếp.\nThời gian còn lại: " + Math.max(0, remainingTime) + " giây",
                         "⏳", "#ef4444");
                 return;
             }
@@ -616,6 +617,16 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
     @Override public void onConnected() {}
     @Override public void onDisconnected() {}
+
+    @Override
+    public void onItemsReceived(JSONArray items) {
+        System.out.println("Đã nhận danh sách biển số: " + items.length());
+    }
+
+    @Override
+    public void onBidResponse(boolean isSuccess, String message) {
+
+    }
 
     private String formatBidTime(long bidTime) {
         try {

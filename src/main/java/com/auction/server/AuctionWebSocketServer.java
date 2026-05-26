@@ -14,16 +14,29 @@ import org.json.JSONObject;
  * Broadcast cập nhật giá, trạng thái đấu giá realtime tới tất cả clients
  */
 public class AuctionWebSocketServer extends WebSocketServer {
-    private static final int WEBSOCKET_PORT = 8081;
     private static AuctionWebSocketServer instance;
 
     // Lưu trữ clients kết nối tới từng item (auction room)
     // Key: itemId, Value: List<WebSocket>
     private final Map<Integer, List<WebSocket>> itemSubscribers = new ConcurrentHashMap<>();
 
+    // ==========================================
+    // 1. THÊM HÀM NÀY ĐỂ LẤY PORT TỪ RAILWAY
+    // ==========================================
+    private static int getDynamicPort() {
+        String portEnv = System.getenv("PORT");
+        // Nếu chạy trên Railway (có PORT), thì dùng Port của nó.
+        // Nếu chạy test ở IntelliJ (portEnv == null), thì vẫn dùng 8081.
+        return (portEnv != null) ? Integer.parseInt(portEnv) : 8081;
+    }
+
+    // ==========================================
+    // 2. SỬA LẠI HÀM KHỞI TẠO NÀY
+    // ==========================================
     private AuctionWebSocketServer() {
-        super(new InetSocketAddress("0.0.0.0", WEBSOCKET_PORT));
-        System.out.println("🚀 WebSocket Server khởi tạo trên port " + WEBSOCKET_PORT);
+        // Ép Server lắng nghe ở mọi IP (0.0.0.0) bằng Port động
+        super(new InetSocketAddress("0.0.0.0", getDynamicPort()));
+        System.out.println("🚀 WebSocket Server khởi tạo trên port " + getDynamicPort());
     }
 
     /**
