@@ -46,7 +46,7 @@ public class AuctionWebSocketClient extends WebSocketClient {
 
                 instance =
                         new AuctionWebSocketClient(
-                                "ws://172.20.10.2:8081"
+                                "wss://coexist-failing-pavilion.ngrok-free.dev"
                         );
 
                 instance.connect();
