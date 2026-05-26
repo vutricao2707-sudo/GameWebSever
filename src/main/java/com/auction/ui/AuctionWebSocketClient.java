@@ -48,6 +48,7 @@ public class AuctionWebSocketClient extends WebSocketClient {
                         new AuctionWebSocketClient(
                                 "wss://coexist-failing-pavilion.ngrok-free.dev"
                         );
+                instance.addHeader("ngrok-skip-browser-warning", "true");
 
                 instance.connect();
 
