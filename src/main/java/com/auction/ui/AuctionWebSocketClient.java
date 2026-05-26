@@ -37,47 +37,37 @@ public class AuctionWebSocketClient extends WebSocketClient {
      * Singleton - lấy hoặc tạo instance
      */
     public static synchronized AuctionWebSocketClient getInstance() {
-
         try {
-
             // =========================================
             // CHƯA CÓ INSTANCE
             // =========================================
-
             if (instance == null) {
+                instance = new AuctionWebSocketClient("wss://plateauction-production.up.railway.app");
 
-                instance =
-                        new AuctionWebSocketClient(
-                                "wss://plateauction-production.up.railway.app"
-                        );
-                instance.connect();
+                System.out.println("⏳ Đang kết nối WebSocket lên mây...");
+                // 👇 ĐÃ SỬA THÀNH connectBlocking() ĐỂ ÉP CHỜ KẾT NỐI
+                boolean connected = instance.connectBlocking();
 
-                System.out.println(
-                        "✅ WebSocket instance created"
-                );
+                if (connected) {
+                    System.out.println("✅ WebSocket instance created và đã kết nối!");
+                } else {
+                    System.out.println("❌ Kết nối WebSocket thất bại!");
+                }
             }
-
             // =========================================
             // MẤT KẾT NỐI → RECONNECT
             // =========================================
-
-            else if (!instance.isConnected
-                    && !instance.isReconnecting) {
-
+            else if (!instance.isConnected && !instance.isReconnecting) {
                 instance.isReconnecting = true;
+                System.out.println("♻️ WebSocket reconnecting...");
 
-                System.out.println(
-                        "♻️ WebSocket reconnecting..."
-                );
-
-                instance.reconnect();
+                // 👇 ĐÃ SỬA THÀNH reconnectBlocking()
+                instance.reconnectBlocking();
+                System.out.println("✅ Đã reconnect xong!");
             }
-
         } catch (Exception e) {
-
             e.printStackTrace();
         }
-
         return instance;
     }
 
@@ -198,48 +188,22 @@ public class AuctionWebSocketClient extends WebSocketClient {
      * Subscribe tới updates của 1 item
      */
     public void subscribe(int itemId) {
+        if (!isConnected) {
+            System.err.println("❌ Không thể subscribe - WS chưa connect. Vui lòng kiểm tra lại mạng!");
+            return;
+        }
 
-        new Thread(() -> {
+        try {
+            JSONObject message = new JSONObject();
+            message.put("action", "SUBSCRIBE");
+            message.put("itemId", itemId);
 
-            try {
-
-                int retry = 0;
-
-                while (!isConnected && retry < 20) {
-
-                    Thread.sleep(300);
-
-                    retry++;
-                }
-
-                if (!isConnected) {
-
-                    System.err.println(
-                            "❌ Không thể subscribe - WS chưa connect"
-                    );
-
-                    return;
-                }
-
-                JSONObject message = new JSONObject();
-
-                message.put("action", "SUBSCRIBE");
-                message.put("itemId", itemId);
-
-                send(message.toString());
-
-                System.out.println(
-                        "📤 SUBSCRIBED itemId = " + itemId
-                );
-
-            } catch (Exception e) {
-
-                e.printStackTrace();
-            }
-
-        }).start();
+            send(message.toString());
+            System.out.println("📤 SUBSCRIBED itemId = " + itemId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
-
     /**
      * Unsubscribe từ updates của 1 item
      */

@@ -21,21 +21,22 @@ public class AuctionWebSocketServer extends WebSocketServer {
     private final Map<Integer, List<WebSocket>> itemSubscribers = new ConcurrentHashMap<>();
 
     // ==========================================
-    // 1. THÊM HÀM NÀY ĐỂ LẤY PORT TỪ RAILWAY
+    // LẤY PORT TỪ RAILWAY
     // ==========================================
     private static int getDynamicPort() {
         String portEnv = System.getenv("PORT");
-        // Nếu chạy trên Railway (có PORT), thì dùng Port của nó.
-        // Nếu chạy test ở IntelliJ (portEnv == null), thì vẫn dùng 8081.
         return (portEnv != null) ? Integer.parseInt(portEnv) : 8081;
     }
 
     // ==========================================
-    // 2. SỬA LẠI HÀM KHỞI TẠO NÀY
+    // KHỞI TẠO SERVER
     // ==========================================
     private AuctionWebSocketServer() {
-        // Ép Server lắng nghe ở mọi IP (0.0.0.0) bằng Port động
         super(new InetSocketAddress("0.0.0.0", getDynamicPort()));
+
+        // FIX LỖI 1: Tự động gửi Ping mỗi 30 giây để Railway không ngắt kết nối (Chống ngủ gật)
+        this.setConnectionLostTimeout(30);
+
         System.out.println("🚀 WebSocket Server khởi tạo trên port " + getDynamicPort());
     }
 
@@ -56,11 +57,15 @@ public class AuctionWebSocketServer extends WebSocketServer {
 
     /**
      * Nhận message từ client
-     * Format: {"action": "SUBSCRIBE", "itemId": 123}
-     *         {"action": "UNSUBSCRIBE", "itemId": 123}
      */
     @Override
     public void onMessage(WebSocket conn, String message) {
+        // FIX LỖI 2: MÀNG LỌC BẢO VỆ - Bỏ qua các HTTP Headers (Tin nhắn rác) từ Railway
+        if (message == null || !message.trim().startsWith("{")) {
+            System.out.println("⚠️ Bỏ qua message rác (Không phải JSON): " + message);
+            return; // Thoát ngay lập tức, không cho chạy xuống đoạn code ép JSON bên dưới
+        }
+
         try {
             JSONObject json = new JSONObject(message);
             String action = json.optString("action", "");
@@ -105,7 +110,7 @@ public class AuctionWebSocketServer extends WebSocketServer {
 
     @Override
     public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-        System.out.println("❌ Client ngắt kết nối: " + conn.getRemoteSocketAddress());
+        System.out.println("❌ Client ngắt kết nối: " + conn.getRemoteSocketAddress() + " - Lý do: " + reason);
         // Xóa client khỏi tất cả subscribers
         itemSubscribers.values().forEach(list -> list.remove(conn));
     }
@@ -121,21 +126,14 @@ public class AuctionWebSocketServer extends WebSocketServer {
         System.out.println("🌐 WebSocket Server đã khởi động!");
     }
 
-    /**
-     * Broadcast cập nhật giá cho tất cả clients đang theo dõi item này
-     *
-     * @param itemId ID sản phẩm
-     * @param currentPrice Giá hiện tại
-     * @param bidderId ID người đặt giá
-     * @param bidderName Tên người đặt giá
-     */
+    // ==========================================
+    // CÁC HÀM BROADCAST (Giữ nguyên)
+    // ==========================================
+
     public void broadcastPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName) {
         broadcastBidUpdate(itemId, currentPrice, bidderId, bidderName, System.currentTimeMillis());
     }
 
-    /**
-     * Broadcast bid mới cho tất cả clients đang ở cùng phòng đấu giá.
-     */
     public void broadcastBidUpdate(int itemId, double bidAmount, int bidderId, String bidderName, long bidTime) {
         List<WebSocket> subscribers = itemSubscribers.get(itemId);
         if (subscribers != null && !subscribers.isEmpty()) {
@@ -162,9 +160,6 @@ public class AuctionWebSocketServer extends WebSocketServer {
         }
     }
 
-    /**
-     * Broadcast cập nhật số người tham gia
-     */
     public void broadcastParticipantUpdate(int itemId, int participantCount) {
         List<WebSocket> subscribers = itemSubscribers.get(itemId);
         if (subscribers != null && !subscribers.isEmpty()) {
@@ -185,9 +180,6 @@ public class AuctionWebSocketServer extends WebSocketServer {
         }
     }
 
-    /**
-     * Broadcast khi phiên đấu giá kết thúc
-     */
     public void broadcastAuctionFinished(int itemId, double finalPrice, int winnerId, String winnerName) {
         List<WebSocket> subscribers = itemSubscribers.get(itemId);
         if (subscribers != null && !subscribers.isEmpty()) {
@@ -210,9 +202,6 @@ public class AuctionWebSocketServer extends WebSocketServer {
         }
     }
 
-    /**
-     * Broadcast timer extend khi có bid trong 2 phút cuối
-     */
     public void broadcastTimerExtended(int itemId, int newTimeRemaining) {
         List<WebSocket> subscribers = itemSubscribers.get(itemId);
         if (subscribers != null && !subscribers.isEmpty()) {
@@ -233,5 +222,3 @@ public class AuctionWebSocketServer extends WebSocketServer {
         }
     }
 }
-
-

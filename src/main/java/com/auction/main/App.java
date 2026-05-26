@@ -31,23 +31,12 @@ public class App extends Application {
 
         DatabaseInitializer.initDatabase();  // Khởi tạo database tự động
 
-        // ✅ Khởi động WebSocket Server
-        AuctionWebSocketServer wsServer = AuctionWebSocketServer.getInstance();
-        wsServer.start();
-        System.out.println("🚀 WebSocket Server đã khởi động!");
-
-        // ✅ Khởi động Socket Server ở thread riêng
-        Thread socketServerThread = new Thread(() -> AuctionServer.main(new String[]{}), "SocketServer-Thread");
-        socketServerThread.setDaemon(true);
-        socketServerThread.start();
-        System.out.println("🚀 Socket Server đã khởi động!");
-
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/Login.fxml"));
         Parent root = fxmlLoader.load();
 
         Scene scene = new Scene(root, 1280, 800);
 
-        stage.setTitle("Hệ Thống Đấu Giá Biển Số - VinGroup");
+        stage.setTitle("Hệ Thống Đấu Giá Biển Số");
         stage.setScene(scene);
         stage.setResizable(false);
         stage.centerOnScreen();
@@ -65,11 +54,6 @@ public class App extends Application {
         // Tắt luồng đồng bộ thời gian
         try {
             com.auction.service.AuctionSyncManager.getInstance().shutdown();
-        } catch (Exception e) {}
-
-        // Tắt WebSocket Server
-        try {
-            com.auction.server.AuctionWebSocketServer.getInstance().stop();
         } catch (Exception e) {}
 
         System.out.println("✅ Đã dọn dẹp xong. Ép tắt toàn bộ JVM!");
