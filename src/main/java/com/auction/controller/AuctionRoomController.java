@@ -42,7 +42,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import com.auction.util.UiThrottle;
+import java.util.concurrent.atomic.AtomicReference;
 public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebSocketListener {
 
     private static final Logger logger = Logger.getLogger(AuctionRoomController.class.getName());
@@ -71,7 +72,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             new java.util.concurrent.atomic.AtomicBoolean(false);
 
     // --- Biến Đồng hồ & Cấu trúc mới ---
-    private Timeline exitCountdownTimeline; // Thay thế countdownTimeline cũ
+    private Timeline exitCountdownTimeline;
     private final DecimalFormat formatter = new DecimalFormat("#,###");
     private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -79,7 +80,26 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     private int chartPointCount = 0;
 
     private AuctionSyncManager.AuctionListener auctionListener;
+    private UiThrottle<Double> priceThrottle;
+    private UiThrottle<Integer> participantThrottle;
+    private UiThrottle<Void> chartBatchThrottle;
 
+    private final AtomicReference<PriceUpdateData> latestPriceData = new AtomicReference<>();
+    private record PriceUpdateData(double price, String bidderName, long bidTime) {}
+    private void initThrottles() {
+        // 1. Giảm xóc cho con số Giá (chống đơ UI khi bị spam)
+        priceThrottle = UiThrottle.throttle(newPrice -> {
+            this.currentPrice = newPrice;
+            updatePricingUI();
+        }, 80);
+
+        // 2. Giảm xóc cho số người xem
+        participantThrottle = UiThrottle.throttle(count -> {
+            if (lblParticipants != null) {
+                lblParticipants.setText("👥 " + count + " người tham gia");
+            }
+        }, 500);
+    }
     @FXML
     public void initialize() {
         logger.info("📍 [AuctionRoom] Bắt đầu initialize controller");
@@ -132,6 +152,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             // Dọn dẹp session cũ
             final int oldItemId = currentItemId;
             teardown(oldItemId);
+            initThrottles();
             auctionEnded.set(false);
             this.currentPlateNumber = plate;
 
@@ -529,30 +550,27 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     // =========================================================================
     @Override
     public void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName, long bidTime) {
-        try {
-            if (itemId != currentItemId) return;
+        if (itemId != currentItemId) return;
 
-            javafx.application.Platform.runLater(() -> {
-                try {
-                    AuctionRoomController.this.currentPrice = currentPrice;
-                    updatePricingUI();
-                    addHistoryRow(formatter.format(currentPrice), bidderName + " - " + formatBidTime(bidTime));
+        // 1. Cập nhật con số hiển thị qua giảm xóc (chống đơ)
+        if (priceThrottle != null) {
+            priceThrottle.submit(currentPrice);
+        }
 
-                    // 🚀 Thêm điểm vào chart thay vì load lại toàn bộ
-                    addPricePointToChart(currentPrice, bidderName);
-                    incrementBidCount();
-
-                } catch (Exception ignored) {}
-            });
-        } catch (Exception e) {}
+        // 2. TRẢ LẠI LOGIC CŨ: Bắt Đồ thị & Lịch sử vẽ NGAY LẬP TỨC mọi biến diễn!
+        Platform.runLater(() -> {
+            try {
+                addHistoryRow(formatter.format(currentPrice), bidderName + " - " + formatBidTime(bidTime));
+                addPricePointToChart(currentPrice, bidderName);
+                incrementBidCount();
+            } catch (Exception ignored) {}
+        });
     }
 
     @Override
     public void onParticipantUpdate(int itemId, int count) {
         if (itemId != currentItemId) return;
-        Platform.runLater(() -> {
-            if (lblParticipants != null) lblParticipants.setText("👥 " + count + " người tham gia");
-        });
+        if (participantThrottle != null) participantThrottle.submit(count);
     }
 
     @Override
@@ -679,29 +697,28 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     // TỐI ƯU 4: DỌN DẸP TẬP TRUNG (TEARDOWN)
     // =========================================================================
     private void teardown(int itemId) {
+        // 1. Tắt các luồng throttle ngầm để giải phóng RAM
+        if (priceThrottle != null) { priceThrottle.shutdown(); priceThrottle = null; }
+        if (participantThrottle != null) { participantThrottle.shutdown(); participantThrottle = null; }
+        if (chartBatchThrottle != null) { chartBatchThrottle.shutdown(); chartBatchThrottle = null; }
 
+        // 2. Dừng đồng hồ đếm ngược (Đã xóa đoạn bị lặp 2 lần)
         if (exitCountdownTimeline != null) {
             exitCountdownTimeline.stop();
             exitCountdownTimeline = null;
         }
 
+        // 3. Ngắt kết nối mạng và gỡ Listener
         try {
-
             if (auctionListener != null && itemId != -1) {
-
-                AuctionSyncManager.getInstance()
-                        .removeListener(itemId, auctionListener);
-
+                AuctionSyncManager.getInstance().removeListener(itemId, auctionListener);
                 auctionListener = null;
             }
 
             if (wsClient != null && itemId != -1) {
-
                 wsClient.unsubscribe(itemId);
-
                 wsClient.removeListener(this);
             }
-
         } catch (Exception ignored) {}
     }
     @FXML
