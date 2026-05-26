@@ -73,10 +73,17 @@ public class UIUtils {
         Label lblTitle = new Label(title.toUpperCase());
         lblTitle.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: " + themeColor + ";");
 
+        lblTitle.setAlignment(Pos.CENTER);
+        lblTitle.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+
         Label lblMessage = new Label(message);
-        lblMessage.setStyle("-fx-font-size: 15px; -fx-text-fill: " + TEXT_SECONDARY + "; -fx-text-alignment: center;");
+
+        lblMessage.setStyle("-fx-font-size: 15px; -fx-text-fill: " + TEXT_SECONDARY + ";");
         lblMessage.setWrapText(true);
         lblMessage.setMaxWidth(300);
+
+        lblMessage.setAlignment(Pos.CENTER);
+        lblMessage.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
 
         // Nút bấm căn giữa hoàn hảo
         Button btnOk = new Button("Đã hiểu");
@@ -141,11 +148,21 @@ public class UIUtils {
         lblTitle.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: " + themeColor + ";");
         lblTitle.setWrapText(true);
 
+        lblTitle.setAlignment(Pos.CENTER);
+        lblTitle.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+
         Label lblPrice = new Label("Giá cuối: " + finalPrice + " đ");
         lblPrice.setStyle("-fx-font-size: 19px; -fx-font-weight: bold; -fx-text-fill: #f59e0b;");
 
+        lblPrice.setAlignment(Pos.CENTER);
+        lblPrice.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+
         Label lblSubtitle = new Label(subtitle);
         lblSubtitle.setStyle("-fx-font-size: 16px; -fx-text-fill: " + TEXT_SECONDARY + ";");
+        lblSubtitle.setWrapText(true);
+
+        lblSubtitle.setAlignment(Pos.CENTER);
+        lblSubtitle.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
 
         Button btnBack = new Button("Quay lại Dashboard");
         btnBack.setStyle(
