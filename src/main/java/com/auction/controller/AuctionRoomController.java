@@ -718,6 +718,8 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             if (wsClient != null && itemId != -1) {
                 wsClient.unsubscribe(itemId);
                 wsClient.removeListener(this);
+                // Báo cho Client biết: Tôi chủ động thoát, cấm tự kết nối lại!
+                wsClient.shutdownIntentionally();
             }
         } catch (Exception ignored) {}
     }
