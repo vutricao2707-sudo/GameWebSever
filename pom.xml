@@ -130,7 +130,7 @@
                             <shadedClassifierName>standalone</shadedClassifierName>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.auction.server.AuctionServer</mainClass>
+                                    <mainClass>com.auction.main.Launcher</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
