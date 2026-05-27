@@ -36,11 +36,17 @@ java -jar ./Auction-System-1.0-SNAPSHOT-standalone.jar
 5. Cách chạy Server/Client
 6. Danh sách chức năng đã hoàn thành 
 
-[ ] 
+[ ] Quản lý người dùng, sản phẩm
 
-[ ] 
+[ ] Chức năng đấu giá
 
-[ ] 
+[ ] Xử lý lỗi & ngoại lệ
+
+[ ] Gia hạn phiên đấu giá khi bid cuối
+
+[ ] Bid History Visualization: biểu đồ đường giá realtime (line chart)
+
+[ ] Realtime Update
 
 7. Tài liệu và Demo
 
