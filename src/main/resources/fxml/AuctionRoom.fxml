@@ -23,7 +23,6 @@
 
             <Region HBox.hgrow="ALWAYS" />
 
-            <Label fx:id="lblParticipants" style="-fx-padding: 6 15; -fx-font-size: 14; -fx-font-weight: bold;" textFill="#38bdf8" />
 
             <HBox alignment="CENTER" spacing="8.0" style="-fx-background-color: rgba(16, 185, 129, 0.15); -fx-background-radius: 20; -fx-padding: 6 15;">
                 <Region prefHeight="8.0" prefWidth="8.0" style="-fx-background-color: #10b981; -fx-background-radius: 50;" />
