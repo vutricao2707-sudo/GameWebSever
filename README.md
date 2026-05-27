@@ -5,11 +5,11 @@ Hệ thống đấu giá biển số xe trực tuyến giúp người dùng đă
 
 2. Công nghệ sử dụng
 
-Ngôn ngữ: Java
-Quản lý dự án: Maven
-Cơ sở dữ liệu: MySQL
-Giao diện: JavaFX
-Môi trường chạy: JDK 21+
+Ngôn ngữ: Java   
+Quản lý dự án: Maven   
+Cơ sở dữ liệu: MySQL   
+Giao diện: JavaFX    
+Môi trường chạy: JDK 21+    
 
 3. Cấu trúc dự án
 
