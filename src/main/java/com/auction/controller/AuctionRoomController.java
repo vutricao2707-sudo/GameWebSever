@@ -640,6 +640,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     @Override
     public void onConnected() {
         // Mạng có lại -> Tự động chui lại vào phòng đấu giá để nhận dữ liệu Real-time
+        this.wsClient = AuctionWebSocketClient.getInstance();
         if (currentItemId != -1 && wsClient != null && wsClient.isConnected()) {
             wsClient.subscribe(currentItemId);
             System.out.println("🔄 Mạng đã phục hồi! Tự động Subscribe phòng: " + currentItemId);

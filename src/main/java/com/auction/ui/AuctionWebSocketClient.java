@@ -15,10 +15,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * WebSocket Client cho Auction System UI
- * Kết nối tới server WebSocket để nhận realtime updates (Tích hợp Auto-Reconnect thông minh)
- */
 public class AuctionWebSocketClient extends WebSocketClient {
 
     private static AuctionWebSocketClient instance;
@@ -27,17 +23,13 @@ public class AuctionWebSocketClient extends WebSocketClient {
 
     private boolean isConnected = false;
 
-    // =========================================================================
-    // CÁC BIẾN QUẢN LÝ RECONNECT THÔNG MINH
-    // =========================================================================
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<?> reconnectTask = null;
 
     private int retryAttempt = 0;
-    private final int MAX_DELAY_MS = 30000;    // Đợi tối đa 30 giây
-    private final int INITIAL_DELAY_MS = 1000; // Khởi điểm đợi 1 giây
+    private final int MAX_DELAY_MS = 30000;
+    private final int INITIAL_DELAY_MS = 1000;
 
-    // Cờ đánh dấu: Người dùng chủ động thoát hay do mất mạng?
     private final AtomicBoolean isIntentionalClose = new AtomicBoolean(false);
 
     public interface AuctionWebSocketListener {
@@ -55,9 +47,6 @@ public class AuctionWebSocketClient extends WebSocketClient {
         super(new URI(serverUrl));
     }
 
-    /**
-     * Singleton - lấy hoặc tạo instance
-     */
     public static synchronized AuctionWebSocketClient getInstance() {
         try {
             if (instance == null) {
@@ -69,7 +58,6 @@ public class AuctionWebSocketClient extends WebSocketClient {
                     System.out.println("✅ WebSocket instance created và đã kết nối!");
                 } else {
                     System.out.println("❌ Kết nối WebSocket lần đầu thất bại!");
-                    // Nếu lần đầu server chưa lên, tự động kích hoạt tiến trình thử lại ngầm
                     instance.triggerAutoReconnect();
                 }
             }
@@ -79,15 +67,11 @@ public class AuctionWebSocketClient extends WebSocketClient {
         return instance;
     }
 
-    // =========================================================================
-    // XỬ LÝ SỰ KIỆN WEBSOCKET
-    // =========================================================================
     @Override
     public void onOpen(ServerHandshake handshake) {
         isConnected = true;
         System.out.println("✅ WebSocket connected");
 
-        // Khi mạng có lại, dọn dẹp các tiến trình Reconnect đang chạy dở
         retryAttempt = 0;
         if (reconnectTask != null && !reconnectTask.isDone()) {
             reconnectTask.cancel(false);
@@ -107,9 +91,6 @@ public class AuctionWebSocketClient extends WebSocketClient {
             String type = json.optString("type", "");
             String action = json.optString("action", "");
 
-            // =============================================================
-            // LUỒNG 1: XỬ LÝ KẾT QUẢ REQUEST
-            // =============================================================
             if ("GET_ITEMS_RESPONSE".equals(action)) {
                 if ("success".equals(json.optString("status"))) {
                     JSONArray itemsArray = json.getJSONArray("items");
@@ -121,10 +102,6 @@ public class AuctionWebSocketClient extends WebSocketClient {
                 String msg = json.optString("message", "");
                 listeners.forEach(listener -> listener.onBidResponse(isSuccess, msg));
             }
-
-            // =============================================================
-            // LUỒNG 2: XỬ LÝ REAL-TIME BROADCAST
-            // =============================================================
             else if ("PRICE_UPDATE".equals(type)) {
                 int itemId = json.getInt("itemId");
                 double currentPrice = json.getDouble("currentPrice");
@@ -173,7 +150,6 @@ public class AuctionWebSocketClient extends WebSocketClient {
             listener.onDisconnected();
         }
 
-        // KÍCH HOẠT AUTO-RECONNECT NẾU KHÔNG PHẢI DO USER BẤM THOÁT
         if (!isIntentionalClose.get()) {
             triggerAutoReconnect();
         }
@@ -184,9 +160,6 @@ public class AuctionWebSocketClient extends WebSocketClient {
         System.err.println("⚠️ WebSocket Client error: " + ex.getMessage());
     }
 
-    // =========================================================================
-    // CÁC HÀM GỬI LỆNH VÀ ĐĂNG KÝ
-    // =========================================================================
     public void subscribe(int itemId) {
         if (!isConnected) {
             System.err.println("❌ Không thể subscribe - WS chưa connect.");
@@ -216,7 +189,6 @@ public class AuctionWebSocketClient extends WebSocketClient {
     public void addListener(AuctionWebSocketListener listener) {
         if (!listeners.contains(listener)) {
             listeners.add(listener);
-            System.out.println("✅ Listener added");
         }
     }
 
@@ -228,32 +200,19 @@ public class AuctionWebSocketClient extends WebSocketClient {
         return isConnected;
     }
 
-    // =========================================================================
-    // THUẬT TOÁN AUTO-RECONNECT
-    // =========================================================================
-
-    /**
-     * Dùng khi người dùng bấm nút Thoát/Back. Cấm hệ thống tự bật lại.
-     */
     public void shutdownIntentionally() {
         isIntentionalClose.set(true);
         if (reconnectTask != null) reconnectTask.cancel(true);
         this.close();
     }
 
-    /**
-     * Tính toán thời gian chờ ngẫu nhiên và khôi phục mạng ngầm
-     */
     private void triggerAutoReconnect() {
-        if (reconnectTask != null && !reconnectTask.isDone()) {
-            return; // Tránh tạo nhiều task đè lên nhau
-        }
+        if (reconnectTask != null && !reconnectTask.isDone()) return;
 
         retryAttempt++;
         long baseDelay = (long) (INITIAL_DELAY_MS * Math.pow(2, retryAttempt - 1));
         if (baseDelay > MAX_DELAY_MS) baseDelay = MAX_DELAY_MS;
 
-        // Thêm Jitter để tránh tình trạng nhiều máy tính cùng tấn công Server lúc có mạng lại
         long minJitter = baseDelay / 2;
         long actualDelay = minJitter + (long) (Math.random() * (baseDelay - minJitter));
 
@@ -261,11 +220,38 @@ public class AuctionWebSocketClient extends WebSocketClient {
 
         reconnectTask = scheduler.schedule(() -> {
             try {
-                // Thư viện Java-WebSocket cung cấp sẵn hàm reconnectBlocking() chạy trên luồng ngầm
-                reconnectBlocking();
+                // Thử nối lại nhẹ nhàng
+                boolean success = reconnectBlocking();
+                if (!success) {
+                    triggerAutoReconnect();
+                }
             } catch (Exception e) {
-                System.err.println("❌ Reconnect thất bại: " + e.getMessage());
+                System.err.println("❌ Thư viện văng lỗi " + e.getClass().getSimpleName() + ". Bật khiên Tái sinh!");
+                // Nếu thư viện văng IllegalStateException, dùng tuyệt chiêu Tái sinh hoàn toàn
+                triggerHardReconnect();
             }
         }, actualDelay, TimeUnit.MILLISECONDS);
+    }
+
+    // TUYỆT CHIÊU CUỐI: Tái sinh hoàn toàn Client khi thư viện bị đơ
+    private void triggerHardReconnect() {
+        System.out.println("🔥 Kích hoạt Hard Reconnect (Tạo Client mới tinh)...");
+        try {
+            AuctionWebSocketClient newClient = new AuctionWebSocketClient(SERVER_URL);
+
+            // Chuyển toàn bộ "người nghe" sang client mới
+            newClient.listeners.addAll(this.listeners);
+            newClient.retryAttempt = this.retryAttempt;
+
+            // Ép con trỏ Singleton trỏ sang bản thể mới
+            instance = newClient;
+
+            newClient.connectBlocking();
+            if (!newClient.isOpen()) {
+                newClient.triggerAutoReconnect();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
