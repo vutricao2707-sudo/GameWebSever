@@ -552,18 +552,22 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
     public void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName, long bidTime) {
         if (itemId != currentItemId) return;
 
-        // 1. Cập nhật con số hiển thị qua giảm xóc (chống đơ)
+        // 1. Cập nhật con số hiển thị qua giảm xóc
         if (priceThrottle != null) {
             priceThrottle.submit(currentPrice);
         }
 
-        // 2. TRẢ LẠI LOGIC CŨ: Bắt Đồ thị & Lịch sử vẽ NGAY LẬP TỨC mọi biến diễn!
+        // 2. Bắt Đồ thị & Lịch sử vẽ NGAY LẬP TỨC 100%
         Platform.runLater(() -> {
             try {
                 addHistoryRow(formatter.format(currentPrice), bidderName + " - " + formatBidTime(bidTime));
                 addPricePointToChart(currentPrice, bidderName);
                 incrementBidCount();
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                // In ra lỗi màu đỏ để biết đồ thị sai ở đâu (nếu có)
+                System.err.println("❌ Lỗi khi vẽ đồ thị: " + e.getMessage());
+                e.printStackTrace();
+            }
         });
     }
 
@@ -633,8 +637,19 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         });
     }
 
-    @Override public void onConnected() {}
-    @Override public void onDisconnected() {}
+    @Override
+    public void onConnected() {
+        // Mạng có lại -> Tự động chui lại vào phòng đấu giá để nhận dữ liệu Real-time
+        if (currentItemId != -1 && wsClient != null && wsClient.isConnected()) {
+            wsClient.subscribe(currentItemId);
+            System.out.println("🔄 Mạng đã phục hồi! Tự động Subscribe phòng: " + currentItemId);
+        }
+    }
+
+    @Override
+    public void onDisconnected() {
+        System.out.println("⚠️ Đứt cáp! Tạm thời mất kết nối WebSocket...");
+    }
 
     @Override
     public void onItemsReceived(JSONArray items) {
