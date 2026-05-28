@@ -1,9 +1,8 @@
-PlateAuction
-1. Bài toán và phạm vi hệ thống
+# PlateAuction
+## 1. Bài toán và phạm vi hệ thống
 
 Hệ thống đấu giá biển số xe trực tuyến giúp người dùng đăng ký, tham gia đấu giá và quản lý phiên đấu giá một cách minh bạch.
 
-2. Công nghệ sử dụng
 ## 2. Công nghệ sử dụng, môi trường chạy và yêu cầu cài đặt
 
 ### Công nghệ sử dụng
@@ -24,7 +23,7 @@ Hệ thống đấu giá biển số xe trực tuyến giúp người dùng đă
 - **RAM tối thiểu:** 2GB
 - **Dung lượng ổ cứng:** 500MB
 
-### Hướng dẫn cài đặt
+### Yêu cầu cài đặt
 
 #### 1. Cài đặt JDK 21
 - Tải và cài đặt JDK 21 từ [Oracle](https://www.oracle.com/java/technologies/javase/jdk21-archive-downloads.html)
@@ -43,7 +42,7 @@ Hệ thống đấu giá biển số xe trực tuyến giúp người dùng đă
   ```sql
   SOURCE DATABASE_MIGRATION.sql;
   SOURCE MIGRATION_TIMING_SYSTEM.sql;
-3. Cấu trúc dự án
+## 3. Cấu trúc dự án
 
  ## Cấu trúc dự án (Project Structure)
 
