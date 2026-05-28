@@ -25,6 +25,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Check Code Style (Google Java Style Guide)
+        run: mvn checkstyle:check
+
       - name: Run JUnit Tests
         run: mvn clean test
 
