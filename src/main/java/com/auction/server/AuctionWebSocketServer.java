@@ -287,4 +287,20 @@ public class AuctionWebSocketServer extends WebSocketServer {
             }
         }
     }
+
+    // ==========================================
+    // QUẢN LÝ VÒNG ĐỜI SERVER (LIFECYCLE)
+    // ==========================================
+    @Override
+    public void stop(int timeout) throws InterruptedException {
+        System.out.println("🛑 Đang dọn dẹp và tắt WebSocket Server...");
+
+        // 1. Tắt bộ quét rác ngầm để giải phóng luồng CPU
+        if (cleanupExecutor != null && !cleanupExecutor.isShutdown()) {
+            cleanupExecutor.shutdownNow();
+        }
+
+        // 2. Gọi hàm stop gốc của thư viện để đóng mọi kết nối
+        super.stop(timeout);
+    }
 }
