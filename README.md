@@ -77,21 +77,20 @@ PlateAuction/
 
 ```
 
-## **Phần 4: Câu lệnh dòng lệnh để chạy chương trình**
-
-```markdown
 ## 4. Câu lệnh dòng lệnh để chạy chương trình
 
 ### 4.1 Xây dựng dự án (Build)
 
 Trước khi chạy, cần build dự án thành JAR file:
 
+**Windows (PowerShell):**
 ```bash
-# Windows (PowerShell)
 cd D:\Project\PlateAuction
 mvn clean package
+```
 
-# Linux/macOS
+**Linux/macOS:**
+```bash
 cd ~/PlateAuction
 mvn clean package
 ```
@@ -143,10 +142,8 @@ mvn -f pom.xml javafx:run
 - 🔴 **Character Encoding:** Command `chcp 65001` (Windows) để hiển thị tiếng Việt đúng
 - 🟢 Nếu gặp lỗi port, thay đổi `PORT` trong `application.properties`
 
+---
 
-## **Phần 5: Hướng dẫn chạy Server/Client theo thứ tự**
-
-```markdown
 ## 5. Hướng dẫn chạy Server/Client theo thứ tự cụ thể
 
 ### 5.1 Kiến trúc Server/Client
@@ -166,7 +163,7 @@ Hệ thống sử dụng kiến trúc **WebSocket** cho real-time communication:
    │   MySQL     │
    │  Database   │
    └─────────────┘
-
+```
 
 ### 5.2 Bước chạy chi tiết
 
@@ -217,7 +214,7 @@ mvn clean package -DskipTests
 mvn clean package -DskipTests
 ```
 
-Wait cho đến khi message: `BUILD SUCCESS ✅`
+Chờ đến khi message: `BUILD SUCCESS ✅`
 
 #### **Bước 4: Khởi động WebSocket Server**
 
@@ -246,11 +243,11 @@ java -cp ./Auction-System-1.0-SNAPSHOT-standalone.jar com.auction.server.Auction
 ✅ Đã gửi lệnh khởi động WebSocket Server!
 ```
 
-**⚠️ Không đóng terminal này! Server cần chạy liên tục**
+> ⚠️ **Không đóng terminal này!** Server cần chạy liên tục.
 
 #### **Bước 5: Khởi động Client JavaFX (trong terminal khác)**
 
-**Mở terminal/cmd mới:**
+Mở terminal/cmd mới:
 
 **Windows (PowerShell):**
 ```powershell
@@ -297,7 +294,7 @@ java -jar ./Auction-System-1.0-SNAPSHOT-standalone.jar
 ### 5.4 Troubleshooting
 
 | Lỗi | Nguyên nhân | Giải pháp |
-|-----|-----------|---------|
+|-----|-------------|-----------|
 | `Connection refused` | Server chưa chạy | Chạy bước 4 trước |
 | `Port 8081 already in use` | Port bị chiếm | Đóng các chương trình khác hoặc thay đổi port |
 | `Cannot connect to database` | MySQL chưa chạy | Kiểm tra MySQL Server đã bật hay chưa |
