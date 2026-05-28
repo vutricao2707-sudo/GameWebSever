@@ -27,12 +27,12 @@ public class AuctionHistoryController {
     // Nơi chứa các hàng lịch sử
     @FXML private VBox historyListContainer;
 
-    // ✅ ĐÃ THÊM: Khai báo nhãn hiển thị tên người dùng
+    //  Khai báo nhãn hiển thị tên người dùng
     @FXML private Label lblUserName;
 
     @FXML
     public void initialize() {
-        // ✅ ĐÃ THÊM: Hiển thị tên người dùng từ Session
+        // Hiển thị tên người dùng từ Session
         updateUserInfo();
 
         // Tải dữ liệu từ database - lịch sử đặt giá
@@ -78,7 +78,7 @@ public class AuctionHistoryController {
             return;
         }
 
-        // ✅ BỔ SUNG: Tính tổng số lần đặt để hiển thị "Lần X" cho đúng
+        // Tính tổng số lần đặt để hiển thị "Lần X" cho đúng
         int totalBids = bids.size();
 
         // 4. Duyệt qua các bids và thêm vào container
