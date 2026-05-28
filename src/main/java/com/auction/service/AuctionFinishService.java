@@ -1,9 +1,5 @@
 package com.auction.service;
 
-import com.auction.database.BidDAO;
-import com.auction.database.ItemDAO;
-import com.auction.database.UserDAO;
-import com.auction.model.User;
 import com.auction.server.AuctionWebSocketServer;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;

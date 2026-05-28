@@ -7,7 +7,6 @@ import com.auction.service.AuctionSyncManager;
 import com.auction.ui.AuctionWebSocketClient;
 import com.auction.util.SessionManager;
 import com.auction.util.UIUtils;
-import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -20,18 +19,13 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
-import javafx.util.Duration;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.DialogPane;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;

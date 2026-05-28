@@ -1,9 +1,6 @@
 package com.auction.main;
 
 import com.auction.database.DatabaseInitializer;
-import com.auction.server.AuctionServer;
-import com.auction.server.AuctionWebSocketServer;
-import com.auction.service.AuctionSyncManager;
 import com.auction.util.DatabaseHealthCheck;
 import javafx.application.Application;
 import javafx.application.Platform;
