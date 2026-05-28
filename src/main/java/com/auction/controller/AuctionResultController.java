@@ -25,12 +25,12 @@ public class AuctionResultController {
     // Nơi chứa các hàng kết quả
     @FXML private VBox resultListContainer;
 
-    // ✅ ĐÃ THÊM: Khai báo nhãn hiển thị tên người dùng
+    //  Khai báo nhãn hiển thị tên người dùng
     @FXML private Label lblUserName;
 
     @FXML
     public void initialize() {
-        // ✅ ĐÃ THÊM: Hiển thị tên người dùng từ Session
+        //  Hiển thị tên người dùng từ Session
         updateUserInfo();
 
         // Tải dữ liệu từ database - kết quả đấu giá đã kết thúc

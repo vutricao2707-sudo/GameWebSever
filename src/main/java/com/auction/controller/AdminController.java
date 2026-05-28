@@ -61,7 +61,7 @@ public class  AdminController {
     private final ProductService productService = new ProductService();
     private Timeline monitoringTimeline;
     private Timeline autoRefreshTimeline;
-    private int lastItemCount = -1; // 👈 thêm dòng này
+    private int lastItemCount = -1;
 
     /** Cặp (label cần cập nhật, thời điểm kết thúc, true = phase đấu giá / false = đăng ký) */
     private final List<Label>         cntLabels     = new ArrayList<>();
@@ -408,7 +408,7 @@ public class  AdminController {
                     cell(type, 80, "-fx-text-fill: #64748b;"),
                     lblStatus,
                     lblTime,
-                    lblEndTime, // ✨ MỚI THÊM: Nhét cột mốc thời gian vào giữa
+                    lblEndTime,
                     lblPrice,
                     lblBidder,
                     buildHideMonitoringBox(itemId, plate, row)
