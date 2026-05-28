@@ -52,8 +52,8 @@ public class AuctionWebSocketClient extends WebSocketClient {
             if (instance == null) {
                 instance = new AuctionWebSocketClient(SERVER_URL);
                 System.out.println("⏳ Đang kết nối WebSocket lên mây...");
-                instance.connectBlocking();
-
+                // Ép Client phải kiên nhẫn chờ Railway thức dậy tối đa 10 giây
+                instance.connectBlocking(10, java.util.concurrent.TimeUnit.SECONDS);
                 if (instance.isOpen()) {
                     System.out.println("✅ WebSocket instance created và đã kết nối!");
                 } else {
@@ -246,7 +246,8 @@ public class AuctionWebSocketClient extends WebSocketClient {
             // Ép con trỏ Singleton trỏ sang bản thể mới
             instance = newClient;
 
-            newClient.connectBlocking();
+            // Ép Client phải kiên nhẫn chờ Railway thức dậy tối đa 10 giây
+            instance.connectBlocking(10, java.util.concurrent.TimeUnit.SECONDS);
             if (!newClient.isOpen()) {
                 newClient.triggerAutoReconnect();
             }
