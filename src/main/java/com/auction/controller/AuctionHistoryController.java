@@ -38,9 +38,8 @@ public class AuctionHistoryController {
         loadAuctionHistory();
     }
 
-    // =========================================================================
     // HÀM HIỂN THỊ THÔNG TIN NGƯỜI DÙNG
-    // =========================================================================
+
     private void updateUserInfo() {
         if (lblUserName != null && SessionManager.getCurrentUser() != null) {
             String fullName = SessionManager.getCurrentUser().getFullName();
@@ -48,9 +47,8 @@ public class AuctionHistoryController {
         }
     }
 
-    // =========================================================================
     // HÀM TẠO VÀ NẠP DỮ LIỆU LỊCH SỬ TỪ DATABASE
-    // =========================================================================
+
 
     private void loadAuctionHistory() {
         if (historyListContainer == null) return;
@@ -83,7 +81,7 @@ public class AuctionHistoryController {
         // 4. Duyệt qua các bids và thêm vào container
         for (int i = 0; i < totalBids; i++) {
             String[] bid = bids.get(i);
-            // Cấu trúc từ DAO: [0]stt, [1]plate, [2]amount, [3]bid_time
+
             int stt = i + 1;
             String plate = bid[1];
             String amountStr = bid[2];
@@ -92,9 +90,6 @@ public class AuctionHistoryController {
             try {
                 double amount = Double.parseDouble(amountStr);
 
-                // ✅ BỔ SUNG LOGIC:
-                // Vì danh sách lấy ra là DESC (mới nhất ở index 0),
-                // nên dòng đầu tiên (i=0) thực tế là lần đặt giá cuối cùng của người dùng.
                 int actualAttempt = totalBids - i;
 
                 historyListContainer.getChildren().add(createRow(stt, plate, amount, bidTime, actualAttempt));
@@ -149,9 +144,8 @@ public class AuctionHistoryController {
         return row;
     }
 
-    // =========================================================================
     // XỬ LÝ ĐIỀU HƯỚNG CÁC TAB
-    // =========================================================================
+
 
     @FXML
     private void handleHome(ActionEvent event) {
