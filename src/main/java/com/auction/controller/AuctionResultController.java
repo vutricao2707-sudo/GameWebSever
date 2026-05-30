@@ -36,9 +36,7 @@ public class AuctionResultController {
         loadAuctionResults();
     }
 
-    // =========================================================================
     // HÀM HIỂN THỊ THÔNG TIN NGƯỜI DÙNG
-    // =========================================================================
     private void updateUserInfo() {
         if (lblUserName != null && SessionManager.INSTANCE.getCurrentUser() != null) {
             String fullName = SessionManager.INSTANCE.getCurrentUser().getFullName();
@@ -46,9 +44,7 @@ public class AuctionResultController {
         }
     }
 
-    // =========================================================================
     // HÀM TẠO VÀ NẠP DỮ LIỆU KẾT QUẢ TỪ DATABASE
-    // =========================================================================
 
     private void loadAuctionResults() {
         if (resultListContainer == null) return;
@@ -91,9 +87,6 @@ public class AuctionResultController {
         }
     }
 
-    /**
-     * Hàm tự động vẽ một hàng (HBox) dữ liệu mới
-     */
     private HBox createRow(int stt, String plate, double price, String time, boolean isSuccess) {
         HBox row = new HBox();
         row.setAlignment(Pos.CENTER_LEFT);
@@ -142,9 +135,7 @@ public class AuctionResultController {
         return row;
     }
 
-    // =========================================================================
     // XỬ LÝ ĐIỀU HƯỚNG TỪ HEADER VÀ TAB
-    // =========================================================================
 
     @FXML
     private void handleHome(ActionEvent event) {
