@@ -2,7 +2,6 @@ package com.auction.controller;
 
 import com.auction.database.BidDAO;
 import com.auction.database.ItemDAO;
-import com.auction.server.AuctionWebSocketServer;
 import com.auction.service.AuctionSyncManager;
 import com.auction.ui.AuctionWebSocketClient;
 import com.auction.util.SessionManager;
@@ -195,8 +194,8 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             restoreBidHistoryAsync();
 
             // 4. QUYẾT ĐỊNH VÀO PHÒNG HAY KẾT THÚC
-            // ĐIỂM SỬA QUAN TRỌNG: Cho phép vào phòng nếu status là AUCTION
-            // kể cả khi timeRemainingSeconds tính ra là 0 (do lệch time server/client)
+            // Cho phép vào phòng nếu status là AUCTION
+            // kể cả khi timeRemainingSeconds tính ra là 0
             if (isFinished) {
 
                 auctionEnded.set(true);
@@ -390,7 +389,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         t.setDaemon(true);
         t.start();
     }
-    // END OF AUCTION (Popup Báo Kết Quả - Dark Theme)
+    // END OF AUCTION (Popup Báo Kết Quả)
     private void showAuctionEndedUI(double finalPrice, String winnerName, boolean iWon, int winnerId) {
         if (btnPlaceBid != null) {
             btnPlaceBid.setDisable(true);
@@ -403,11 +402,10 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         if (lblMinutes != null) lblMinutes.setText("00");
         if (lblSeconds != null) lblSeconds.setText("00");
 
-        // Gọi UIUtils xịn xò, bay sạch viền trắng
         UIUtils.showAuctionResult(iWon, formatter.format(finalPrice), winnerName, this::navigateToDashboard);
     }
 
-    // LOGIC ĐẶT GIÁ (GIỮ NGUYÊN)
+    // LOGIC ĐẶT GIÁ
     @FXML private void handleIncreaseStep() { stepMultiplier++; updatePricingUI(); }
     @FXML private void handleDecreaseStep() { if (stepMultiplier > 1) { stepMultiplier--; updatePricingUI(); } }
 
@@ -461,21 +459,20 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 long remainingTime = (dbLastBidTime + 10) - (System.currentTimeMillis() / 1000);
                 refreshCurrentPrice();
 
-                // Popup Cooldown xịn xò
+                // Popup Cooldown
                 UIUtils.showCustomPopup("ĐẶT GIÁ THẤT BẠI",
                         "Vui lòng chờ hết thời gian 10 giây từ lần đặt gần nhất để đặt giá tiếp.\nThời gian còn lại: " + Math.max(0, remainingTime) + " giây",
                         "⏳", "#ef4444");
                 return;
             }
 
-            // 👇 THÊM VÀO: LOGIC GIA HẠN 60 GIÂY PHÚT CHÓT (ANTI-SNIPPING)
+            // GIA HẠN 60 GIÂY PHÚT CHÓT (ANTI-SNIPPING)
             long currentRemainingTime = ItemDAO.getAuctionTimeRemaining(currentPlateNumber);
             if (currentRemainingTime > 0 && currentRemainingTime <= 30) {
 
-                // 1. Cộng thêm 60 giây xuống Database
+                // Cộng thêm 60 giây xuống Database
                 ItemDAO.extendAuctionTime(currentPlateNumber, 60);
 
-                // 2. Bắn lệnh EXTEND_TIME lên Server để phát loa thông báo cho toàn phòng
                 if (wsClient != null && wsClient.isConnected()) {
                     JSONObject extendMsg = new JSONObject();
                     extendMsg.put("action", "EXTEND_TIME");
@@ -494,7 +491,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 bidderName = "Người dùng #" + userId;
             }
 
-            // Logic cũ: Bắn NEW_BID lên Server
             if (wsClient != null && wsClient.isConnected()) {
                 JSONObject bidMsg = new JSONObject();
                 bidMsg.put("action", "NEW_BID");
@@ -505,7 +501,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 bidMsg.put("bidTime", System.currentTimeMillis());
 
                 wsClient.send(bidMsg.toString());
-                System.out.println("📤 Client đã bắn NEW_BID lên Server!");
+                System.out.println(" Client đã bắn NEW_BID lên Server!");
             } else {
                 System.err.println("⚠️ Mất kết nối WebSocket, không thể gửi real-time!");
             }
@@ -539,7 +535,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 addPricePointToChart(currentPrice, bidderName);
                 incrementBidCount();
             } catch (Exception e) {
-                // In ra lỗi màu đỏ để biết đồ thị sai ở đâu (nếu có)
                 System.err.println("❌ Lỗi khi vẽ đồ thị: " + e.getMessage());
                 e.printStackTrace();
             }
@@ -690,7 +685,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         if (participantThrottle != null) { participantThrottle.shutdown(); participantThrottle = null; }
         if (chartBatchThrottle != null) { chartBatchThrottle.shutdown(); chartBatchThrottle = null; }
 
-        // 2. Dừng đồng hồ đếm ngược (Đã xóa đoạn bị lặp 2 lần)
+        // 2. Dừng đồng hồ đếm ngược
         if (exitCountdownTimeline != null) {
             exitCountdownTimeline.stop();
             exitCountdownTimeline = null;
@@ -730,19 +725,12 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             }
         } catch (Exception e) {}
     }
-// TỐI ƯU CHART: INCREMENTAL UPDATE — Thêm điểm mới thay vì load lại toàn bộ
-    private int chartDataPointCount = 0;  // Theo dõi số điểm trên chart
 
-    /**
-     * Thêm một điểm dữ liệu mới vào biểu đồ MÀ KHÔNG load lại từ đầu.
-     * Được gọi ngay sau khi user đặt giá thành công.
-     * @param newPrice Giá mới vừa đặt
-     * @param bidderName Tên người đặt
-     */
+    // Thêm một điểm dữ liệu mới vào biểu đồ MÀ KHÔNG load lại từ đầu.
     private void addPricePointToChart(double newPrice, String bidderName) {
         try {
             if (priceHistoryChart == null || priceHistoryChart.getData().isEmpty()) {
-                return; // Chart chưa khởi tạo hoặc rỗng
+                return;
             }
 
             XYChart.Series<Number, Number> series = priceSeries != null
@@ -773,64 +761,4 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         }
     }
 
-    /**
-     * Load lại toàn bộ chart từ DB (chỉ gọi lần đầu khi vào phòng).
-     * Sau đó dùng addPricePointToChart() để update incremental.
-     */
-    private void loadPriceHistoryChart() {
-        try {
-            if (currentItemId == -1 || priceHistoryChart == null) return;
-
-            List<String[]> bidHistory = BidDAO.getBidHistoryForChart(currentItemId);
-            int bidCount = BidDAO.getBidCount(currentItemId);
-
-            if (lblBidCount != null) {
-                lblBidCount.setText(bidCount + " lần đặt");
-            }
-
-            priceHistoryChart.getData().clear();
-            chartDataPointCount = 0;  // Reset counter
-
-            if (bidHistory.isEmpty()) return;
-
-            XYChart.Series<Number, Number> series = new XYChart.Series<>();
-            series.setName("Mức giá");
-
-            for (int i = 0; i < bidHistory.size(); i++) {
-                try {
-                    String[] bidData = bidHistory.get(i);
-                    double bidAmount = Double.parseDouble(bidData[1]);
-                    String bidderName = bidData[3];
-
-                    chartDataPointCount = i + 1;
-
-                    XYChart.Data<Number, Number> dataPoint =
-                            new XYChart.Data<>(chartDataPointCount, bidAmount);
-
-                    dataPoint.setNode(new javafx.scene.shape.Circle(3) {{
-                        setStyle("-fx-fill: #38bdf8; -fx-cursor: hand;");
-                    }});
-
-                    javafx.scene.control.Tooltip tooltip =
-                            new javafx.scene.control.Tooltip(
-                                    bidderName + " - " + formatter.format(bidAmount) + " đ"
-                            );
-                    javafx.scene.control.Tooltip.install(dataPoint.getNode(), tooltip);
-
-                    series.getData().add(dataPoint);
-                } catch (Exception ignored) {}
-            }
-
-            priceHistoryChart.getData().add(series);
-
-            if (series.getNode() != null) {
-                series.getNode().setStyle("-fx-stroke: #38bdf8; -fx-stroke-width: 2;");
-            }
-
-            logger.info("✅ [Chart] Initial load: " + chartDataPointCount + " data points");
-
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Lỗi trong loadPriceHistoryChart", e);
-        }
-    }
 }

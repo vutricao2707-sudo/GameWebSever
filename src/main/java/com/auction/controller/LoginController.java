@@ -39,18 +39,13 @@ public class LoginController {
                 User loggedInUser = UserDAO.getUserByUsernameAndPassword(username, password);
 
                 if (loggedInUser != null) {
-                    // =========================================================
                     // Lưu thông tin người dùng vừa đăng nhập vào Session
                     SessionManager.getInstance().setCurrentUser(loggedInUser);
-                    // =========================================================
 
-                    // SỬA DÒNG NÀY: Thay vì check username, ta check quyền user_type
-                    // Gọi thẳng cái hàm ta vừa tạo ở Bước 1 để lấy quyền từ DB
                     String currentRole = UserDAO.getRoleByUsername(username);
 
-// So sánh bằng biến currentRole, không dùng loggedInUser nữa
                     if ("ADMIN".equalsIgnoreCase(currentRole)) {
-                        // 1. TẢI TRANG ADMIN VÀ TRUYỀN DỮ LIỆU
+                        // TẢI TRANG ADMIN VÀ TRUYỀN DỮ LIỆU
                         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/AdminDashboard.fxml"));
                         Parent root = loader.load();
 
@@ -59,7 +54,7 @@ public class LoginController {
 
                         switchScene(event, root);
                     } else {
-                        // 2. TẢI TRANG USER VÀ TRUYỀN DỮ LIỆU
+                        // TẢI TRANG USER VÀ TRUYỀN DỮ LIỆU
                         FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/Dashboard.fxml"));
                         Parent root = loader.load();
 

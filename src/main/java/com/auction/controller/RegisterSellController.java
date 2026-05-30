@@ -20,7 +20,7 @@ public class RegisterSellController {
     @FXML private TextField txtProvince;
     @FXML private TextField txtStartingPrice;
 
-    // THAY ĐỔI: Dùng ProductService thay vì gọi DataStore trực tiếp
+    //Dùng ProductService
     private final ProductService productService = new ProductService();
 
     @FXML
@@ -46,7 +46,7 @@ public class RegisterSellController {
             return;
         }
 
-// 2. Validate biển số
+    // 2. Validate biển số
         if (!PlateValidator.isValidPlate(plate)) {
             UIUtils.showError("Biển số không hợp lệ", "Biển số phải theo định dạng: 29A-12345 hoặc 29A.12345");
             return;
@@ -65,7 +65,7 @@ public class RegisterSellController {
             return;
         }
 
-// 4. Gọi Service để thêm mới và kiểm tra trùng lặp
+        // 4. Gọi Service để thêm mới và kiểm tra trùng lặp
         boolean isSuccess = productService.addNewProduct(type, plate, province, price, fullName, phone, email, address);
 
         // Nếu isSuccess là false (tức là bị trùng biển số)
@@ -74,11 +74,9 @@ public class RegisterSellController {
             return;
         }
 
-// 5. Thông báo thành công
+        // 5. Thông báo thành công
         UIUtils.showSuccess("Gửi yêu cầu thành công!", "Biển số " + plate + " đã được gửi đi.\nVui lòng chờ hệ thống duyệt!");
-        // (Tùy chọn) Xóa trắng các ô nhập liệu sau khi đăng ký thành công
-        // txtPlateNumber.clear();
-        // txtStartingPrice.clear();
+
     }
     @FXML
     private void handleCancel(ActionEvent event) {
