@@ -7,7 +7,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 /**
- * Railway + HikariCP Connection Pool (Đã tối ưu cho Real-time Auction)
+ * Railway + HikariCP Connection Pool
  */
 public class DatabaseConnection {
 
@@ -21,16 +21,12 @@ public class DatabaseConnection {
         try {
             HikariConfig config = new HikariConfig();
 
-            // =========================
             // 1. DATABASE INFO
-            // =========================
             config.setJdbcUrl(URL);
             config.setUsername(USER);
             config.setPassword(PASSWORD);
 
-            // =========================
             // 2. RAILWAY OPTIMIZATION (Cấu hình chống sập)
-            // =========================
             config.setMaximumPoolSize(5);        // Giới hạn 5 luồng để bảo vệ DB
             config.setMinimumIdle(1);            // Giữ ít nhất 1 luồng chờ sẵn
             config.setConnectionTimeout(10000);  // Giảm xuống 10s: Hết luồng thì báo lỗi luôn, không treo app
@@ -43,10 +39,7 @@ public class DatabaseConnection {
             config.setLeakDetectionThreshold(60000);
             config.setPoolName("AuctionSystemPool");
 
-            // =========================
             // 3. MYSQL OPTIMIZATION
-            // =========================
-            // Đồng bộ múi giờ cực kỳ quan trọng cho các mốc thời gian đấu giá
             config.setConnectionInitSql("SET time_zone = '+07:00'");
 
             // Bật bộ nhớ đệm (Cache) để tăng tốc độ truy vấn liên tục
@@ -58,9 +51,7 @@ public class DatabaseConnection {
             config.addDataSourceProperty("cacheResultSetMetadata", "true");
             config.addDataSourceProperty("cacheServerConfiguration", "true");
 
-            // =========================
             // 4. CREATE POOL
-            // =========================
             dataSource = new HikariDataSource(config);
             System.out.println("✅ HikariCP connected to Railway! (Optimized Pool)");
 
@@ -70,9 +61,7 @@ public class DatabaseConnection {
         }
     }
 
-    /**
-     * Lấy connection từ pool
-     */
+    //Lấy connection từ pool
     public static Connection getConnection() throws SQLException {
         if (dataSource == null) {
             throw new SQLException("HikariDataSource chưa được khởi tạo!");
@@ -80,14 +69,4 @@ public class DatabaseConnection {
         return dataSource.getConnection();
     }
 
-    /**
-     * Test connection
-     */
-    public static void testConnection() {
-        try (Connection conn = getConnection()) {
-            System.out.println("✅ Railway MySQL connection tested successfully!");
-        } catch (SQLException e) {
-            System.err.println("❌ DB Test Error: " + e.getMessage());
-        }
-    }
 }

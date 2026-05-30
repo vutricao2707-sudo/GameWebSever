@@ -9,22 +9,15 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * DAO = Data Access Object
- * Đã chuẩn hóa code: Cắt khoảng trắng dư thừa, đưa username về chữ thường để chống lỗi.
- */
 public class UserDAO {
 
-    // =========================================================================
-    // PHẦN MỚI: Kiểm tra username bị cấm và username đã tồn tại
-    // =========================================================================
-
+    //Kiểm tra username bị cấm và username đã tồn tại
     private static final String[] RESERVED_USERNAMES = {
-            "vpa_admin", "admin", "administrator", "root", "system"
+            "adminhethong", "admin", "administrator", "root", "system"
     };
 
     public static boolean isReservedUsername(String username) {
-        String cleanUsername = username.trim().toLowerCase(); // Cải tiến: Chuẩn hóa chữ
+        String cleanUsername = username.trim().toLowerCase();
         for (String reserved : RESERVED_USERNAMES) {
             if (reserved.equals(cleanUsername)) {
                 return true;
@@ -37,7 +30,7 @@ public class UserDAO {
         String sql = "SELECT COUNT(*) FROM users WHERE username = ?";
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, username.trim().toLowerCase()); // Cải tiến: Tránh lỗi dư dấu cách
+            pstmt.setString(1, username.trim().toLowerCase());
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
                     return rs.getInt(1) > 0;
@@ -48,10 +41,6 @@ public class UserDAO {
         }
         return false;
     }
-
-    // =========================================================================
-    // PHẦN GIỮ NGUYÊN TỪ CODE CŨ (Đã chuẩn hóa định dạng)
-    // =========================================================================
 
     public static boolean addUser(String username, String password, String email,
                                   String fullName, String userType, String phone, String address) {
@@ -81,11 +70,6 @@ public class UserDAO {
             System.out.println("❌ Lỗi: " + e.getMessage());
         }
         return false;
-    }
-
-    public static boolean addUser(String username, String password, String email,
-                                  String fullName, String userType, String phone) {
-        return addUser(username, password, email, fullName, userType, phone, "");
     }
 
     public static User getUserByUsernameAndPassword(String username, String password) {
@@ -170,68 +154,6 @@ public class UserDAO {
         return null;
     }
 
-    public static void findUserByUsername(String username) {
-        String sql = "SELECT * FROM users WHERE username = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, username.trim().toLowerCase());
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    System.out.println("\n📌 Thông tin user:");
-                    System.out.println("  ID: "       + rs.getInt("id"));
-                    System.out.println("  Username: " + rs.getString("username"));
-                    System.out.println("  Email: "    + rs.getString("email"));
-                    System.out.println("  Tên: "      + rs.getString("full_name"));
-                    System.out.println("  Loại: "     + rs.getString("user_type"));
-                    System.out.println("  SĐT: "      + rs.getString("phone") + "\n");
-                } else {
-                    System.out.println("❌ Không tìm thấy user '" + username + "'");
-                }
-            }
-
-        } catch (SQLException e) {
-            System.out.println("❌ Lỗi: " + e.getMessage());
-        }
-    }
-
-    public static void getAllUsers() {
-        String sql = "SELECT id, username, email, full_name, user_type FROM users";
-        try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            System.out.println("\n📌 Danh sách users:");
-            while (rs.next()) {
-                System.out.println("  " + rs.getInt("id") + ". " + rs.getString("username") +
-                        " (" + rs.getString("user_type") + ")");
-            }
-            System.out.println();
-
-        } catch (SQLException e) {
-            System.out.println("❌ Lỗi: " + e.getMessage());
-        }
-    }
-
-    public static void deleteUser(String username) {
-        String sql = "DELETE FROM users WHERE username = ?";
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, username.trim().toLowerCase());
-            int rowsDeleted = pstmt.executeUpdate();
-
-            if (rowsDeleted > 0) {
-                System.out.println("✅ Xóa user '" + username + "' thành công");
-            } else {
-                System.out.println("❌ Không tìm thấy user '" + username + "'");
-            }
-
-        } catch (SQLException e) {
-            System.out.println("❌ Lỗi: " + e.getMessage());
-        }
-    }
-
     public static boolean checkLogin(String username, String password) {
 
         String hashedPassword =
@@ -272,9 +194,7 @@ public class UserDAO {
         }
     }
 
-    /**
-     * Lấy toàn bộ danh sách user cho Admin xem (Đã xóa các dòng trắng thừa)
-     */
+    //Lấy toàn bộ danh sách user cho Admin xem
     public static List<String[]> getAllUsersForAdmin() {
         List<String[]> users = new ArrayList<>();
         String sql = "SELECT id, username, full_name, email, phone, address, user_type, created_at " +
@@ -304,9 +224,7 @@ public class UserDAO {
         return users;
     }
 
-    /**
-     * Xóa user theo ID (Đã xóa các dòng trắng thừa và tối ưu khối try-catch)
-     */
+    //Xóa user theo ID
     public static boolean deleteUserById(int userId) {
         String deleteBids = "DELETE FROM bids WHERE user_id = ?";
         String deleteUser = "DELETE FROM users WHERE id = ? AND username != 'vpa_admin'";
@@ -353,55 +271,16 @@ public class UserDAO {
             pstmt.setString(1, username.trim().toLowerCase());
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
-                    return rs.getString("user_type"); // Sẽ trả về "ADMIN" hoặc "USER"
+                    return rs.getString("user_type");
                 }
             }
         } catch (SQLException e) {
             System.out.println("❌ Lỗi lấy quyền: " + e.getMessage());
         }
-        return "USER"; // Nếu lỗi thì mặc định là user thường
-    }
-    public static void upgradePasswordToSHA256(
-            String username,
-            String rawPassword
-    ) {
-
-        String newSHA256 =
-                PasswordUtil.hashPassword(rawPassword);
-
-        String sql =
-                "UPDATE users SET password = ? " +
-                        "WHERE username = ?";
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, newSHA256);
-
-            pstmt.setString(
-                    2,
-                    username.trim().toLowerCase()
-            );
-
-            pstmt.executeUpdate();
-
-            System.out.println(
-                    "✅ Password upgraded to SHA-256 for: "
-                            + username
-            );
-
-        } catch (SQLException e) {
-
-            System.out.println(
-                    "❌ Upgrade password error: "
-                            + e.getMessage()
-            );
-        }
+        return "USER";
     }
 
-    /**
-     * Lấy User theo ID
-     */
+    //Lấy User theo ID
     public static User getUserById(int userId) {
         String sql = "SELECT * FROM users WHERE id = ?";
 

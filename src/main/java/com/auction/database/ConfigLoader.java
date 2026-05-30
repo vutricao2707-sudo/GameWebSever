@@ -5,12 +5,6 @@ import java.util.Properties;
 
 /**
  * ConfigLoader - Đọc file database.properties
- * 
- * Giải thích:
- * - Đọc file database.properties từ resources folder
- * - Lưu vào Properties object (giống HashMap)
- * - Code gọi ConfigLoader.getProperty("db.password") để lấy password
- * - Mỗi máy có file .properties khác → password khác → không hard-code
  */
 public class ConfigLoader {
     
