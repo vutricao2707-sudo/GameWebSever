@@ -13,16 +13,14 @@ import javafx.stage.StageStyle;
 
 public class UIUtils {
 
-    // ─── Màu sắc chủ đạo (Dark Mode) ─────────────────────────────────────────
+    //Màu sắc chủ đạo
     private static final String BG_DARK        = "#1a2230";
     private static final String TEXT_SECONDARY = "#cbd5e1";
     private static final String BORDER_RADIUS  = "15";
 
     private UIUtils() {}
 
-    // =========================================================================
     // CÁC HÀM TIỆN ÍCH GỌI NHANH
-    // =========================================================================
 
     public static void showError(String title, String message) {
         showCustomPopup(title, message, "⚠️", "#ef4444");
@@ -36,9 +34,7 @@ public class UIUtils {
         showCustomPopup(title, message, "ℹ️", "#38bdf8");
     }
 
-    // =========================================================================
     // POPUP THÔNG BÁO TÙY CHỈNH (Cửa sổ tàng hình 100%)
-    // =========================================================================
 
     public static void showCustomPopup(String title, String message, String emoji, String themeColor) {
         if (!Platform.isFxApplicationThread()) {
@@ -110,9 +106,7 @@ public class UIUtils {
         stage.showAndWait();
     }
 
-    // =========================================================================
     // POPUP KẾT QUẢ ĐẤU GIÁ (Cửa sổ tàng hình 100%)
-    // =========================================================================
 
     public static void showAuctionResult(boolean iWon, String finalPrice, String winnerName, Runnable onBack) {
         if (!Platform.isFxApplicationThread()) {

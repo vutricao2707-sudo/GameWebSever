@@ -11,9 +11,7 @@ public enum SessionManager {
 
     private static User currentUser;
 
-    /**
-     * Getter singleton - để tương thích với Singleton pattern gọi
-     */
+
     public static SessionManager getInstance() {
         return INSTANCE;
     }

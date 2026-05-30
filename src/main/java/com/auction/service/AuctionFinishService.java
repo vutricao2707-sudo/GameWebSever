@@ -21,11 +21,9 @@ import java.util.logging.Logger;
  *  2. Cập nhật DB: auction_status = 'FINISHED', status = 'INACTIVE'.
  *  3. Xác định winner (bid cao nhất) và tập hợp losers.
  *  4. Broadcast AUCTION_FINISHED qua WebSocket để tất cả controller lắng nghe.
- *  5. Thông báo kết quả vào bảng auction_results (tùy chọn — xem schema bên dưới).
- *
- * Cách dùng:
- *   AuctionFinishService.getInstance().start(); // gọi 1 lần trong App.java
+ *  5. Thông báo kết quả vào bảng auction_results
  */
+
 public class AuctionFinishService {
 
     private static final Logger logger = Logger.getLogger(AuctionFinishService.class.getName());
@@ -34,9 +32,7 @@ public class AuctionFinishService {
     private Timeline pollingTimeline;
     private final List<AuctionResultListener> listeners = new CopyOnWriteArrayList<>();
 
-    // =========================================================================
     // LISTENER — Để AdminController, DashboardController đăng ký lắng nghe
-    // =========================================================================
     public interface AuctionResultListener {
         /**
          * Được gọi trên JavaFX Application Thread khi 1 phiên vừa kết thúc.
@@ -48,9 +44,7 @@ public class AuctionFinishService {
         void onAuctionFinished(String plateNumber, double finalPrice, int winnerId, String winnerName);
     }
 
-    // =========================================================================
     // SINGLETON
-    // =========================================================================
     private AuctionFinishService() {}
 
     public static synchronized AuctionFinishService getInstance() {
@@ -60,9 +54,7 @@ public class AuctionFinishService {
         return instance;
     }
 
-    // =========================================================================
     // KHỞI ĐỘNG / DỪNG
-    // =========================================================================
 
     /** Gọi một lần trong App.java sau khi JavaFX Application Thread sẵn sàng. */
     public void start() {
@@ -83,9 +75,7 @@ public class AuctionFinishService {
         }
     }
 
-    // =========================================================================
     // ĐĂNG KÝ / HỦY LẮNG NGHE
-    // =========================================================================
     public void addListener(AuctionResultListener l) {
         if (!listeners.contains(l)) listeners.add(l);
     }
@@ -94,12 +84,9 @@ public class AuctionFinishService {
         listeners.remove(l);
     }
 
-    // =========================================================================
     // LOGIC KIỂM TRA VÀ KẾT THÚC PHIÊN
-    // =========================================================================
 
     private void checkAndFinishExpiredAuctions() {
-        // Chạy trên background thread để không block JavaFX UI thread
         Thread worker = new Thread(() -> {
             try {
                 List<ExpiredAuction> expiredList = queryExpiredAuctions();
@@ -238,15 +225,6 @@ public class AuctionFinishService {
 
     /**
      * Lưu kết quả vào bảng auction_results nếu tồn tại.
-     * Schema gợi ý:
-     *   CREATE TABLE IF NOT EXISTS auction_results (
-     *     id INT PRIMARY KEY AUTO_INCREMENT,
-     *     item_id INT NOT NULL,
-     *     winner_id INT,
-     *     final_price DECIMAL(15,2),
-     *     finished_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-     *     FOREIGN KEY (item_id) REFERENCES items(id)
-     *   );
      */
     private void saveAuctionResult(int itemId, int winnerId, double finalPrice) {
         String sql = "INSERT IGNORE INTO auction_results (item_id, winner_id, final_price) " +
@@ -263,9 +241,7 @@ public class AuctionFinishService {
         }
     }
 
-    // =========================================================================
     // HELPER CLASSES
-    // =========================================================================
     private static class ExpiredAuction {
         final int itemId;
         final String plateNumber;

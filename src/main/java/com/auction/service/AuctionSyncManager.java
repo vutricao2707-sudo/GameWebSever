@@ -16,37 +16,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * AuctionSyncManager — "Bộ não" đồng bộ thời gian cho toàn bộ hệ thống.
- *
- * ─────────────────────────────────────────────────────────────────
- * VẤN ĐỀ được giải quyết:
- *   Trước đây mỗi Controller tự đếm ngược từ một mốc LOCAL khác nhau
- *   → màn hình Dashboard và AuctionRoom hiển thị thời gian lệch nhau.
- *
- * GIẢI PHÁP:
- *   • 1 Singleton chạy nền (ScheduledExecutorService), cứ 1 giây
- *     tính lại "thời gian còn lại" từ auction_end_time lấy trực tiếp
- *     từ Database → tất cả listener đều nhận CÙNG một giá trị.
- *   • Observer pattern: Controller gọi addListener() để đăng ký,
- *     removeListener() khi rời màn hình.
- *   • Mọi callback được đưa về JavaFX Application Thread qua
- *     Platform.runLater() → UI luôn an toàn.
- * ─────────────────────────────────────────────────────────────────
- *
- * Cách dùng (trong một Controller):
- * <pre>
- *   // Đăng ký
- *   AuctionSyncManager.getInstance().addListener(itemId, myListener);
- *
- *   // Gỡ đăng ký khi rời màn hình
- *   AuctionSyncManager.getInstance().removeListener(itemId, myListener);
- * </pre>
+ * AuctionSyncManager — Đồng bộ thời gian cho toàn bộ hệ thống.
  */
 public class AuctionSyncManager {
 
     private static final Logger logger = Logger.getLogger(AuctionSyncManager.class.getName());
 
-    // ── Singleton ─────────────────────────────────────────────────
+    // Singleton
     private static volatile AuctionSyncManager instance;
 
     public static AuctionSyncManager getInstance() {
@@ -60,62 +36,34 @@ public class AuctionSyncManager {
         return instance;
     }
 
-    // ── Observer: itemId → List<AuctionListener> ──────────────────
+    // Observer
     private final Map<Integer, List<AuctionListener>> listenerMap = new ConcurrentHashMap<>();
 
-    // ── Scheduler chạy nền ────────────────────────────────────────
+    // Scheduler chạy nền
     private ScheduledExecutorService scheduler;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
-    // Không cho phép khởi tạo từ bên ngoài
     private AuctionSyncManager() {}
 
-    // ═════════════════════════════════════════════════════════════
-    // PUBLIC INTERFACE — AuctionListener
-    // ═════════════════════════════════════════════════════════════
 
-    /**
-     * Interface mà các Controller phải implement để nhận sự kiện đồng bộ.
-     *
-     * Tất cả callback ĐÃ được đưa về JavaFX Thread → không cần
-     * gọi Platform.runLater() thêm bên trong implementation.
-     */
+    //Interface mà các Controller phải implement để nhận sự kiện đồng bộ.
+
     public interface AuctionListener {
 
-        /**
-         * Gọi mỗi giây, cùng lúc trên tất cả màn hình đang lắng nghe.
-         *
-         * @param itemId          ID của item đang đấu giá
-         * @param remainingSeconds Số giây còn lại (0 nếu đã hết)
-         * @param currentPrice    Giá hiện tại lấy từ DB
-         * @param auctionStatus   Trạng thái: REGISTRATION / AUCTION / FINISHED / WAITING
-         */
+        //Gọi mỗi giây, cùng lúc trên tất cả màn hình đang lắng nghe.
         void onTimeTick(int itemId, long remainingSeconds, double currentPrice, String auctionStatus);
 
-        /**
-         * Gọi một lần duy nhất khi phiên chuyển sang trạng thái FINISHED.
-         *
-         * @param itemId     ID của item vừa kết thúc
-         * @param finalPrice Giá cuối cùng
-         */
+        //Gọi một lần duy nhất khi phiên chuyển sang trạng thái FINISHED.
         default void onAuctionEnded(int itemId, double finalPrice) {}
 
-        /**
-         * Gọi khi trạng thái chuyển từ REGISTRATION → AUCTION.
-         *
-         * @param itemId ID của item vừa mở phiên đấu giá
-         */
+        //Gọi khi trạng thái chuyển từ REGISTRATION → AUCTION.
         default void onAuctionStarted(int itemId) {}
     }
 
-    // ═════════════════════════════════════════════════════════════
     // QUẢN LÝ LISTENER
-    // ═════════════════════════════════════════════════════════════
 
-    /**
-     * Đăng ký lắng nghe sự kiện cho một item cụ thể.
-     * Nếu chưa có item nào được theo dõi → tự động khởi động scheduler.
-     */
+    //Đăng ký lắng nghe sự kiện cho một item cụ thể.
+
     public void addListener(int itemId, AuctionListener listener) {
         listenerMap.computeIfAbsent(itemId, k -> new CopyOnWriteArrayList<>())
                 .add(listener);
@@ -126,10 +74,7 @@ public class AuctionSyncManager {
         ensureSchedulerRunning();
     }
 
-    /**
-     * Gỡ đăng ký listener. Nếu không còn ai theo dõi item đó
-     * thì xoá entry khỏi map để tiết kiệm tài nguyên.
-     */
+    //Gỡ đăng ký listener. Nếu không còn ai theo dõi item đó
     public void removeListener(int itemId, AuctionListener listener) {
         List<AuctionListener> listeners = listenerMap.get(itemId);
         if (listeners != null) {
@@ -146,17 +91,14 @@ public class AuctionSyncManager {
         }
     }
 
-    /** Xoá tất cả listener của một item (dùng khi rời phòng đấu giá). */
+    //Xoá tất cả listener của một item d
     public void removeAllListeners(int itemId) {
         listenerMap.remove(itemId);
         logger.info("🗑️ [SyncManager] All listeners removed for itemId=" + itemId);
         if (listenerMap.isEmpty()) stopScheduler();
     }
 
-    // ═════════════════════════════════════════════════════════════
     // VÒNG LẶP ĐỒNG BỘ CHÍNH
-    // ═════════════════════════════════════════════════════════════
-
     private synchronized void ensureSchedulerRunning() {
         if (running.get()) return;
 
@@ -168,7 +110,7 @@ public class AuctionSyncManager {
 
         scheduler.scheduleAtFixedRate(this::tick, 0, 1, TimeUnit.SECONDS);
         running.set(true);
-        logger.info("🚀 [SyncManager] Scheduler started");
+        logger.info(" [SyncManager] Scheduler started");
     }
 
     private synchronized void stopScheduler() {
@@ -287,9 +229,7 @@ public class AuctionSyncManager {
         }
     }
 
-    // ═════════════════════════════════════════════════════════════
     // DATABASE QUERY
-    // ═════════════════════════════════════════════════════════════
 
     /** Snapshot nhẹ từ DB — chỉ lấy đúng những cột cần thiết. */
     private AuctionSnapshot querySnapshot(int itemId) {
