@@ -58,7 +58,6 @@ public class  AdminController {
     private Timeline autoRefreshTimeline;
     private int lastItemCount = -1;
 
-    /** Cặp (label cần cập nhật, thời điểm kết thúc, true = phase đấu giá / false = đăng ký) */
     private final List<Label>         cntLabels     = new ArrayList<>();
     private final List<LocalDateTime> cntEndTimes   = new ArrayList<>();
     private final List<Boolean>       cntIsAuction  = new ArrayList<>();
@@ -66,8 +65,7 @@ public class  AdminController {
     private enum ViewMode { PENDING, MONITORING, USERS }
     private ViewMode currentView = ViewMode.PENDING;
 
-    // ── Khởi tạo ──────────────────────────────────────────────────────────────
-
+    // ── Khởi tạo
     public void setAdminInfo(User adminUser) {
         if (adminUser != null && adminUser.getFullName() != null) {
             lblAdminName.setText(adminUser.getFullName().toUpperCase());
@@ -82,9 +80,8 @@ public class  AdminController {
         if (lblAdminName == null) return;
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // SIDEBAR — Chuyển Tab
-    // ═════════════════════════════════════════════════════════════════════════
+
 
     @FXML private void handleShowPending()  { switchView(ViewMode.PENDING); }
     @FXML private void handleShowMonitor()  { switchView(ViewMode.MONITORING); }
@@ -101,7 +98,6 @@ public class  AdminController {
         }
     }
 
-    /** Highlight nút đang active trên sidebar */
     private void updateSidebarStyles() {
         String active   = "-fx-background-color: rgba(56, 189, 248, 0.15); -fx-text-fill: #38bdf8; " +
                 "-fx-border-color: #38bdf8; -fx-border-width: 0 0 0 4; -fx-padding: 15; -fx-cursor: hand;";
@@ -112,9 +108,8 @@ public class  AdminController {
         if (btnUserTab    != null) btnUserTab.setStyle(currentView    == ViewMode.USERS    ? active : inactive);
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // VIEW 1 — DUYỆT XE (PENDING)
-    // ═════════════════════════════════════════════════════════════════════════
+
 
     private void loadPendingView() {
         lblViewTitle.setText("DANH SÁCH CHỜ DUYỆT");
@@ -352,9 +347,8 @@ public class  AdminController {
         }
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // VIEW 2 — GIÁM SÁT ĐẤU GIÁ (REAL-TIME SYNC)
-    // ═════════════════════════════════════════════════════════════════════════
+
 
     private void loadMonitoringView() {
         stopAllTimelines();
@@ -453,7 +447,6 @@ public class  AdminController {
         }
     }
 
-    /** Cấy Listener vào từng hàng để tự động nhảy số */
     private void attachSyncListener(int itemId, String plate, Label lblStatus, Label lblTime, Label lblPrice, Label lblBidder, double initialPrice) {
         // Lưu lại giá cũ để kiểm tra xem có ai vừa đẩy giá lên không
         final double[] lastPrice = {initialPrice};
@@ -519,9 +512,7 @@ public class  AdminController {
     }
 
 
-    // ═════════════════════════════════════════════════════════════════════════
     // VIEW 3 — QUẢN LÝ USER
-    // ═════════════════════════════════════════════════════════════════════════
 
     private void loadUsersView() {
         lblViewTitle.setText("QUẢN LÝ TÀI KHOẢN");
@@ -541,7 +532,7 @@ public class  AdminController {
         }
 
         for (String[] u : users) {
-            // [0]id [1]username [2]full_name [3]email [4]phone [5]address [6]user_type [7]created_at
+
             int    uid      = Integer.parseInt(u[0]);
             String username = u[1] != null ? u[1] : "";
             String fullName = u[2] != null ? u[2] : "N/A";
@@ -605,11 +596,9 @@ public class  AdminController {
         }
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // HÀM TIỆN ÍCH — UI Builder
-    // ═════════════════════════════════════════════════════════════════════════
 
-    /** Xây dựng hàng header động trong bảng */
+
     private void buildHeader(String[] titles, double[] widths) {
         if (tableHeaderRow == null) return;
         tableHeaderRow.getChildren().clear();
@@ -621,7 +610,6 @@ public class  AdminController {
         }
     }
 
-    /** Tạo một hàng dữ liệu cơ bản (chưa có children) */
     private HBox createBaseRow() {
         HBox row = new HBox();
         row.setAlignment(Pos.CENTER_LEFT);
@@ -630,7 +618,6 @@ public class  AdminController {
         return row;
     }
 
-    /** Tạo Label ô dữ liệu với độ rộng cố định */
     private Label cell(String text, double width, String style) {
         Label lbl = new Label(text != null ? text : "N/A");
         lbl.setPrefWidth(width);
@@ -640,7 +627,6 @@ public class  AdminController {
         return lbl;
     }
 
-    /** Tạo Button nhỏ */
     private Button iconBtn(String text, String style) {
         Button btn = new Button(text);
         btn.setStyle(style);
@@ -686,9 +672,8 @@ public class  AdminController {
         } catch (Exception e) { return raw; }
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
     // ĐIỀU HƯỚNG & THÔNG BÁO
-    // ═════════════════════════════════════════════════════════════════════════
+
 
     @FXML
     private void handleLogout(ActionEvent event) {
@@ -726,9 +711,8 @@ public class  AdminController {
     }
     monitoringListeners.clear();
 }
-    // =========================================================================
     // POPUP XÁC NHẬN (Cửa sổ tàng hình 100%)
-    // =========================================================================
+
     public static boolean showConfirm(String title, String message) {
         javafx.stage.Stage stage = new javafx.stage.Stage();
         stage.initStyle(javafx.stage.StageStyle.TRANSPARENT);
