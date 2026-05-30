@@ -2,9 +2,7 @@ package com.auction.dto;
 
 public class ItemDTO {
 
-    // =========================================================
-    // FIELD CƠ BẢN
-    // =========================================================
+    //THÔNG TIN CƠ BẢN
 
     private int id;
 
@@ -17,9 +15,7 @@ public class ItemDTO {
 
     private String formattedPrice;
 
-    // =========================================================
     // THÔNG TIN NGƯỜI BÁN
-    // =========================================================
 
     private String sellerName;
     private String sellerPhone;
@@ -28,10 +24,8 @@ public class ItemDTO {
     private String auctionStartTime;
     private String auctionStatus;
     private String auctionEndTime;
-    // =========================================================
-    // THỜI GIAN & TRẠNG THÁI ĐẤU GIÁ
-    // =========================================================
 
+    // THỜI GIAN & TRẠNG THÁI ĐẤU GIÁ
     private String registrationEndTime;
 
     public static ItemDTO fromApprovedArray(String[] p) {
@@ -43,9 +37,7 @@ public class ItemDTO {
 
         ItemDTO dto = new ItemDTO();
 
-        // =====================================================
         // THÔNG TIN CƠ BẢN
-        // =====================================================
 
         dto.id = Integer.parseInt(p[0]);
 
@@ -67,9 +59,7 @@ public class ItemDTO {
 
         dto.vehicleType = p[5];
 
-        // =====================================================
         // THÔNG TIN NGƯỜI BÁN
-        // =====================================================
 
         dto.sellerName =
                 (p.length > 7 && p[7] != null)
@@ -91,9 +81,7 @@ public class ItemDTO {
                         ? p[10]
                         : "N/A";
 
-        // =====================================================
         // THỜI GIAN
-        // =====================================================
 
         dto.registrationEndTime =
                 (p.length > 11 && p[11] != null)
@@ -120,9 +108,7 @@ public class ItemDTO {
         return dto;
     }
 
-    // =========================================================
     // GETTERS
-    // =========================================================
 
     public int getId() {
         return id;

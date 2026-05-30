@@ -41,9 +41,7 @@ public class App extends Application {
 
     }
 
-    // =========================================================
     // TẮT SẠCH MỌI THỨ KHI ĐÓNG APP
-    // =========================================================
     @Override
     public void stop() {
         System.out.println("🛑 Ứng dụng đang đóng, dọn dẹp tài nguyên...");

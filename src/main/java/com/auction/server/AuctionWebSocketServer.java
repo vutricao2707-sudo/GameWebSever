@@ -11,40 +11,30 @@ import org.json.JSONObject;
 /**
  * WebSocket Server cho Auction System
  * Broadcast cập nhật giá, trạng thái đấu giá realtime tới tất cả clients
- * (Bản tối ưu chống rò rỉ bộ nhớ - Anti Memory Leak)
  */
 public class AuctionWebSocketServer extends WebSocketServer {
     private static AuctionWebSocketServer instance;
 
-    // TỐI ƯU 1: Dùng Set thay cho List để tránh trùng lặp và tăng tốc độ xóa
-    // Key: itemId, Value: Set<WebSocket>
     private final Map<Integer, Set<WebSocket>> itemSubscribers = new ConcurrentHashMap<>();
 
-    // TỐI ƯU 2: Thêm Reverse Index để dọn dẹp siêu tốc mà không cần quét toàn bộ
-    // Key: WebSocket, Value: Set<itemId>
     private final Map<WebSocket, Set<Integer>> clientSubscriptions = new ConcurrentHashMap<>();
 
-    // TỐI ƯU 3: Bộ quét rác định kỳ (Scheduled Sweeper)
     private final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
 
-    // ==========================================
     // LẤY PORT TỪ RAILWAY
-    // ==========================================
     private static int getDynamicPort() {
         String portEnv = System.getenv("PORT");
         return (portEnv != null) ? Integer.parseInt(portEnv) : 8081;
     }
 
-    // ==========================================
     // KHỞI TẠO SERVER
-    // ==========================================
     private AuctionWebSocketServer() {
         super(new InetSocketAddress("0.0.0.0", getDynamicPort()));
 
         // Tự động gửi Ping mỗi 30 giây để Railway không ngắt kết nối
         this.setConnectionLostTimeout(30);
 
-        System.out.println("🚀 WebSocket Server khởi tạo trên port " + getDynamicPort());
+        System.out.println(" WebSocket Server khởi tạo trên port " + getDynamicPort());
 
         // Khởi động bộ quét rác ngầm
         startCleanupTask();
@@ -60,9 +50,7 @@ public class AuctionWebSocketServer extends WebSocketServer {
         return instance;
     }
 
-    // ==========================================
     // CÁC HÀM QUẢN LÝ VÀ DỌN DẸP KẾT NỐI
-    // ==========================================
 
     /**
      * Kiểm tra xem connection còn sống không
@@ -113,9 +101,7 @@ public class AuctionWebSocketServer extends WebSocketServer {
         }, 30, 30, TimeUnit.SECONDS);
     }
 
-    // ==========================================
     // XỬ LÝ SỰ KIỆN WEBSOCKET
-    // ==========================================
 
     @Override
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
@@ -143,7 +129,7 @@ public class AuctionWebSocketServer extends WebSocketServer {
                 itemSubscribers.computeIfAbsent(itemId, k -> ConcurrentHashMap.newKeySet()).add(conn);
                 clientSubscriptions.computeIfAbsent(conn, k -> ConcurrentHashMap.newKeySet()).add(itemId);
 
-                System.out.println("📌 Client subscribe itemId: " + itemId);
+                System.out.println(" Client subscribe itemId: " + itemId);
 
                 // Gửi confirmation
                 JSONObject response = new JSONObject();
@@ -164,7 +150,7 @@ public class AuctionWebSocketServer extends WebSocketServer {
                 Set<Integer> items = clientSubscriptions.get(conn);
                 if (items != null) items.remove(itemId);
 
-                System.out.println("📍 Client unsubscribe itemId: " + itemId);
+                System.out.println(" Client unsubscribe itemId: " + itemId);
 
             } else if ("NEW_BID".equals(action)) {
                 int itemId = json.getInt("itemId");
@@ -202,9 +188,7 @@ public class AuctionWebSocketServer extends WebSocketServer {
         System.out.println("🌐 WebSocket Server đã khởi động!");
     }
 
-    // ==========================================
     // CÁC HÀM BROADCAST
-    // ==========================================
 
     public void broadcastPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName) {
         broadcastBidUpdate(itemId, currentPrice, bidderId, bidderName, System.currentTimeMillis());
@@ -224,20 +208,7 @@ public class AuctionWebSocketServer extends WebSocketServer {
             message.put("timestamp", bidTime);
 
             safeBroadcast(subscribers, message.toString());
-            System.out.println("📤 Broadcast PRICE_UPDATE itemId=" + itemId + " price=" + bidAmount + " -> " + subscribers.size() + " clients");
-        }
-    }
-
-    public void broadcastParticipantUpdate(int itemId, int participantCount) {
-        Set<WebSocket> subscribers = itemSubscribers.get(itemId);
-        if (subscribers != null && !subscribers.isEmpty()) {
-            JSONObject message = new JSONObject();
-            message.put("type", "PARTICIPANT_UPDATE");
-            message.put("itemId", itemId);
-            message.put("participantCount", participantCount);
-            message.put("timestamp", System.currentTimeMillis());
-
-            safeBroadcast(subscribers, message.toString());
+            System.out.println(" Broadcast PRICE_UPDATE itemId=" + itemId + " price=" + bidAmount + " -> " + subscribers.size() + " clients");
         }
     }
 
@@ -269,10 +240,6 @@ public class AuctionWebSocketServer extends WebSocketServer {
         }
     }
 
-    /**
-     * TỐI ƯU 4: Hàm gửi tin nhắn an toàn
-     * Tự động phát hiện và tiêu diệt các Client bị "chết mạng" trong lúc đang gửi tin
-     */
     private void safeBroadcast(Set<WebSocket> subscribers, String payload) {
         for (WebSocket conn : subscribers) {
             if (!isUsable(conn)) {
@@ -282,15 +249,13 @@ public class AuctionWebSocketServer extends WebSocketServer {
             try {
                 conn.send(payload);
             } catch (Exception e) {
-                // Gửi lỗi (ví dụ đứt cáp giữa chừng) -> Dọn dẹp ngay
+                // Gửi lỗi
                 cleanupClient(conn);
             }
         }
     }
 
-    // ==========================================
     // QUẢN LÝ VÒNG ĐỜI SERVER (LIFECYCLE)
-    // ==========================================
     @Override
     public void stop(int timeout) throws InterruptedException {
         System.out.println("🛑 Đang dọn dẹp và tắt WebSocket Server...");
