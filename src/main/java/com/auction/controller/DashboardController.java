@@ -285,7 +285,6 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
         return box;
     }
 
-    // ================== LOGIC THỜI GIAN ĐÃ ĐƯỢC FIX ==================
     private LocalDateTime parseTime(String raw) {
         if (raw == null || raw.isEmpty()) return null;
         try {
@@ -390,10 +389,9 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             }
         };
 
-        // Đăng ký lắng nghe
         AuctionSyncManager.getInstance().addListener(item.getId(), listener);
         auctionListeners.put(item.getId(), listener);
-        // Gỡ lắng nghe khi card bị xóa khỏi Scene
+
         card.sceneProperty().addListener((obs, oldScene, newScene) -> {
 
             if (newScene == null) {
@@ -417,7 +415,6 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
         if (days > 0) return String.format("%d ngày %02dh %02dm", days, hours, minutes);
         return String.format("%02dh %02dm %02ds", hours, minutes, seconds);
     }
-    // =================================================================
 
     private void enterAuctionRoom(ActionEvent event, String plate, String stringPrice, String endTimeRaw) {
         try {
@@ -531,9 +528,8 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             }
         }
     }
-    // =========================================================================
     // POPUP THÔNG BÁO TÙY CHỈNH CHO TRẠNG THÁI BIỂN SỐ
-    // =========================================================================
+
     private void cleanupResources() {
 
         if (autoRefreshTimeline != null) {
@@ -548,7 +544,6 @@ public class DashboardController implements AuctionFinishService.AuctionResultLi
             Object data = card.getUserData();
 
             if (data instanceof String plate) {
-                // optional cleanup
             }
         }
 
