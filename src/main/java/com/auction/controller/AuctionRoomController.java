@@ -141,7 +141,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             }
             // 2. Nếu đã kết thúc, vẫn cho vào phòng nhưng hiện popup kết quả
             boolean isFinished = "FINISHED".equalsIgnoreCase(auctionStatus);
-            // -----------------------------------
 
             // Dọn dẹp session cũ
             final int oldItemId = currentItemId;
@@ -236,9 +235,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         }
     }
 
-    // =========================================================================
     // TỐI ƯU 1: KHÔI PHỤC LỊCH SỬ (CHẠY THREAD NỀN, KHÔNG QUERIES LẶP LẠI)
-    // =========================================================================
     private void initChartSeries() {
         priceSeries = new XYChart.Series<>();
         priceSeries.setName("Giá đặt");
@@ -308,9 +305,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         priceSeries.getData().add(point);
     }
 
-    // =========================================================================
-    // LẮNG NGHE ĐỒNG HỒ TỪ SYNC MANAGER (GIỮ NGUYÊN CODE CỦA BẠN)
-    // =========================================================================
     private void registerAuctionListener() {
         if (auctionListener != null && currentItemId != -1) {
             try {
@@ -364,9 +358,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         } catch (Exception e) {}
     }
 
-    // =========================================================================
     // TỐI ƯU 3: KẾT THÚC PHIÊN + DIALOG ĐẾM NGƯỢC 60S
-    // =========================================================================
     private void determineResultAndShowDialog(double finalPrice) {
         if (lblMinutes == null || lblMinutes.getScene() == null) {
             return;
@@ -398,9 +390,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         t.setDaemon(true);
         t.start();
     }
-    // ==========================================================================
     // END OF AUCTION (Popup Báo Kết Quả - Dark Theme)
-    // ==========================================================================
     private void showAuctionEndedUI(double finalPrice, String winnerName, boolean iWon, int winnerId) {
         if (btnPlaceBid != null) {
             btnPlaceBid.setDisable(true);
@@ -417,9 +407,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         UIUtils.showAuctionResult(iWon, formatter.format(finalPrice), winnerName, this::navigateToDashboard);
     }
 
-    // =========================================================================
     // LOGIC ĐẶT GIÁ (GIỮ NGUYÊN)
-    // =========================================================================
     @FXML private void handleIncreaseStep() { stepMultiplier++; updatePricingUI(); }
     @FXML private void handleDecreaseStep() { if (stepMultiplier > 1) { stepMultiplier--; updatePricingUI(); } }
 
@@ -480,10 +468,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                 return;
             }
 
-            // =========================================================
             // 👇 THÊM VÀO: LOGIC GIA HẠN 60 GIÂY PHÚT CHÓT (ANTI-SNIPPING)
-            // Dùng getAuctionTimeRemaining để lấy thời gian thực chuẩn tuyệt đối từ DB
-            // =========================================================
             long currentRemainingTime = ItemDAO.getAuctionTimeRemaining(currentPlateNumber);
             if (currentRemainingTime > 0 && currentRemainingTime <= 30) {
 
@@ -499,9 +484,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                     wsClient.send(extendMsg.toString());
                 }
             }
-            // =========================================================
-            // 👆 KẾT THÚC PHẦN THÊM MỚI
-            // =========================================================
 
             currentPrice = ItemDAO.getCurrentPrice(currentPlateNumber);
             stepMultiplier = 1;
@@ -539,9 +521,8 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         } catch (Exception ignored) {}
     }
 
-    // =========================================================================
     // WEBSOCKET & CẬP NHẬT UI
-    // =========================================================================
+
     @Override
     public void onPriceUpdate(int itemId, double currentPrice, int bidderId, String bidderName, long bidTime) {
         if (itemId != currentItemId) return;
@@ -586,7 +567,6 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
 
                 boolean iWon = false;
 
-                // Nếu có session user
                 if (myId > 0) {
                     try {
                         // Kiểm tra bid cao nhất của user trong phiên này (theo plate)
@@ -703,9 +683,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
         } catch (Exception ignored) {}
     }
 
-    // =========================================================================
     // TỐI ƯU 4: DỌN DẸP TẬP TRUNG (TEARDOWN)
-    // =========================================================================
     private void teardown(int itemId) {
         // 1. Tắt các luồng throttle ngầm để giải phóng RAM
         if (priceThrottle != null) { priceThrottle.shutdown(); priceThrottle = null; }
@@ -728,8 +706,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             if (wsClient != null && itemId != -1) {
                 wsClient.unsubscribe(itemId);
                 wsClient.removeListener(this);
-                // Báo cho Client biết: Tôi chủ động thoát, cấm tự kết nối lại!
-                //wsClient.shutdownIntentionally();
+
             }
         } catch (Exception ignored) {}
     }
@@ -753,10 +730,7 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
             }
         } catch (Exception e) {}
     }
-    // =========================================================================
 // TỐI ƯU CHART: INCREMENTAL UPDATE — Thêm điểm mới thay vì load lại toàn bộ
-// =========================================================================
-
     private int chartDataPointCount = 0;  // Theo dõi số điểm trên chart
 
     /**
@@ -775,26 +749,20 @@ public class AuctionRoomController implements AuctionWebSocketClient.AuctionWebS
                     ? priceSeries
                     : priceHistoryChart.getData().get(0);
             if (series == null) return;
-
-            // Tăng index điểm (x-axis)
             chartPointCount++;
 
-            // Tạo điểm mới
             XYChart.Data<Number, Number> newDataPoint =
                     new XYChart.Data<>(chartPointCount, newPrice);
 
-            // Styling điểm
             newDataPoint.setNode(new javafx.scene.shape.Circle(3) {{
                 setStyle("-fx-fill: #38bdf8; -fx-cursor: hand;");
             }});
 
-            // Tooltip
             javafx.scene.control.Tooltip tooltip = new javafx.scene.control.Tooltip(
                     bidderName + " - " + formatter.format(newPrice) + " đ"
             );
             javafx.scene.control.Tooltip.install(newDataPoint.getNode(), tooltip);
 
-            // Thêm vào series
             series.getData().add(newDataPoint);
 
             logger.info("✅ [Chart] Added new data point: " + chartPointCount
