@@ -9,7 +9,6 @@ public abstract class User {
     private String phone;
     private String address;
 
-    private UserRole role;
 
     public User(String userId, String userName, String fullName
             , String password, String email, String phone, String address) {
@@ -22,9 +21,6 @@ public abstract class User {
         this.address = address;
     }
 
-    // =========================================================
-    // Để khớp với code ở AuctionRoomController và Database
-    // =========================================================
     public int getId() {
         try {
             if (this.userId != null && !this.userId.isEmpty()) {
@@ -33,19 +29,9 @@ public abstract class User {
         } catch (NumberFormatException e) {
             System.out.println("⚠️ Cảnh báo: userId không phải là số hợp lệ (" + this.userId + ")");
         }
-        return 0; // Trả về mặc định nếu có lỗi
+        return 0;
     }
 
-    // ✅ BỔ SUNG: Getter và Setter cho UserRole
-    public UserRole getRole() {
-        return role;
-    }
-
-    public void setRole(UserRole role) {
-        this.role = role;
-    }
-
-    // CÁC GETTER/SETTER CŨ GIỮ NGUYÊN 100%
     public String getUserId() {
         return userId;
     }
