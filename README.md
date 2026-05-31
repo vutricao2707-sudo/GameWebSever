@@ -20,8 +20,7 @@ Hệ thống đấu giá biển số xe trực tuyến giúp người dùng đă
 - **JDK:** 21 hoặc phiên bản cao hơn
 - **MySQL:** Phiên bản 8.0 trở lên
 - **Hệ điều hành:** Windows, Linux, macOS
-- **RAM tối thiểu:** 2GB
-- **Dung lượng ổ cứng:** 500MB
+
 
 ### Yêu cầu cài đặt
 
@@ -33,15 +32,6 @@ Hệ thống đấu giá biển số xe trực tuyến giúp người dùng đă
 - Tải và cài đặt MySQL Server từ [mysql.com](https://dev.mysql.com/downloads/mysql/)
 - Khởi động dịch vụ MySQL
 
-#### 3. Cấu hình cơ sở dữ liệu
-- Tạo file `database.properties` từ `database.properties.example`
-- Điền thông tin kết nối:
-- db.host=localhost db.port=3306 db.name=auction_system db.user=your_username db.password=your_password
-
-- Chạy script migration:
-  ```sql
-  SOURCE DATABASE_MIGRATION.sql;
-  SOURCE MIGRATION_TIMING_SYSTEM.sql;
 ## 3. Cấu trúc dự án
 
  ## Cấu trúc dự án (Project Structure)
@@ -233,6 +223,6 @@ mvn javafx:run
 
 Dưới đây là các tài liệu liên quan và video giới thiệu sản phẩm của nhóm:
 
-* **Báo cáo (PDF):** [Xem báo cáo chi tiết tại đây](link_den_file_pdf_cua_ban)
+* **Báo cáo (PDF):** [Xem báo cáo chi tiết tại đây](https://drive.google.com/file/d/1bJcklBOVUWzxx-_XW9xVsXzuonp5DJmt/view?usp=sharing)
 * **Video Demo:** [Xem video giới thiệu hệ thống tại đây](https://drive.google.com/file/d/18FCKgnrjVCxHAlLlf1vYR76e3w9kBeiw/view?usp=drive_link)
 * **Slide Giới thiệu hệ thống:** [Xem Slide giới thiệu hệ thống tại đây](https://canva.link/7csfpejauky0h14)
