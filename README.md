@@ -9,7 +9,7 @@ Hệ thống đấu giá biển số xe trực tuyến giúp người dùng đă
 - **Ngôn ngữ lập trình:** Java 21
 - **Framework giao diện:** JavaFX 21.0.2
 - **Quản lý dự án:** Maven 4.0.0
-- **Cơ sở dữ liệu:** MySQL 8.x
+- **Cơ sở dữ liệu:** MySQL 8.x, Railway 
 - **Kết nối cơ sở dữ liệu:** MySQL Connector/J 8.3.0, HikariCP 5.0.1 (Connection Pooling)
 - **Giao tiếp real-time:** Java-WebSocket 1.5.4
 - **Xử lý JSON:** org.json 20240303
