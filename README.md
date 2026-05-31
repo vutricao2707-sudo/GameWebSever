@@ -234,5 +234,5 @@ mvn javafx:run
 Dưới đây là các tài liệu liên quan và video giới thiệu sản phẩm của nhóm:
 
 * **Báo cáo (PDF):** [Xem báo cáo chi tiết tại đây](link_den_file_pdf_cua_ban)
-* **Video Demo:** [Xem video giới thiệu hệ thống tại đây](link_den_video_demo_cua_ban)
-* 
+* **Video Demo:** [Xem video giới thiệu hệ thống tại đây]((https://drive.google.com/file/d/18FCKgnrjVCxHAlLlf1vYR76e3w9kBeiw/view?usp=drive_link))
+* **Slide Giới thiệu hệ thống:** [Xem Slide giới thiệu hệ thống tại đây]((https://canva.link/7csfpejauky0h14))
