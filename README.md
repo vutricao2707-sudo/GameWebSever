@@ -225,4 +225,4 @@ Dưới đây là các tài liệu liên quan và video giới thiệu sản ph�
 
 * **Báo cáo (PDF):** [Xem báo cáo chi tiết tại đây](https://drive.google.com/file/d/1VoAQkK90Du3On9V3cq7qhTq_fPIEEGx7/view?usp=sharing)
 * **Video Demo:** [Xem video giới thiệu hệ thống tại đây](https://drive.google.com/file/d/18FCKgnrjVCxHAlLlf1vYR76e3w9kBeiw/view?usp=drive_link)
-* **Slide Giới thiệu hệ thống:** [Xem Slide giới thiệu hệ thống tại đây](https://canva.link/lm8z5oh04rnqavm)
+* **Slide Giới thiệu hệ thống:** [Xem Slide giới thiệu hệ thống tại đây](https://canva.link/ldhu6o3rb8bm8vp)
