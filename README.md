@@ -228,3 +228,11 @@ mvn javafx:run
 - [x] UI Throttle: chống spam cập nhật giao diện quá nhanh
 - [x] Cấu hình tách biệt qua `database.properties` (không hard-code thông tin nhạy cảm)
 - [x] Deploy server lên **Railway** với port động qua biến môi trường `PORT`
+
+# 6.Tài liệu và Demo
+
+Dưới đây là các tài liệu liên quan và video giới thiệu sản phẩm của nhóm:
+
+* **Báo cáo (PDF):** [Tải xuống hoặc xem báo cáo chi tiết tại đây](link_den_file_pdf_cua_ban)
+* **Video Demo:** [Xem video giới thiệu hệ thống tại đây](link_den_video_demo_cua_ban)
+* 
